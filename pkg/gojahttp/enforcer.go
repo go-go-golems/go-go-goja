@@ -146,9 +146,6 @@ func (e *Enforcer) Enforce(ctx context.Context, httpReq *http.Request, req *Requ
 	}
 
 	sec.Resource = firstPlannedResource(plan, sec.Resources)
-	if err := e.checkRateLimits(ctx, httpReq, req, plan, sec, RateLimitStagePostAuth); err != nil {
-		return sec, statusForAuthError(err), err
-	}
 	if plan.Action != "" && len(sec.Auth.Grants.Grants) > 0 && !sec.Auth.Grants.Allows(plan.Action, sec.Resource) {
 		return sec, http.StatusForbidden, fmt.Errorf("%w: insufficient grant for %s", ErrForbidden, plan.Action)
 	}
@@ -171,6 +168,11 @@ func (e *Enforcer) Enforce(ctx context.Context, httpReq *http.Request, req *Requ
 		}
 	}
 	sec.Resource = firstPlannedResource(plan, sec.Resources)
+	// Post-auth limits are charged only after grant and authorizer checks pass.
+	// A caller denied by policy must not exhaust a shared resource bucket.
+	if err := e.checkRateLimits(ctx, httpReq, req, plan, sec, RateLimitStagePostAuth); err != nil {
+		return sec, statusForAuthError(err), err
+	}
 	return sec, 0, nil
 }
 

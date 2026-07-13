@@ -140,6 +140,7 @@ type IssuedOAuthTokenPair struct {
 
 type AccessTokenStore interface {
 	CreateAccessToken(ctx context.Context, token AccessToken) (AccessToken, error)
+	DeleteAccessToken(ctx context.Context, id string) error
 	FindAccessTokenByPrefix(ctx context.Context, prefix string) ([]AccessToken, error)
 	TouchAccessToken(ctx context.Context, id string, usedAt time.Time) error
 }
@@ -246,16 +247,23 @@ func (s OAuthTokenService) RefreshTokenPair(ctx context.Context, rawRefreshToken
 	if err != nil {
 		return IssuedOAuthTokenPair{}, err
 	}
+	// Persist the new access token before consuming the current refresh token.
+	// If that insert fails, callers can retry with the original refresh token.
+	createdAccess, err := s.AccessTokens.CreateAccessToken(ctx, access)
+	if err != nil {
+		return IssuedOAuthTokenPair{}, err
+	}
 	_, rotatedRefresh, err := s.RefreshTokens.RotateRefreshToken(ctx, current.ID, nextRefresh, now)
 	if err != nil {
+		// The access token was never returned, so remove it before reporting the
+		// failed rotation. This compensating rollback prevents orphaned tokens.
+		if deleteErr := s.AccessTokens.DeleteAccessToken(ctx, createdAccess.ID); deleteErr != nil {
+			return IssuedOAuthTokenPair{}, fmt.Errorf("rotate refresh token: %w (also failed to roll back access token %q: %v)", err, createdAccess.ID, deleteErr)
+		}
 		if errors.Is(err, ErrRefreshTokenUsed) {
 			_ = s.RefreshTokens.RevokeRefreshTokenFamily(ctx, current.FamilyID, now)
 			return IssuedOAuthTokenPair{}, fmt.Errorf("%w: %v", gojahttp.ErrUnauthenticated, ErrRefreshTokenUsed)
 		}
-		return IssuedOAuthTokenPair{}, err
-	}
-	createdAccess, err := s.AccessTokens.CreateAccessToken(ctx, access)
-	if err != nil {
 		return IssuedOAuthTokenPair{}, err
 	}
 	return IssuedOAuthTokenPair{AccessToken: AccessTokenToView(createdAccess), AccessValue: accessValue, RefreshToken: RefreshTokenToView(rotatedRefresh), RefreshValue: refreshValue}, nil

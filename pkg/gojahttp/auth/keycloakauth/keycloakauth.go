@@ -280,9 +280,7 @@ func (h *Handlers) logoutRedirectURL(r *http.Request) string {
 }
 
 func absoluteRedirectURL(r *http.Request, redirectURL, target string) string {
-	if parsed, err := url.Parse(target); err == nil && parsed.IsAbs() {
-		return parsed.String()
-	}
+	target = localRedirectPath(target)
 	base, err := url.Parse(redirectURL)
 	if err != nil || !base.IsAbs() {
 		scheme := "http"
@@ -295,13 +293,26 @@ func absoluteRedirectURL(r *http.Request, redirectURL, target string) string {
 		}
 		base = &url.URL{Scheme: scheme, Host: host}
 	}
-	if !strings.HasPrefix(target, "/") {
-		target = "/" + target
-	}
 	base.Path = target
 	base.RawQuery = ""
 	base.Fragment = ""
 	return base.String()
+}
+
+// localRedirectPath normalizes configured post-login/logout destinations to a
+// same-origin path. The generated host configuration documents these values as
+// relative URLs, so accepting an absolute URL or an authority-style // or /\
+// prefix would turn a configuration mistake into an open redirect.
+func localRedirectPath(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" || !strings.HasPrefix(value, "/") || strings.HasPrefix(value, "//") || strings.HasPrefix(value, "/\\") {
+		return "/"
+	}
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.IsAbs() || parsed.Host != "" {
+		return "/"
+	}
+	return value
 }
 
 func claimsFromIDToken(idToken *oidc.IDToken) (OIDCClaims, error) {

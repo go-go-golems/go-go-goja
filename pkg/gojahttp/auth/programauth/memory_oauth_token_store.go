@@ -40,6 +40,20 @@ func (s *MemoryAccessTokenStore) CreateAccessToken(_ context.Context, token Acce
 	return cloneAccessToken(token), nil
 }
 
+func (s *MemoryAccessTokenStore) DeleteAccessToken(_ context.Context, id string) error {
+	if s == nil {
+		return fmt.Errorf("programauth memory access token store is nil")
+	}
+	id = strings.TrimSpace(id)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.tokens[id]; !ok {
+		return ErrAccessTokenNotFound
+	}
+	delete(s.tokens, id)
+	return nil
+}
+
 func (s *MemoryAccessTokenStore) FindAccessTokenByPrefix(_ context.Context, prefix string) ([]AccessToken, error) {
 	if s == nil {
 		return nil, fmt.Errorf("programauth memory access token store is nil")

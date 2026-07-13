@@ -58,6 +58,28 @@ func TestOAuthTokenPairIssueAuthenticateRefreshAndReuse(t *testing.T) {
 	}
 }
 
+func TestOAuthTokenRefreshCreateAccessFailurePreservesCurrentRefresh(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 6, 20, 20, 30, 0, 0, time.UTC)
+	agents := programauth.AgentService{Store: programauth.NewMemoryAgentStore(), Now: func() time.Time { return now }, NewID: func() (string, error) { return "agt_refresh_failure", nil }}
+	if _, err := agents.CreateAgent(ctx, programauth.AgentCreateSpec{Name: "refresh-failure", Policy: mustGrantSet(t, gojahttp.Grant{Action: "report.read"})}); err != nil {
+		t.Fatalf("CreateAgent: %v", err)
+	}
+	service := newOAuthTokenTestService(agents, func() time.Time { return now })
+	issued, err := service.IssueTokenPair(ctx, programauth.OAuthTokenIssueSpec{AgentID: "agt_refresh_failure", AccessTTL: time.Minute, RefreshTTL: time.Hour, Grants: mustGrantSet(t, gojahttp.Grant{Action: "report.read"})})
+	if err != nil {
+		t.Fatalf("IssueTokenPair: %v", err)
+	}
+	failing := service
+	failing.AccessTokens = failingAccessTokenStore{AccessTokenStore: service.AccessTokens}
+	if _, err := failing.RefreshTokenPair(ctx, issued.RefreshValue, time.Minute, time.Hour); err == nil {
+		t.Fatal("RefreshTokenPair succeeded despite access token insert failure")
+	}
+	if _, err := service.RefreshTokenPair(ctx, issued.RefreshValue, time.Minute, time.Hour); err != nil {
+		t.Fatalf("original refresh token was consumed after access insert failure: %v", err)
+	}
+}
+
 func TestOAuthTokenRefreshDoubleUseRevokesFamily(t *testing.T) {
 	ctx := context.Background()
 	now := time.Date(2026, 6, 20, 21, 0, 0, 0, time.UTC)
@@ -127,6 +149,14 @@ func TestAccessTokenExpiresAndDisabledAgentFails(t *testing.T) {
 	if _, err := service.AuthenticateBearer(ctx, issued.AccessValue, gojahttp.SecuritySpec{Mode: gojahttp.SecurityModeUser}); !errors.Is(err, gojahttp.ErrUnauthenticated) {
 		t.Fatalf("disabled agent should reject access token, err=%v", err)
 	}
+}
+
+type failingAccessTokenStore struct {
+	programauth.AccessTokenStore
+}
+
+func (f failingAccessTokenStore) CreateAccessToken(context.Context, programauth.AccessToken) (programauth.AccessToken, error) {
+	return programauth.AccessToken{}, errors.New("simulated access token insert failure")
 }
 
 func newOAuthTokenTestService(agents programauth.AgentService, now func() time.Time) programauth.OAuthTokenService {

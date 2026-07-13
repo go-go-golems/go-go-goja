@@ -86,6 +86,19 @@ func TestLoginCallbackCreatesSession(t *testing.T) {
 	}
 }
 
+func TestAbsoluteRedirectURLRejectsAuthorityStylePaths(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "https://app.example/auth/logout", nil)
+	base := "https://app.example/auth/callback"
+	for _, target := range []string{"//evil.example", "/\\evil.example", "https://evil.example", "relative"} {
+		if got := absoluteRedirectURL(req, base, target); got != "https://app.example/" {
+			t.Fatalf("target %q redirected to %q, want same-origin root", target, got)
+		}
+	}
+	if got := absoluteRedirectURL(req, base, "/logged-out"); got != "https://app.example/logged-out" {
+		t.Fatalf("safe target = %q", got)
+	}
+}
+
 func TestCallbackRejectsBadStateAndNonce(t *testing.T) {
 	ctx := context.Background()
 	provider := newFakeProvider(t)

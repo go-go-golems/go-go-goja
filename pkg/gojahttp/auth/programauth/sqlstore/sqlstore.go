@@ -201,6 +201,14 @@ func (s *Store) CreateAccessToken(ctx context.Context, token programauth.AccessT
 	return token, nil
 }
 
+func (s *Store) DeleteAccessToken(ctx context.Context, id string) error {
+	res, err := s.db.ExecContext(ctx, s.deleteAccessTokenQuery(), strings.TrimSpace(id))
+	if err != nil {
+		return fmt.Errorf("delete programauth access token: %w", err)
+	}
+	return requireAffected(res, programauth.ErrAccessTokenNotFound)
+}
+
 func (s *Store) FindAccessTokenByPrefix(ctx context.Context, prefix string) ([]programauth.AccessToken, error) {
 	rows, err := s.db.QueryContext(ctx, s.accessTokensByPrefixQuery(), strings.TrimSpace(prefix))
 	if err != nil {
@@ -621,6 +629,10 @@ func (s *Store) touchAPITokenQuery() string {
 
 func (s *Store) insertAccessTokenQuery() string {
 	return s.rebind(`INSERT INTO auth_program_access_tokens (id, agent_id, subject_user_id, family_id, token_hash, token_prefix, created_at, updated_at, expires_at, last_used_at, revoked_at, grants_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+}
+
+func (s *Store) deleteAccessTokenQuery() string {
+	return s.rebind(`DELETE FROM auth_program_access_tokens WHERE id = ?`)
 }
 
 func (s *Store) accessTokensByPrefixQuery() string {

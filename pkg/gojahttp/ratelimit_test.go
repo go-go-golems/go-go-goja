@@ -88,6 +88,54 @@ func TestEnforcerPreAuthRateLimitDeniesPublicRoute(t *testing.T) {
 	}
 }
 
+func TestEnforcerPostAuthRateLimitDoesNotChargeDeniedRequest(t *testing.T) {
+	limiter := gojahttp.NewMemoryRateLimiter()
+	allowed := false
+	enforcer := gojahttp.NewEnforcer(gojahttp.EnforcerOptions{Auth: gojahttp.AuthOptions{
+		RateLimiter: limiter,
+		Authenticator: authenticatorFunc(func(context.Context, *http.Request, *gojahttp.SessionDTO, gojahttp.SecuritySpec) (*gojahttp.Actor, error) {
+			return &gojahttp.Actor{ID: "u1", Kind: "user"}, nil
+		}),
+		Resources: resolverFunc(func(_ context.Context, req gojahttp.ResourceRequest) (*gojahttp.ResourceRef, error) {
+			return &gojahttp.ResourceRef{ID: req.ID, Type: req.Spec.Type}, nil
+		}),
+		Authorizer: authorizerFunc(func(context.Context, gojahttp.AuthorizationRequest) (gojahttp.AuthorizationDecision, error) {
+			return gojahttp.AuthorizationDecision{Allowed: allowed}, nil
+		}),
+	}})
+	plan := &gojahttp.RoutePlan{
+		Method:   http.MethodPost,
+		Pattern:  "/projects/:projectID/run",
+		Security: gojahttp.User().Required(),
+		Resources: []gojahttp.ResourceSpec{
+			gojahttp.Resource("project").IDFromParam("projectID").MustExist(),
+		},
+		Action: "project.run",
+		RateLimits: []gojahttp.RateLimitSpec{{
+			Policy:   "project.write",
+			Limit:    1,
+			Window:   time.Minute,
+			KeyParts: []gojahttp.RateLimitKeyPart{{Kind: gojahttp.RateLimitKeyResource, Key: "project"}},
+		}},
+	}
+	enforce := func() (int, error) {
+		req := httptest.NewRequest(http.MethodPost, "/projects/p1/run", nil)
+		dto, err := enforcer.Request(httptest.NewRecorder(), req, map[string]string{"projectID": "p1"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, status, err := enforcer.Enforce(context.Background(), req, dto, plan)
+		return status, err
+	}
+	if status, err := enforce(); status != http.StatusForbidden || !errors.Is(err, gojahttp.ErrForbidden) {
+		t.Fatalf("denied request status=%d err=%v", status, err)
+	}
+	allowed = true
+	if status, err := enforce(); status != 0 || err != nil {
+		t.Fatalf("authorized request was charged by prior denial: status=%d err=%v", status, err)
+	}
+}
+
 func TestEnforcerPostAuthRateLimitUsesActor(t *testing.T) {
 	limiter := gojahttp.NewMemoryRateLimiter()
 	enforcer := gojahttp.NewEnforcer(gojahttp.EnforcerOptions{Auth: gojahttp.AuthOptions{
