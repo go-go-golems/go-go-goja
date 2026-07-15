@@ -1,0 +1,17 @@
+# Changelog
+
+## 2026-07-15
+
+- Initial workspace created
+- Added the production OIDC host-auth design, phased implementation plan, and evidence diary. The design identifies durable single-use OIDC transactions as the first required correctness change and separates application-owned device credentials from future native tiny-idp resource-server support.
+- Validated the ticket successfully. The requested reMarkable bundle upload was blocked by the environment's external-transfer policy; the exact blocker and prepared bundle are recorded in the diary.
+- Uploaded the approved documentation bundle successfully to `/ai/2026/07/15/XGOJA-TINYIDP-PROD-AUTH`.
+- Completed Phase 0 and Phase 1 (commit `2d15d1d`): added strict tiny-idp production fixture tooling, a durable SQLite/PostgreSQL OIDC transaction store, atomic one-use callback consumption, generated-host configuration/Glazed wiring, and focused/race/full-suite coverage. The fixture's agent-runner network limitation is documented in the diary; a direct host-namespace TLS readiness probe passed.
+
+## 2026-07-15
+
+Completed intern-facing design guide and diary; related the OIDC handler, host builder/config, session storage, and programauth implementation seams.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/keycloakauth/keycloakauth.go — OIDC transaction design evidence
