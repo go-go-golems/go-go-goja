@@ -84,13 +84,56 @@ func (h *DeviceHandlers) TokenHandler() http.Handler {
 			handleDevicePollError(w, err)
 			return
 		}
-		writeJSONResponse(w, http.StatusOK, map[string]any{
-			"access_token":  issued.AccessValue,
-			"refresh_token": issued.RefreshValue,
-			"token_type":    "Bearer",
-			"expires_in":    int(issued.AccessToken.ExpiresAt.Sub(issued.AccessToken.CreatedAt).Seconds()),
-			"scope":         strings.Join(issued.AccessToken.Scopes, " "),
-		})
+		writeIssuedTokenPair(w, issued)
+	})
+}
+
+// RefreshHandler exchanges a programauth refresh token for a rotated token
+// pair. It is application-owned: tiny-idp authenticates the browser user who
+// approves the device, while this endpoint manages credentials for this host.
+func (h *DeviceHandlers) RefreshHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		refreshToken, grantType, err := readRefreshTokenRequest(r)
+		if err != nil {
+			writeOAuthError(w, http.StatusBadRequest, "invalid_request", err.Error(), 0)
+			return
+		}
+		if grantType != "" && grantType != "refresh_token" {
+			writeOAuthError(w, http.StatusBadRequest, "unsupported_grant_type", "unsupported grant_type", 0)
+			return
+		}
+		issued, err := h.service.OAuthTokens.RefreshTokenPair(r.Context(), refreshToken, 0, 0)
+		if err != nil {
+			writeOAuthError(w, http.StatusBadRequest, "invalid_grant", "invalid refresh token", 0)
+			return
+		}
+		writeIssuedTokenPair(w, issued)
+	})
+}
+
+// RevokeHandler revokes the refresh-token family identified by the supplied
+// credential. As in OAuth revocation, an invalid or already-revoked token is
+// acknowledged without revealing whether it existed.
+func (h *DeviceHandlers) RevokeHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		refreshToken, _, err := readRefreshTokenRequest(r)
+		if err != nil {
+			writeOAuthError(w, http.StatusBadRequest, "invalid_request", err.Error(), 0)
+			return
+		}
+		if err := h.service.OAuthTokens.RevokeRefreshToken(r.Context(), refreshToken); err != nil && !errors.Is(err, gojahttp.ErrUnauthenticated) {
+			writeOAuthError(w, http.StatusInternalServerError, "server_error", "refresh token revocation failed", 0)
+			return
+		}
+		writeJSONResponse(w, http.StatusOK, map[string]any{"ok": true})
 	})
 }
 
@@ -154,6 +197,13 @@ type deviceTokenJSONRequest struct {
 	DeviceCodeSnake string `json:"device_code"`
 }
 
+type refreshTokenJSONRequest struct {
+	GrantType         string `json:"grant_type"`
+	RefreshToken      string `json:"refreshToken"`
+	RefreshTokenSnake string `json:"refresh_token"`
+	Token             string `json:"token"`
+}
+
 func readDeviceTokenRequest(r *http.Request) (string, string, error) {
 	contentType := r.Header.Get("Content-Type")
 	if strings.Contains(contentType, "application/x-www-form-urlencoded") {
@@ -167,6 +217,31 @@ func readDeviceTokenRequest(r *http.Request) (string, string, error) {
 		return "", "", err
 	}
 	return firstNonEmpty(body.DeviceCode, body.DeviceCodeSnake), strings.TrimSpace(body.GrantType), nil
+}
+
+func readRefreshTokenRequest(r *http.Request) (string, string, error) {
+	contentType := r.Header.Get("Content-Type")
+	if strings.Contains(contentType, "application/x-www-form-urlencoded") {
+		if err := r.ParseForm(); err != nil {
+			return "", "", err
+		}
+		return strings.TrimSpace(firstNonEmpty(r.Form.Get("refresh_token"), r.Form.Get("refreshToken"), r.Form.Get("token"))), strings.TrimSpace(r.Form.Get("grant_type")), nil
+	}
+	var body refreshTokenJSONRequest
+	if err := decodeJSONRequest(r, &body); err != nil {
+		return "", "", err
+	}
+	return firstNonEmpty(body.RefreshToken, body.RefreshTokenSnake, body.Token), strings.TrimSpace(body.GrantType), nil
+}
+
+func writeIssuedTokenPair(w http.ResponseWriter, issued IssuedOAuthTokenPair) {
+	writeJSONResponse(w, http.StatusOK, map[string]any{
+		"access_token":  issued.AccessValue,
+		"refresh_token": issued.RefreshValue,
+		"token_type":    "Bearer",
+		"expires_in":    int(issued.AccessToken.ExpiresAt.Sub(issued.AccessToken.CreatedAt).Seconds()),
+		"scope":         strings.Join(issued.AccessToken.Scopes, " "),
+	})
 }
 
 func handleDevicePollError(w http.ResponseWriter, err error) {
