@@ -26,11 +26,11 @@
 
 ### Phase 3 — Deliver the tiny-idp production example
 
-- [ ] Create an xgoja application with a small UI, JSON API, SQLite/PostgreSQL application storage, and explicit domain actions.
-- [ ] Configure tiny-idp as the OIDC issuer and demonstrate registered redirect and post-logout URIs.
-- [ ] Implement application-owned device start, approval UI, polling, refresh, revocation, and CLI API calls.
-- [ ] Add Playwright/browser and command-line smoke tests against the strict tiny-idp fixture.
-- [ ] Publish an operator runbook and a developer tutorial that explain the two authorization layers.
+- [x] Create an xgoja application with a small UI, JSON API, SQLite/PostgreSQL application storage, and explicit domain actions.
+- [x] Configure tiny-idp as the OIDC issuer and demonstrate registered redirect and post-logout URIs.
+- [x] Implement application-owned device start, approval UI, polling, refresh, revocation, and CLI API calls.
+- [x] Add Playwright/browser and command-line smoke tests against the strict tiny-idp fixture.
+- [x] Publish an operator runbook and a developer tutorial that explain the two authorization layers.
 
 ### Phase 4 — Strengthen application credential lifecycle and observability
 

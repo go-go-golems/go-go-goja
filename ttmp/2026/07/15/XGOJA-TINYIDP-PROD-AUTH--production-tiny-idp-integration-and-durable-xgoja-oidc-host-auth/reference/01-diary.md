@@ -13,10 +13,14 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: repo://examples/xgoja/23-personal-knowledge-inbox/08-device-authorization/Makefile
+      Note: Strict real-app test entry point
     - Path: repo://pkg/gojahttp/auth/keycloakauth/keycloakauth.go
       Note: Primary evidence for the storage and callback-state findings.
     - Path: repo://pkg/gojahttp/auth/keycloakauth/sqlstore/sqlstore_test.go
       Note: Evidence for expiry, one-use, concurrency, and restart test coverage.
+    - Path: repo://pkg/gojahttp/auth/programauth/device_handlers.go
+      Note: Phase 3 device lifecycle endpoint implementation
     - Path: repo://pkg/xgoja/hostauth/builder.go
       Note: Primary evidence for the current host composition and in-memory limiter finding.
     - Path: repo://pkg/xgoja/hostauth/preflight.go
@@ -31,6 +35,7 @@ LastUpdated: 2026-07-15T15:10:11.723855878-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -566,4 +571,163 @@ Observed direct readiness result:
   audit         ready
   rate_limiter  ready
   maintenance   ready
+```
+
+## Step 7: Deliver and prove the strict tiny-idp personal-inbox reference application
+
+Phase 3 reuses the existing Step 08 Personal Knowledge Inbox instead of
+creating a second, competing sample. It already has the correct educational
+shape—static UI, JSON API, domain SQLite storage, explicit action checks, and
+user-scoped rows—so this step completed its missing production integration and
+credential-lifecycle evidence around strict tiny-idp.
+
+The result is a runnable fixture rather than an architectural diagram alone.
+It provisions a real TLS issuer, drives two browser identities through the
+actual login form, tests application-owned device credentials from pending to
+approved to rotated/revoked, and uses Playwright against system Chromium for
+the visible browser path.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 6)
+
+**Assistant interpretation:** Complete Phase 3 immediately after Phase 2,
+including a real small application, tiny-idp integration, device flow, browser
+and CLI tests, documentation, diary evidence, and commits.
+
+**Inferred user intent:** Ship a reference developers can run and learn from,
+with the critical identity boundaries proven in executable tests rather than
+merely described.
+
+**Commit (core code):** `285e5c2` — "auth: add device credential refresh and revocation"
+
+**Commit (reference app and smoke tooling):** `2c44dbf` — "example: add strict tinyidp device flow smoke"
+
+### What I did
+
+- Extended `programauth.DeviceHandlers` with application-owned
+  `/auth/device/refresh` and `/auth/device/revoke` endpoints.
+- Added `OAuthTokenService.RevokeRefreshToken`, which revokes the identified
+  refresh-token family; the contract explicitly leaves issued access tokens to
+  expire naturally.
+- Added `device-refresh` and `device-revoke` xgoja CLI verbs and corresponding
+  JavaScript client functions.
+- Added `openid profile email` to the reference app OIDC configuration so
+  tiny-idp supplies the identity fields its local user projection/UI needs.
+- Extended the strict fixture with a seeded Bob account and updated the Python
+  browser protocol harness for tiny-idp's CSRF form and explicit approve-button
+  value.
+- Added a ticket-local shell orchestrator and a pinned Playwright test package.
+  The shell smoke validates unauthenticated CLI polling, Alice/Bob isolation,
+  rotation, family revocation, and then a real Chromium login/device approval.
+- Updated the Step 08 README, UI language, and a detailed operator/developer
+  runbook explaining the OIDC and application-token layers.
+
+### Why
+
+- A device flow without refresh and cancellation handling makes a short demo
+  but not a credible application credential lifecycle.
+- The IdP OIDC login layer and local `programauth` layer have different issuers,
+  subjects, and risk models. Making that distinction explicit prevents users
+  from assuming tiny-idp tokens are already accepted by the app.
+- Strict tiny-idp exposed two assumptions hidden by the older tutorial fixture:
+  an HTML submit button contributes `action=approve`, and `openid` alone does
+  not imply profile/email claims.
+
+### What worked
+
+- `go test ./pkg/gojahttp/auth/programauth ./pkg/xgoja/hostauth -count=1`
+  passed after the endpoint changes.
+- `make strict-tinyidp-smoke
+  TINYIDP_ROOT=/home/manuel/workspaces/2026-07-07/prod-tiny-idp/tiny-idp`
+  passed in the persistent tmux shell.
+- The strict smoke reported `ok tinyidp device capture isolation`, then ran one
+  Playwright worker using `/usr/bin/chromium-browser`, reporting `1 passed`.
+- `go test ./... -count=1` exercised all changed packages successfully but had
+  one unrelated `pkg/xgoja/providers/http` hot-reload timeout. A single rerun of
+  that exact test passed in `0.284s`, classifying it as a timing flake rather
+  than a Phase 3 regression.
+- `docmgr validate frontmatter` passed for the operator/developer runbook.
+
+### What didn't work
+
+- The first strict run supplied the wrapper workspace as `TINYIDP_ROOT`; it
+  failed with `stat .../cmd/tinyidp: directory not found`. The actual checkout
+  is `/home/manuel/workspaces/2026-07-07/prod-tiny-idp/tiny-idp`.
+- The first browser protocol run received HTTP 400 because its urllib form post
+  omitted tiny-idp's selected submit button. Inspecting a preserved disposable
+  fixture showed `name="action" value="approve"`; adding that field fixed the
+  protocol-correct submission.
+- The next run authenticated but had blank email/profile claims. The reference
+  app had requested only `openid`; adding `profile` and `email` fixed the
+  configuration rather than weakening the assertion.
+- Fixture-internal loopback curl prints connection-refused messages in this
+  agent environment's nested namespace. The host-visible service and the full
+  smoke nevertheless completed in the persistent tmux namespace; this is the
+  previously documented environment boundary.
+
+### What I learned
+
+- The strict issuer is useful precisely because it makes form and scope
+  assumptions observable. A production fixture should preserve those checks,
+  not mimic a permissive test double.
+- Device refresh-token reuse is a security event: `RefreshTokenPair` revokes a
+  reused family. Explicit revocation shares that family-level boundary. Access
+  token revocation remains separate future work because the current access-token
+  store contract has no family-revoke operation.
+- Playwright can run hermetically from the ticket's pinned package while using
+  the installed system Chromium, avoiding a browser download in the test path.
+
+### What was tricky to build
+
+- The generated host is deliberately HTTP on localhost for the fixture while
+  strict tiny-idp is HTTPS. That is valid only for the disposable test because
+  the host uses the development profile. The runbook distinguishes this from
+  the production `single-node` HTTPS reverse-proxy deployment.
+- The test needed both protocol and UI coverage. Python is effective for
+  Alice/Bob credential isolation and opaque-token lifecycle; Playwright is the
+  appropriate proof that labels, form submission, redirects, session display,
+  and device-approval feedback work as a browser user sees them.
+- Refresh-family revocation must not expose whether a supplied raw credential
+  existed. The handler returns a successful acknowledgement for malformed or
+  already-revoked unauthenticated credentials while preserving 500 only for
+  unexpected storage failures.
+
+### What warrants a second pair of eyes
+
+- Review the decision that refresh-family revocation leaves issued access tokens
+  valid until expiry. A product requiring immediate device access invalidation
+  needs a new access-token-family store operation, migration, and tests.
+- Review the ticket-local Playwright package placement before promoting the
+  smoke to CI; CI should pin Chromium or provision the executable path.
+- The full-suite hot-reload test flaked once outside this diff. Track it
+  independently if it recurs; do not conflate it with auth correctness.
+
+### What should be done in the future
+
+- Phase 4 should make token-family storage atomic across access and refresh
+  records, add structured lifecycle audit events/metrics, and define retention
+  queries/redaction tests.
+- Phase 5 should separately design tiny-idp access-token resource-server
+  acceptance rather than wiring its bearer tokens into `programauth` by name.
+
+### Code review instructions
+
+- Start with `pkg/gojahttp/auth/programauth/device_handlers.go` and
+  `oauth_token.go`; read refresh and revoke behavior alongside the existing
+  device start/token handlers.
+- Read the Step 08 `server.js`, `client.js`, and `xgoja.yaml` to trace local
+  domain actions, user scoping, OIDC scope request, and CLI surfaces.
+- Run the focused Go tests, then the strict smoke command in the runbook. It
+  should end with Python isolation success and `1 passed` from Playwright.
+
+### Technical details
+
+```text
+browser -- OIDC/PKCE --> tiny-idp -- verified subject --> local app session
+CLI -- device start --> pending user code
+browser session + CSRF -- approve --> local device agent(owner = browser user)
+CLI -- device token --> ggat access + ggrt refresh
+CLI -- refresh --> replacement pair; reuse => revoke family
+CLI -- revoke --> disable refresh family; access expires by TTL
 ```

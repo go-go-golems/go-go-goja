@@ -24,3 +24,12 @@ Phase 2: enforce the single-node hostauth deployment contract, explicit memory r
 
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/preflight.go — Fail-closed production validation
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/readiness.go — Safe readiness report
+
+## 2026-07-15
+
+Phase 3: complete the strict tiny-idp personal-inbox reference app with application-owned device refresh/revoke, CLI verbs, Python isolation smoke, and Playwright browser coverage.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/08-device-authorization/Makefile — Strict smoke target
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/programauth/device_handlers.go — Device credential lifecycle
