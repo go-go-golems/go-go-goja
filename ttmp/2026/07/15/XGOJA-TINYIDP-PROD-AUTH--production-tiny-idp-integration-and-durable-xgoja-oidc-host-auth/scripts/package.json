@@ -1,0 +1,8 @@
+{
+  "name": "xgoja-tinyidp-production-auth-smokes",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@playwright/test": "1.61.1"
+  }
+}

@@ -95,6 +95,13 @@ auth:
     issuer-url: http://127.0.0.1:18088/realms/personal-inbox
     client-id: personal-inbox-local
     public-base-url: http://127.0.0.1:18795
+    # Ask the issuer for the identity fields used by the local app-user
+    # projection and UI. `openid` alone proves authentication but does not
+    # require tiny-idp to include profile/email claims.
+    scopes:
+      - openid
+      - profile
+      - email
     after-login-url: /
     after-logout-url: /
 
