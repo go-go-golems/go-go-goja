@@ -15,3 +15,12 @@ Completed intern-facing design guide and diary; related the OIDC handler, host b
 ### Related Files
 
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/keycloakauth/keycloakauth.go — OIDC transaction design evidence
+
+## 2026-07-15
+
+Phase 2: enforce the single-node hostauth deployment contract, explicit memory rate-limit limitation, and safe /auth/readyz topology report (commit 543831b).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/preflight.go — Fail-closed production validation
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/readiness.go — Safe readiness report

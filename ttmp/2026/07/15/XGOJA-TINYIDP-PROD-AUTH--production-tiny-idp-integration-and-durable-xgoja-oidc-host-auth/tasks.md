@@ -19,10 +19,10 @@
 
 ### Phase 2 — Make production configuration explicit and reject unsafe combinations
 
-- [ ] Add a hostauth production validation/preflight API that rejects memory stores, insecure HTTP, invalid public URLs, and automatic production schema application.
-- [ ] Define cookie, reverse-proxy, key management, database migration, audit retention, and readiness requirements in a deployment reference.
-- [ ] Make rate-limiter selection configurable; support either a distributed implementation or an explicit one-replica mode with a documented limitation.
-- [ ] Add a machine-readable readiness report that identifies the configured auth topology without leaking secrets.
+- [x] Add a hostauth production validation/preflight API that rejects memory stores, insecure HTTP, invalid public URLs, and automatic production schema application.
+- [x] Define cookie, reverse-proxy, key management, database migration, audit retention, and readiness requirements in a deployment reference.
+- [x] Make rate-limiter selection configurable; support either a distributed implementation or an explicit one-replica mode with a documented limitation.
+- [x] Add a machine-readable readiness report that identifies the configured auth topology without leaking secrets.
 
 ### Phase 3 — Deliver the tiny-idp production example
 
