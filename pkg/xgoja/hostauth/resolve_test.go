@@ -29,11 +29,12 @@ func TestResolveConfigDefaultsToNoAuthMemoryStoresAndSecureCookie(t *testing.T) 
 		t.Fatalf("timeouts = %s %s", resolved.Session.IdleTimeout, resolved.Session.AbsoluteTimeout)
 	}
 	for name, store := range map[string]ResolvedStoreConfig{
-		"session":     resolved.Stores.Session,
-		"audit":       resolved.Stores.Audit,
-		"appauth":     resolved.Stores.AppAuth,
-		"capability":  resolved.Stores.Capability,
-		"programauth": resolved.Stores.ProgramAuth,
+		"session":          resolved.Stores.Session,
+		"audit":            resolved.Stores.Audit,
+		"appauth":          resolved.Stores.AppAuth,
+		"capability":       resolved.Stores.Capability,
+		"programauth":      resolved.Stores.ProgramAuth,
+		"oidc-transaction": resolved.Stores.OIDCTransaction,
 	} {
 		if store.Name != name {
 			t.Fatalf("store %s name = %q", name, store.Name)
@@ -111,6 +112,9 @@ func TestResolveConfigStoreInheritanceAndDSN(t *testing.T) {
 	}
 	if resolved.Stores.ProgramAuth.Driver != StoreDriverPostgres || resolved.Stores.ProgramAuth.DSN != "postgres://example/app" || resolved.Stores.ProgramAuth.ApplySchema {
 		t.Fatalf("programauth store = %#v", resolved.Stores.ProgramAuth)
+	}
+	if resolved.Stores.OIDCTransaction.Driver != StoreDriverPostgres || resolved.Stores.OIDCTransaction.DSN != "postgres://example/app" || resolved.Stores.OIDCTransaction.ApplySchema {
+		t.Fatalf("oidc transaction store = %#v", resolved.Stores.OIDCTransaction)
 	}
 }
 

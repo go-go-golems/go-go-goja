@@ -47,6 +47,10 @@ type GlazedSettings struct {
 	ProgramAuthStoreDSN         string `glazed:"auth-programauth-store-dsn"`
 	ProgramAuthStoreApplySchema bool   `glazed:"auth-programauth-store-apply-schema"`
 
+	OIDCTransactionStoreDriver      string `glazed:"auth-oidc-transaction-store-driver"`
+	OIDCTransactionStoreDSN         string `glazed:"auth-oidc-transaction-store-dsn"`
+	OIDCTransactionStoreApplySchema bool   `glazed:"auth-oidc-transaction-store-apply-schema"`
+
 	OIDCIssuerURL      string   `glazed:"auth-oidc-issuer-url"`
 	OIDCClientID       string   `glazed:"auth-oidc-client-id"`
 	OIDCClientSecret   string   `glazed:"auth-oidc-client-secret"`
@@ -82,6 +86,7 @@ func GlazedConfigSection(base Config, opts ...schema.SectionOption) (schema.Sect
 	opts = append(opts, storeFields("appauth", defaults.AppAuthStoreDriver, defaults.AppAuthStoreDSN, defaults.AppAuthStoreApplySchema)...)
 	opts = append(opts, storeFields("capability", defaults.CapabilityStoreDriver, defaults.CapabilityStoreDSN, defaults.CapabilityStoreApplySchema)...)
 	opts = append(opts, storeFields("programauth", defaults.ProgramAuthStoreDriver, defaults.ProgramAuthStoreDSN, defaults.ProgramAuthStoreApplySchema)...)
+	opts = append(opts, storeFields("oidc-transaction", defaults.OIDCTransactionStoreDriver, defaults.OIDCTransactionStoreDSN, defaults.OIDCTransactionStoreApplySchema)...)
 	opts = append(opts, schema.WithFields(
 		fields.New("auth-oidc-issuer-url", fields.TypeString, fields.WithDefault(defaults.OIDCIssuerURL), fields.WithHelp("OIDC issuer URL for auth.mode=oidc")),
 		fields.New("auth-oidc-client-id", fields.TypeString, fields.WithDefault(defaults.OIDCClientID), fields.WithHelp("OIDC client ID for auth.mode=oidc")),
@@ -113,6 +118,7 @@ func FlattenConfig(cfg Config) GlazedSettings {
 	appauth := cfg.Stores.AppAuth
 	capability := cfg.Stores.Capability
 	programauth := cfg.Stores.ProgramAuth
+	oidcTransaction := cfg.Stores.OIDCTransaction
 	return GlazedSettings{
 		Mode: cfgModeDefault(cfg.Mode),
 
@@ -146,6 +152,10 @@ func FlattenConfig(cfg Config) GlazedSettings {
 		ProgramAuthStoreDriver:      strings.TrimSpace(programauth.Driver),
 		ProgramAuthStoreDSN:         strings.TrimSpace(programauth.DSN),
 		ProgramAuthStoreApplySchema: boolValue(programauth.ApplySchema),
+
+		OIDCTransactionStoreDriver:      strings.TrimSpace(oidcTransaction.Driver),
+		OIDCTransactionStoreDSN:         strings.TrimSpace(oidcTransaction.DSN),
+		OIDCTransactionStoreApplySchema: boolValue(oidcTransaction.ApplySchema),
 
 		OIDCIssuerURL:      strings.TrimSpace(cfg.OIDC.IssuerURL),
 		OIDCClientID:       strings.TrimSpace(cfg.OIDC.ClientID),
@@ -196,12 +206,13 @@ func (s GlazedSettings) ToConfig() Config {
 			AbsoluteTimeout: strings.TrimSpace(s.SessionAbsoluteTimeout),
 		},
 		Stores: StoresConfig{
-			Default:     storeConfigFromGlazed(s.DefaultStoreDriver, s.DefaultStoreDSN, s.DefaultStoreApplySchema),
-			Session:     storeConfigFromGlazed(s.SessionStoreDriver, s.SessionStoreDSN, s.SessionStoreApplySchema),
-			Audit:       storeConfigFromGlazed(s.AuditStoreDriver, s.AuditStoreDSN, s.AuditStoreApplySchema),
-			AppAuth:     storeConfigFromGlazed(s.AppAuthStoreDriver, s.AppAuthStoreDSN, s.AppAuthStoreApplySchema),
-			Capability:  storeConfigFromGlazed(s.CapabilityStoreDriver, s.CapabilityStoreDSN, s.CapabilityStoreApplySchema),
-			ProgramAuth: storeConfigFromGlazed(s.ProgramAuthStoreDriver, s.ProgramAuthStoreDSN, s.ProgramAuthStoreApplySchema),
+			Default:         storeConfigFromGlazed(s.DefaultStoreDriver, s.DefaultStoreDSN, s.DefaultStoreApplySchema),
+			Session:         storeConfigFromGlazed(s.SessionStoreDriver, s.SessionStoreDSN, s.SessionStoreApplySchema),
+			Audit:           storeConfigFromGlazed(s.AuditStoreDriver, s.AuditStoreDSN, s.AuditStoreApplySchema),
+			AppAuth:         storeConfigFromGlazed(s.AppAuthStoreDriver, s.AppAuthStoreDSN, s.AppAuthStoreApplySchema),
+			Capability:      storeConfigFromGlazed(s.CapabilityStoreDriver, s.CapabilityStoreDSN, s.CapabilityStoreApplySchema),
+			ProgramAuth:     storeConfigFromGlazed(s.ProgramAuthStoreDriver, s.ProgramAuthStoreDSN, s.ProgramAuthStoreApplySchema),
+			OIDCTransaction: storeConfigFromGlazed(s.OIDCTransactionStoreDriver, s.OIDCTransactionStoreDSN, s.OIDCTransactionStoreApplySchema),
 		},
 		OIDC: OIDCConfig{
 			IssuerURL:      strings.TrimSpace(s.OIDCIssuerURL),

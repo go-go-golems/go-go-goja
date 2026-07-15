@@ -71,6 +71,9 @@ type StoresConfig struct {
 	AppAuth     StoreConfig `yaml:"appauth" json:"appauth"`
 	Capability  StoreConfig `yaml:"capability" json:"capability"`
 	ProgramAuth StoreConfig `yaml:"programauth" json:"programauth"`
+	// OIDCTransaction stores short-lived state, nonce, and PKCE verifier
+	// material. It is intentionally separate from durable application sessions.
+	OIDCTransaction StoreConfig `yaml:"oidc-transaction" json:"oidc-transaction"`
 }
 
 // StoreConfig configures one store. ApplySchema is a pointer so inheritance can
@@ -116,11 +119,12 @@ type ResolvedCookieConfig struct {
 }
 
 type ResolvedStoresConfig struct {
-	Session     ResolvedStoreConfig
-	Audit       ResolvedStoreConfig
-	AppAuth     ResolvedStoreConfig
-	Capability  ResolvedStoreConfig
-	ProgramAuth ResolvedStoreConfig
+	Session         ResolvedStoreConfig
+	Audit           ResolvedStoreConfig
+	AppAuth         ResolvedStoreConfig
+	Capability      ResolvedStoreConfig
+	ProgramAuth     ResolvedStoreConfig
+	OIDCTransaction ResolvedStoreConfig
 }
 
 type ResolvedStoreConfig struct {

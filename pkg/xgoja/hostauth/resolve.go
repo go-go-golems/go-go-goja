@@ -248,7 +248,11 @@ func resolveStoresConfig(cfg StoresConfig) (ResolvedStoresConfig, error) {
 	if err != nil {
 		return ResolvedStoresConfig{}, err
 	}
-	return ResolvedStoresConfig{Session: session, Audit: audit, AppAuth: appauth, Capability: capability, ProgramAuth: programauth}, nil
+	oidcTransaction, err := resolveStoreConfig("oidc-transaction", cfg.OIDCTransaction, defaults)
+	if err != nil {
+		return ResolvedStoresConfig{}, err
+	}
+	return ResolvedStoresConfig{Session: session, Audit: audit, AppAuth: appauth, Capability: capability, ProgramAuth: programauth, OIDCTransaction: oidcTransaction}, nil
 }
 
 func resolveStoreConfig(name string, specific StoreConfig, defaults StoreConfig) (ResolvedStoreConfig, error) {
