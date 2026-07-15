@@ -157,7 +157,7 @@ func TestServiceFactoryOIDCBuildsNativeHandlers(t *testing.T) {
 	for _, route := range services.NativeHandlers {
 		got[route.Method+" "+route.Path] = route.Handler != nil
 	}
-	for _, want := range []string{"GET /auth/login", "GET /auth/callback", "POST /auth/logout", "GET /auth/logout", "GET /auth/session"} {
+	for _, want := range []string{"GET /auth/readyz", "GET /auth/login", "GET /auth/callback", "POST /auth/logout", "GET /auth/logout", "GET /auth/session"} {
 		if !got[want] {
 			t.Fatalf("native handlers missing %s: %#v", want, services.NativeHandlers)
 		}
@@ -166,6 +166,29 @@ func TestServiceFactoryOIDCBuildsNativeHandlers(t *testing.T) {
 		if got[removed] {
 			t.Fatalf("native demo handler %s should be owned by application code, got %#v", removed, services.NativeHandlers)
 		}
+	}
+}
+
+func TestReadinessHandlerDoesNotExposeStoreDSNOrOIDCSecret(t *testing.T) {
+	resolved, err := ResolveConfig(validSingleNodeConfig(), ResolveOptions{})
+	if err != nil {
+		t.Fatalf("ResolveConfig: %v", err)
+	}
+	report := BuildReadinessReport(resolved)
+	if !report.Ready || report.Profile != DeploymentProfileSingleNode || report.RateLimiter != RateLimiterDriverMemory {
+		t.Fatalf("report = %#v", report)
+	}
+	if len(report.Stores) != 6 || report.Stores[0].Name != "session" || report.Stores[0].Driver != StoreDriverSQLite {
+		t.Fatalf("stores = %#v", report.Stores)
+	}
+	recorder := httptest.NewRecorder()
+	readinessHandler(report).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/auth/readyz", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d", recorder.Code)
+	}
+	body := recorder.Body.String()
+	if !strings.Contains(body, `"ready":true`) || strings.Contains(body, "file:single-node.db") || strings.Contains(body, "ClientSecret") {
+		t.Fatalf("unsafe readiness body: %s", body)
 	}
 }
 

@@ -26,6 +26,8 @@ func TestGlazedConfigSectionDefaultsFromBaseConfig(t *testing.T) {
 		t.Fatalf("slug = %q", section.GetSlug())
 	}
 	assertDefault(t, section, "auth-mode", string(ModeDev))
+	assertDefault(t, section, "auth-deployment-profile", string(DeploymentProfileDevelopment))
+	assertDefault(t, section, "auth-rate-limiter-driver", string(RateLimiterDriverMemory))
 	assertDefault(t, section, "auth-session-cookie-allow-insecure-http", true)
 	assertDefault(t, section, "auth-session-cookie-name", "demo_session")
 	assertDefault(t, section, "auth-default-store-driver", "sqlite")
@@ -44,7 +46,9 @@ func TestConfigFromValuesMapsAuthSectionToNestedConfig(t *testing.T) {
 		t.Fatalf("GlazedConfigSection: %v", err)
 	}
 	sectionValues := sectionValuesWithDefaults(t, section, map[string]any{
-		"auth-mode": string(ModeDev),
+		"auth-mode":                                string(ModeDev),
+		"auth-deployment-profile":                  string(DeploymentProfileSingleNode),
+		"auth-rate-limiter-driver":                 string(RateLimiterDriverMemory),
 		"auth-session-cookie-allow-insecure-http":  true,
 		"auth-session-cookie-name":                 "app_session",
 		"auth-session-cookie-same-site":            "strict",
@@ -75,6 +79,9 @@ func TestConfigFromValuesMapsAuthSectionToNestedConfig(t *testing.T) {
 	}
 	if cfg.Mode != ModeDev {
 		t.Fatalf("mode = %q", cfg.Mode)
+	}
+	if cfg.Deployment.Profile != DeploymentProfileSingleNode || cfg.RateLimiter.Driver != RateLimiterDriverMemory {
+		t.Fatalf("deployment/rate limiter = %#v %#v", cfg.Deployment, cfg.RateLimiter)
 	}
 	if !cfg.Session.Cookie.AllowInsecureHTTP || cfg.Session.Cookie.Name != "app_session" || cfg.Session.Cookie.SameSite != "strict" || cfg.Session.Cookie.Path != "/app" {
 		t.Fatalf("session = %#v", cfg.Session)

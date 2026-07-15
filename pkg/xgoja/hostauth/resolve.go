@@ -37,6 +37,14 @@ func ResolveConfig(cfg Config, opts ResolveOptions) (ResolvedConfig, error) {
 	if err != nil {
 		return ResolvedConfig{}, configError("auth.mode", err)
 	}
+	deployment, err := resolveDeploymentProfile(cfg.Deployment)
+	if err != nil {
+		return ResolvedConfig{}, configError("auth.deployment.profile", err)
+	}
+	rateLimiter, err := resolveRateLimiterConfig(cfg.RateLimiter)
+	if err != nil {
+		return ResolvedConfig{}, configError("auth.rate-limiter.driver", err)
+	}
 	session, err := resolveSessionConfig(cfg.Session)
 	if err != nil {
 		return ResolvedConfig{}, err
@@ -46,19 +54,26 @@ func ResolveConfig(cfg Config, opts ResolveOptions) (ResolvedConfig, error) {
 		if err != nil {
 			return ResolvedConfig{}, err
 		}
-		return ResolvedConfig{Mode: mode, Session: session, Stores: stores}, nil
+		resolved := ResolvedConfig{Mode: mode, Deployment: deployment, Session: session, Stores: stores, RateLimiter: rateLimiter}
+		if err := validateDeploymentPreflight(resolved); err != nil {
+			return ResolvedConfig{}, err
+		}
+		return resolved, nil
 	}
 	stores, err := resolveStoresConfig(cfg.Stores)
 	if err != nil {
 		return ResolvedConfig{}, err
 	}
-	resolved := ResolvedConfig{Mode: mode, Session: session, Stores: stores}
+	resolved := ResolvedConfig{Mode: mode, Deployment: deployment, Session: session, Stores: stores, RateLimiter: rateLimiter}
 	if mode == ModeOIDC {
 		oidc, err := resolveOIDCConfig(cfg.OIDC, session.Cookie.AllowInsecureHTTP)
 		if err != nil {
 			return ResolvedConfig{}, err
 		}
 		resolved.OIDC = oidc
+	}
+	if err := validateDeploymentPreflight(resolved); err != nil {
+		return ResolvedConfig{}, err
 	}
 	return resolved, nil
 }

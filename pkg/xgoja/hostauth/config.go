@@ -14,6 +14,25 @@ const (
 	ModeOIDC Mode = "oidc"
 )
 
+// DeploymentProfile states the operational contract under which a generated
+// host is started. Development keeps tutorial-friendly defaults. SingleNode is
+// an explicit production contract for exactly one serving process.
+type DeploymentProfile string
+
+const (
+	DeploymentProfileDevelopment DeploymentProfile = "development"
+	DeploymentProfileSingleNode  DeploymentProfile = "single-node"
+)
+
+// RateLimiterDriver selects the host-wide limiter implementation. Memory is
+// safe only for DeploymentProfileSingleNode because its counters are local to
+// one process.
+type RateLimiterDriver string
+
+const (
+	RateLimiterDriverMemory RateLimiterDriver = "memory"
+)
+
 // StoreDriver selects the persistence backend for a host auth store.
 type StoreDriver string
 
@@ -26,10 +45,24 @@ const (
 // Config is the generated-host auth infrastructure configuration. It is host
 // config, not JavaScript route config and not an authorization policy DSL.
 type Config struct {
-	Mode    Mode          `yaml:"mode" json:"mode"`
-	Session SessionConfig `yaml:"session" json:"session"`
-	Stores  StoresConfig  `yaml:"stores" json:"stores"`
-	OIDC    OIDCConfig    `yaml:"oidc" json:"oidc"`
+	Mode        Mode              `yaml:"mode" json:"mode"`
+	Deployment  DeploymentConfig  `yaml:"deployment" json:"deployment"`
+	Session     SessionConfig     `yaml:"session" json:"session"`
+	Stores      StoresConfig      `yaml:"stores" json:"stores"`
+	OIDC        OIDCConfig        `yaml:"oidc" json:"oidc"`
+	RateLimiter RateLimiterConfig `yaml:"rate-limiter" json:"rate-limiter"`
+}
+
+// DeploymentConfig controls the explicit operational profile of the host.
+type DeploymentConfig struct {
+	Profile DeploymentProfile `yaml:"profile" json:"profile"`
+}
+
+// RateLimiterConfig controls the host-wide limiter. A future distributed
+// implementation must use a distinct driver rather than silently changing the
+// semantics of memory.
+type RateLimiterConfig struct {
+	Driver RateLimiterDriver `yaml:"driver" json:"driver"`
 }
 
 // OIDCConfig controls generated-host browser login when Mode is oidc.
@@ -87,10 +120,20 @@ type StoreConfig struct {
 // ResolvedConfig is the fully parsed and defaulted configuration used by
 // builders. It contains no unresolved env references.
 type ResolvedConfig struct {
-	Mode    Mode
-	Session ResolvedSessionConfig
-	Stores  ResolvedStoresConfig
-	OIDC    ResolvedOIDCConfig
+	Mode        Mode
+	Deployment  ResolvedDeploymentConfig
+	Session     ResolvedSessionConfig
+	Stores      ResolvedStoresConfig
+	OIDC        ResolvedOIDCConfig
+	RateLimiter ResolvedRateLimiterConfig
+}
+
+type ResolvedDeploymentConfig struct {
+	Profile DeploymentProfile
+}
+
+type ResolvedRateLimiterConfig struct {
+	Driver RateLimiterDriver
 }
 
 // ResolvedOIDCConfig contains validated OIDC settings. RedirectURL is always
