@@ -20,6 +20,20 @@ async function token(baseUrl, deviceCode) {
     .run();
 }
 
+async function refresh(baseUrl, refreshToken) {
+  return await apiClient(baseUrl)
+    .post("/auth/device/refresh")
+    .json({ grant_type: "refresh_token", refresh_token: refreshToken })
+    .run();
+}
+
+async function revoke(baseUrl, refreshToken) {
+  return await apiClient(baseUrl)
+    .post("/auth/device/revoke")
+    .json({ refresh_token: refreshToken })
+    .run();
+}
+
 async function capture(baseUrl, accessToken, input) {
   const fetch = require("fetch");
   return await apiClient(baseUrl)
@@ -34,4 +48,4 @@ function trimRight(value, suffix) {
   return value;
 }
 
-module.exports = { start, token, capture };
+module.exports = { start, token, refresh, revoke, capture };

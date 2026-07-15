@@ -17,6 +17,9 @@ TINYIDP_CLIENT_ID=${TINYIDP_CLIENT_ID:-xgoja-oidc-fixture}
 TINYIDP_LOGIN=${TINYIDP_LOGIN:-alice}
 TINYIDP_PASSWORD=${TINYIDP_PASSWORD:-alice-password-2026}
 TINYIDP_EMAIL=${TINYIDP_EMAIL:-alice@example.test}
+TINYIDP_BOB_LOGIN=${TINYIDP_BOB_LOGIN:-bob}
+TINYIDP_BOB_PASSWORD=${TINYIDP_BOB_PASSWORD:-bob-password-2026}
+TINYIDP_BOB_EMAIL=${TINYIDP_BOB_EMAIL:-bob@example.test}
 TINYIDP_ISSUER=${TINYIDP_ISSUER:-https://127.0.0.1:19443}
 
 for program in go openssl curl; do
@@ -69,6 +72,13 @@ printf '%s\n' "$TINYIDP_PASSWORD" | "$tinyidp_bin" admin --db "$workdir/tinyidp.
   --name 'Fixture Alice' \
   --password-from-stdin \
   >/dev/null
+printf '%s\n' "$TINYIDP_BOB_PASSWORD" | "$tinyidp_bin" admin --db "$workdir/tinyidp.db" user create \
+  --login "$TINYIDP_BOB_LOGIN" \
+  --email "$TINYIDP_BOB_EMAIL" \
+  --email-verified \
+  --name 'Fixture Bob' \
+  --password-from-stdin \
+  >/dev/null
 
 "$tinyidp_bin" serve-production \
   --addr "$TINYIDP_ADDR" \
@@ -97,5 +107,6 @@ if ! curl --fail --silent --show-error --cacert "$workdir/tls.crt" "$TINYIDP_ISS
 fi
 
 export TINYIDP_ISSUER TINYIDP_CLIENT_ID TINYIDP_APP_BASE_URL TINYIDP_LOGIN TINYIDP_PASSWORD TINYIDP_EMAIL
+export TINYIDP_BOB_LOGIN TINYIDP_BOB_PASSWORD TINYIDP_BOB_EMAIL
 export SSL_CERT_FILE="$workdir/tls.crt"
 "$@"
