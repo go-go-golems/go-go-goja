@@ -165,6 +165,8 @@ topics:
       description: Client-side fetch and outbound HTTP APIs
     - slug: javascript-api
       description: JavaScript-facing API design and implementation
+    - slug: rate-limiter
+      description: Rate-limiting algorithms, deployment topology constraints, and enforcement behavior.
 docTypes:
     - slug: index
       description: Index document for a ticket
