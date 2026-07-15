@@ -269,6 +269,20 @@ func (s OAuthTokenService) RefreshTokenPair(ctx context.Context, rawRefreshToken
 	return IssuedOAuthTokenPair{AccessToken: AccessTokenToView(createdAccess), AccessValue: accessValue, RefreshToken: RefreshTokenToView(rotatedRefresh), RefreshValue: refreshValue}, nil
 }
 
+// RevokeRefreshToken revokes every refresh credential in the family identified
+// by rawRefreshToken. It deliberately does not claim immediate access-token
+// revocation: already-issued access tokens remain bounded by their short TTL.
+func (s OAuthTokenService) RevokeRefreshToken(ctx context.Context, rawRefreshToken string) error {
+	if s.RefreshTokens == nil {
+		return fmt.Errorf("programauth refresh token store is required")
+	}
+	current, err := s.lookupRefreshToken(ctx, rawRefreshToken)
+	if err != nil {
+		return err
+	}
+	return s.RefreshTokens.RevokeRefreshTokenFamily(ctx, current.FamilyID, s.now())
+}
+
 func (s OAuthTokenService) AuthenticateBearer(ctx context.Context, raw string, _ gojahttp.SecuritySpec) (gojahttp.AuthResult, error) {
 	if s.AccessTokens == nil {
 		return gojahttp.AuthResult{}, fmt.Errorf("programauth access token store is required")

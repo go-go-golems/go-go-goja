@@ -75,6 +75,30 @@ func TestDeviceHandlersStartApproveAndToken(t *testing.T) {
 	if token["access_token"] == "" || token["refresh_token"] == "" || token["token_type"] != "Bearer" {
 		t.Fatalf("token response = %#v", token)
 	}
+	refreshValue, _ := token["refresh_token"].(string)
+	refreshRecorder := httptest.NewRecorder()
+	handlers.RefreshHandler().ServeHTTP(refreshRecorder, formRequest("/auth/device/refresh", "grant_type=refresh_token&refresh_token="+refreshValue))
+	if refreshRecorder.Code != http.StatusOK {
+		t.Fatalf("refresh status=%d body=%s", refreshRecorder.Code, refreshRecorder.Body.String())
+	}
+	var refreshed map[string]any
+	decodeRecorderJSON(t, refreshRecorder, &refreshed)
+	rotatedRefresh, _ := refreshed["refresh_token"].(string)
+	if refreshed["access_token"] == "" || rotatedRefresh == "" || rotatedRefresh == refreshValue {
+		t.Fatalf("refresh response = %#v", refreshed)
+	}
+
+	revokeRecorder := httptest.NewRecorder()
+	handlers.RevokeHandler().ServeHTTP(revokeRecorder, jsonRequest(t, "/auth/device/revoke", map[string]any{"refresh_token": rotatedRefresh}))
+	if revokeRecorder.Code != http.StatusOK {
+		t.Fatalf("revoke status=%d body=%s", revokeRecorder.Code, revokeRecorder.Body.String())
+	}
+
+	rejectedRefreshRecorder := httptest.NewRecorder()
+	handlers.RefreshHandler().ServeHTTP(rejectedRefreshRecorder, jsonRequest(t, "/auth/device/refresh", map[string]any{"grant_type": "refresh_token", "refresh_token": rotatedRefresh}))
+	if rejectedRefreshRecorder.Code != http.StatusBadRequest || !bytes.Contains(rejectedRefreshRecorder.Body.Bytes(), []byte("invalid_grant")) {
+		t.Fatalf("revoked refresh status=%d body=%s", rejectedRefreshRecorder.Code, rejectedRefreshRecorder.Body.String())
+	}
 }
 
 func jsonRequest(t *testing.T, path string, value any) *http.Request {
