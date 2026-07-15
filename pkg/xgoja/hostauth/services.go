@@ -9,6 +9,7 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/appauth"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/audit"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/capability"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/keycloakauth"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/programauth"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth"
 )
@@ -48,8 +49,9 @@ type Services struct {
 	Config      ResolvedConfig
 	AuthOptions gojahttp.AuthOptions
 
-	SessionManager *sessionauth.Manager
-	SessionStore   sessionauth.Store
+	SessionManager       *sessionauth.Manager
+	SessionStore         sessionauth.Store
+	OIDCTransactionStore keycloakauth.TransactionStore
 
 	AuditSink  gojahttp.AuditSink
 	AuditStore audit.Store

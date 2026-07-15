@@ -6,6 +6,7 @@ package keycloakauth
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -74,6 +75,12 @@ type Transaction struct {
 	CreatedAt    time.Time
 	RedirectURL  string
 }
+
+// ErrTransactionUnavailable is returned when a login transaction cannot be
+// consumed. Callers deliberately receive the same public outcome for a missing,
+// expired, or previously consumed state so callback behavior does not disclose
+// which security check failed.
+var ErrTransactionUnavailable = errors.New("oidc login transaction unavailable")
 
 // TransactionStore persists short-lived login transactions keyed by state.
 type TransactionStore interface {
@@ -397,11 +404,11 @@ func (s *MemoryTransactionStore) Take(_ context.Context, state string) (Transact
 	defer s.mu.Unlock()
 	tx, ok := s.data[state]
 	if !ok {
-		return Transaction{}, fmt.Errorf("transaction not found")
+		return Transaction{}, fmt.Errorf("%w", ErrTransactionUnavailable)
 	}
 	delete(s.data, state)
 	if !tx.CreatedAt.IsZero() && time.Since(tx.CreatedAt) > s.ttl {
-		return Transaction{}, fmt.Errorf("transaction expired")
+		return Transaction{}, fmt.Errorf("%w", ErrTransactionUnavailable)
 	}
 	return tx, nil
 }

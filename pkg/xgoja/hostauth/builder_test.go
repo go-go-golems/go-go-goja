@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/keycloakauth"
+	keycloakauthsql "github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/keycloakauth/sqlstore"
 	programauthsql "github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/programauth/sqlstore"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth"
 )
@@ -165,6 +166,28 @@ func TestServiceFactoryOIDCBuildsNativeHandlers(t *testing.T) {
 		if got[removed] {
 			t.Fatalf("native demo handler %s should be owned by application code, got %#v", removed, services.NativeHandlers)
 		}
+	}
+}
+
+func TestServiceFactoryOIDCUsesConfiguredSQLTransactionStore(t *testing.T) {
+	issuer := newOIDCDiscoveryServer(t)
+	applySchema := true
+	services, err := NewServiceFactory(BuilderOptions{Config: Config{
+		Mode:    ModeOIDC,
+		Session: SessionConfig{Cookie: CookieConfig{AllowInsecureHTTP: true}},
+		Stores: StoresConfig{Default: StoreConfig{
+			Driver:      "sqlite",
+			DSN:         "file:hostauth-oidc-transaction?mode=memory&cache=shared",
+			ApplySchema: &applySchema,
+		}},
+		OIDC: OIDCConfig{IssuerURL: issuer.URL, ClientID: "goja-app", PublicBaseURL: "http://localhost:8787"},
+	}}).BuildHostAuthServices(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("BuildHostAuthServices: %v", err)
+	}
+	defer func() { _ = services.Close(context.Background()) }()
+	if _, ok := services.OIDCTransactionStore.(*keycloakauthsql.Store); !ok {
+		t.Fatalf("OIDCTransactionStore type = %T", services.OIDCTransactionStore)
 	}
 }
 

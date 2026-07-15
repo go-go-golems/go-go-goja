@@ -95,26 +95,27 @@ func (b *Builder) BuildHostAuthServices(ctx context.Context, vals *values.Values
 		return nil, err
 	}
 	services := &Services{
-		Config:            resolved,
-		AuthOptions:       authOptions,
-		SessionManager:    sessionManager,
-		SessionStore:      stores.Session,
-		AuditSink:         auditSink,
-		AuditStore:        stores.Audit,
-		RateLimiter:       rateLimiter,
-		AppAuth:           stores.AppAuth,
-		Capability:        stores.Capability,
-		AgentStore:        stores.ProgramAuth.Agents,
-		APITokenStore:     stores.ProgramAuth.APITokens,
-		AccessTokenStore:  stores.ProgramAuth.AccessTokens,
-		RefreshTokenStore: stores.ProgramAuth.RefreshTokens,
-		DeviceStore:       stores.ProgramAuth.Devices,
-		Agents:            agentService,
-		APITokens:         apiTokenService,
-		OAuthTokens:       oauthTokenService,
-		Devices:           deviceService,
-		NativeHandlers:    nativeHandlers,
-		Closers:           stores.Closers,
+		Config:               resolved,
+		AuthOptions:          authOptions,
+		SessionManager:       sessionManager,
+		SessionStore:         stores.Session,
+		OIDCTransactionStore: stores.OIDCTransaction,
+		AuditSink:            auditSink,
+		AuditStore:           stores.Audit,
+		RateLimiter:          rateLimiter,
+		AppAuth:              stores.AppAuth,
+		Capability:           stores.Capability,
+		AgentStore:           stores.ProgramAuth.Agents,
+		APITokenStore:        stores.ProgramAuth.APITokens,
+		AccessTokenStore:     stores.ProgramAuth.AccessTokens,
+		RefreshTokenStore:    stores.ProgramAuth.RefreshTokens,
+		DeviceStore:          stores.ProgramAuth.Devices,
+		Agents:               agentService,
+		APITokens:            apiTokenService,
+		OAuthTokens:          oauthTokenService,
+		Devices:              deviceService,
+		NativeHandlers:       nativeHandlers,
+		Closers:              stores.Closers,
 	}
 	success = true
 	return services, nil
@@ -144,16 +145,20 @@ func BuildNativeHandlers(ctx context.Context, cfg ResolvedConfig, sessionManager
 	if stores == nil || stores.AppAuth.Users == nil {
 		return nil, configError("auth.stores.appauth", errors.New("app auth user store is required for auth.mode=oidc"))
 	}
+	if stores.OIDCTransaction == nil {
+		return nil, configError("auth.stores.oidc-transaction", errors.New("oidc transaction store is required for auth.mode=oidc"))
+	}
 	handlers, err := keycloakauth.New(ctx, keycloakauth.Config{
-		IssuerURL:      cfg.OIDC.IssuerURL,
-		ClientID:       cfg.OIDC.ClientID,
-		ClientSecret:   cfg.OIDC.ClientSecret,
-		RedirectURL:    cfg.OIDC.RedirectURL,
-		Scopes:         cfg.OIDC.Scopes,
-		AfterLoginURL:  cfg.OIDC.AfterLoginURL,
-		AfterLogoutURL: cfg.OIDC.AfterLogoutURL,
-		SessionManager: sessionManager,
-		UserNormalizer: DefaultOIDCUserNormalizer(stores),
+		IssuerURL:        cfg.OIDC.IssuerURL,
+		ClientID:         cfg.OIDC.ClientID,
+		ClientSecret:     cfg.OIDC.ClientSecret,
+		RedirectURL:      cfg.OIDC.RedirectURL,
+		Scopes:           cfg.OIDC.Scopes,
+		AfterLoginURL:    cfg.OIDC.AfterLoginURL,
+		AfterLogoutURL:   cfg.OIDC.AfterLogoutURL,
+		SessionManager:   sessionManager,
+		UserNormalizer:   DefaultOIDCUserNormalizer(stores),
+		TransactionStore: stores.OIDCTransaction,
 	})
 	if err != nil {
 		return nil, err

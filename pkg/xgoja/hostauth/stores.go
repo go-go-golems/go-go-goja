@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
@@ -15,6 +16,8 @@ import (
 	auditsql "github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/audit/sqlstore"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/capability"
 	capabilitysql "github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/capability/sqlstore"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/keycloakauth"
+	keycloakauthsql "github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/keycloakauth/sqlstore"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/programauth"
 	programauthsql "github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/programauth/sqlstore"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth"
@@ -32,11 +35,12 @@ type ProgramAuthStores struct {
 
 // StoreBundle contains the concrete stores built from ResolvedStoresConfig.
 type StoreBundle struct {
-	Session     sessionauth.Store
-	Audit       audit.Store
-	AppAuth     AppAuthStores
-	Capability  capability.Store
-	ProgramAuth ProgramAuthStores
+	Session         sessionauth.Store
+	Audit           audit.Store
+	AppAuth         AppAuthStores
+	Capability      capability.Store
+	ProgramAuth     ProgramAuthStores
+	OIDCTransaction keycloakauth.TransactionStore
 
 	Closers []func(context.Context) error
 }
@@ -92,7 +96,11 @@ func (b *storeBuilder) build(ctx context.Context, cfg ResolvedStoresConfig) (*St
 	if err != nil {
 		return nil, err
 	}
-	return &StoreBundle{Session: sessionStore, Audit: auditStore, AppAuth: appAuthStores, Capability: capabilityStore, ProgramAuth: programAuthStores, Closers: append([]func(context.Context) error(nil), b.closers...)}, nil
+	oidcTransactionStore, err := b.buildOIDCTransactionStore(ctx, cfg.OIDCTransaction)
+	if err != nil {
+		return nil, err
+	}
+	return &StoreBundle{Session: sessionStore, Audit: auditStore, AppAuth: appAuthStores, Capability: capabilityStore, ProgramAuth: programAuthStores, OIDCTransaction: oidcTransactionStore, Closers: append([]func(context.Context) error(nil), b.closers...)}, nil
 }
 
 func (b *storeBuilder) buildSessionStore(ctx context.Context, cfg ResolvedStoreConfig) (sessionauth.Store, error) {
@@ -222,6 +230,30 @@ func (b *storeBuilder) buildProgramAuthStores(ctx context.Context, cfg ResolvedS
 	}
 }
 
+func (b *storeBuilder) buildOIDCTransactionStore(ctx context.Context, cfg ResolvedStoreConfig) (keycloakauth.TransactionStore, error) {
+	switch cfg.Driver {
+	case StoreDriverMemory:
+		return keycloakauth.NewMemoryTransactionStore(10 * time.Minute), nil
+	case StoreDriverSQLite, StoreDriverPostgres:
+		db, err := b.openDB(cfg)
+		if err != nil {
+			return nil, fmt.Errorf("build oidc transaction store: %w", err)
+		}
+		store, err := keycloakauthsql.New(keycloakauthsql.Config{DB: db, Dialect: oidcTransactionDialect(cfg.Driver)})
+		if err != nil {
+			return nil, fmt.Errorf("build oidc transaction store: %w", err)
+		}
+		if cfg.ApplySchema {
+			if err := store.ApplySchema(ctx); err != nil {
+				return nil, err
+			}
+		}
+		return store, nil
+	default:
+		return nil, fmt.Errorf("build oidc transaction store: unsupported driver %q", cfg.Driver)
+	}
+}
+
 func (b *storeBuilder) openDB(cfg ResolvedStoreConfig) (*sql.DB, error) {
 	key := sqlDBKey{driver: cfg.Driver, dsn: cfg.DSN}
 	if db, ok := b.dbs[key]; ok {
@@ -286,6 +318,13 @@ func programAuthDialect(driver StoreDriver) programauthsql.Dialect {
 		return programauthsql.DialectSQLite
 	}
 	return programauthsql.DialectPostgres
+}
+
+func oidcTransactionDialect(driver StoreDriver) keycloakauthsql.Dialect {
+	if driver == StoreDriverSQLite {
+		return keycloakauthsql.DialectSQLite
+	}
+	return keycloakauthsql.DialectPostgres
 }
 
 func closeAll(ctx context.Context, closers []func(context.Context) error) error {
