@@ -14,7 +14,9 @@ const SectionSlug = "auth"
 // auth settings. It intentionally mirrors CLI field names rather than the nested
 // hostauth.Config shape so generated commands can expose clear --auth-* flags.
 type GlazedSettings struct {
-	Mode string `glazed:"auth-mode"`
+	Mode              string `glazed:"auth-mode"`
+	DeploymentProfile string `glazed:"auth-deployment-profile"`
+	RateLimiterDriver string `glazed:"auth-rate-limiter-driver"`
 
 	SessionCookieAllowInsecureHTTP bool   `glazed:"auth-session-cookie-allow-insecure-http"`
 	SessionCookieName              string `glazed:"auth-session-cookie-name"`
@@ -72,6 +74,8 @@ func GlazedConfigSection(base Config, opts ...schema.SectionOption) (schema.Sect
 	defaults := FlattenConfig(base)
 	fieldDefs := []schema.SectionOption{schema.WithFields(
 		fields.New("auth-mode", fields.TypeChoice, fields.WithChoices(string(ModeNone), string(ModeDev), string(ModeOIDC)), fields.WithDefault(defaults.Mode), fields.WithHelp("Generated-host auth mode")),
+		fields.New("auth-deployment-profile", fields.TypeChoice, fields.WithChoices(string(DeploymentProfileDevelopment), string(DeploymentProfileSingleNode)), fields.WithDefault(defaults.DeploymentProfile), fields.WithHelp("Operational contract: development or one durable production process")),
+		fields.New("auth-rate-limiter-driver", fields.TypeChoice, fields.WithChoices(string(RateLimiterDriverMemory)), fields.WithDefault(defaults.RateLimiterDriver), fields.WithHelp("Host-wide rate limiter; memory requires exactly one serving process")),
 		fields.New("auth-session-cookie-allow-insecure-http", fields.TypeBool, fields.WithDefault(defaults.SessionCookieAllowInsecureHTTP), fields.WithHelp("Allow non-Secure auth session cookies for local HTTP demos")),
 		fields.New("auth-session-cookie-name", fields.TypeString, fields.WithDefault(defaults.SessionCookieName), fields.WithHelp("Auth session cookie name; empty uses the session manager default")),
 		fields.New("auth-session-cookie-same-site", fields.TypeChoice, fields.WithChoices("", "lax", "strict", "none", "default"), fields.WithDefault(defaults.SessionCookieSameSite), fields.WithHelp("Auth session cookie SameSite mode")),
@@ -120,7 +124,9 @@ func FlattenConfig(cfg Config) GlazedSettings {
 	programauth := cfg.Stores.ProgramAuth
 	oidcTransaction := cfg.Stores.OIDCTransaction
 	return GlazedSettings{
-		Mode: cfgModeDefault(cfg.Mode),
+		Mode:              cfgModeDefault(cfg.Mode),
+		DeploymentProfile: deploymentProfileDefault(cfg.Deployment.Profile),
+		RateLimiterDriver: rateLimiterDriverDefault(cfg.RateLimiter.Driver),
 
 		SessionCookieAllowInsecureHTTP: cfg.Session.Cookie.AllowInsecureHTTP,
 		SessionCookieName:              strings.TrimSpace(cfg.Session.Cookie.Name),
@@ -194,7 +200,9 @@ func valuesContainAuthSection(vals *values.Values) bool {
 
 func (s GlazedSettings) ToConfig() Config {
 	return Config{
-		Mode: Mode(strings.TrimSpace(s.Mode)),
+		Mode:        Mode(strings.TrimSpace(s.Mode)),
+		Deployment:  DeploymentConfig{Profile: DeploymentProfile(strings.TrimSpace(s.DeploymentProfile))},
+		RateLimiter: RateLimiterConfig{Driver: RateLimiterDriver(strings.TrimSpace(s.RateLimiterDriver))},
 		Session: SessionConfig{
 			Cookie: CookieConfig{
 				AllowInsecureHTTP: s.SessionCookieAllowInsecureHTTP,
@@ -253,6 +261,22 @@ func cfgModeDefault(mode Mode) string {
 		return string(ModeNone)
 	}
 	return string(mode)
+}
+
+func deploymentProfileDefault(profile DeploymentProfile) string {
+	profile = DeploymentProfile(strings.TrimSpace(string(profile)))
+	if profile == "" {
+		return string(DeploymentProfileDevelopment)
+	}
+	return string(profile)
+}
+
+func rateLimiterDriverDefault(driver RateLimiterDriver) string {
+	driver = RateLimiterDriver(strings.TrimSpace(string(driver)))
+	if driver == "" {
+		return string(RateLimiterDriverMemory)
+	}
+	return string(driver)
 }
 
 func storeDriverDefault(driver string) string {

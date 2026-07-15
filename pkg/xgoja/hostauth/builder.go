@@ -84,7 +84,10 @@ func (b *Builder) BuildHostAuthServices(ctx context.Context, vals *values.Values
 		return nil, err
 	}
 	auditSink := audit.Sink{Store: stores.Audit}
-	rateLimiter := gojahttp.NewMemoryRateLimiter()
+	rateLimiter, err := buildRateLimiter(resolved.RateLimiter)
+	if err != nil {
+		return nil, err
+	}
 	agentService := programauth.AgentService{Store: stores.ProgramAuth.Agents, Now: b.options.Now}
 	apiTokenService := programauth.APITokenService{Store: stores.ProgramAuth.APITokens, Agents: agentService, Now: b.options.Now}
 	oauthTokenService := programauth.OAuthTokenService{AccessTokens: stores.ProgramAuth.AccessTokens, RefreshTokens: stores.ProgramAuth.RefreshTokens, Agents: agentService, Now: b.options.Now}
@@ -124,7 +127,9 @@ func (b *Builder) BuildHostAuthServices(ctx context.Context, vals *values.Values
 // BuildNativeHandlers maps resolved auth config into Go-owned HTTP handlers
 // mounted by xgoja serve before the JavaScript app host fallback.
 func BuildNativeHandlers(ctx context.Context, cfg ResolvedConfig, sessionManager *sessionauth.Manager, stores *StoreBundle, deviceService programauth.DeviceService) ([]NativeHandler, error) {
-	nativeHandlers := []NativeHandler{}
+	nativeHandlers := []NativeHandler{
+		{Method: "GET", Path: "/auth/readyz", Handler: readinessHandler(BuildReadinessReport(cfg))},
+	}
 	if deviceService.Store != nil {
 		deviceHandlers, err := programauth.NewDeviceHandlers(programauth.DeviceHandlersConfig{Service: deviceService, SessionManager: sessionManager})
 		if err != nil {
@@ -171,6 +176,15 @@ func BuildNativeHandlers(ctx context.Context, cfg ResolvedConfig, sessionManager
 		NativeHandler{Method: "GET", Path: "/auth/session", Handler: sessionInfoHandler(sessionManager)},
 	)
 	return nativeHandlers, nil
+}
+
+func buildRateLimiter(cfg ResolvedRateLimiterConfig) (gojahttp.RateLimiter, error) {
+	switch cfg.Driver {
+	case RateLimiterDriverMemory:
+		return gojahttp.NewMemoryRateLimiter(), nil
+	default:
+		return nil, configError("auth.rate-limiter.driver", errors.New("unsupported rate limiter driver"))
+	}
 }
 
 func sessionInfoHandler(sessionManager *sessionauth.Manager) http.Handler {
