@@ -413,3 +413,12 @@ message BindingDocRecord {
   string raw_doc = 4;
   google.protobuf.Value normalized_json = 5;
 }
+
+// ErrorResponse is the stable protobuf-JSON envelope for transport and domain
+// failures. message is safe for remote clients; internal details are logged.
+message ErrorResponse {
+  uint32 schema_version = 1;
+  string code = 2;
+  string message = 3;
+  string request_id = 4;
+}

@@ -11,7 +11,6 @@ import (
 )
 
 func TestCLICommandFlow(t *testing.T) {
-	t.Parallel()
 
 	dbPath := filepath.Join(t.TempDir(), "repl.sqlite")
 
@@ -69,7 +68,6 @@ func TestCLICommandFlow(t *testing.T) {
 }
 
 func TestTUICommandHelp(t *testing.T) {
-	t.Parallel()
 
 	out := &bytes.Buffer{}
 	root, err := newRootCommand(out)
@@ -89,8 +87,31 @@ func TestTUICommandHelp(t *testing.T) {
 	}
 }
 
+func TestBundledREPLAPIHelpTopic(t *testing.T) {
+
+	out := &bytes.Buffer{}
+	root, err := newRootCommand(out)
+	if err != nil {
+		t.Fatalf("new root command: %v", err)
+	}
+	root.SetArgs([]string{"help", "replapi-guide"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute replapi help: %v", err)
+	}
+	rendered := out.String()
+	for _, want := range []string{
+		"Using replapi for Long-Lived REPL Sessions",
+		"Live continuity",
+		"Durable reconstruction",
+		"Unload, Deletion, and Shutdown",
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("expected replapi help to contain %q, got %q", want, rendered)
+		}
+	}
+}
+
 func TestRunCommandExecutesScript(t *testing.T) {
-	t.Parallel()
 
 	script := filepath.Join(t.TempDir(), "test.js")
 	if err := os.WriteFile(script, []byte("const x = 1 + 1; x;"), 0644); err != nil {
@@ -145,7 +166,6 @@ if (sibling.value !== 42) {
 }
 
 func TestRunScriptFileNotFound(t *testing.T) {
-	t.Parallel()
 
 	err := runScriptFile(context.Background(), runScriptOptions{
 		File: filepath.Join(t.TempDir(), "does-not-exist.js"),
@@ -159,7 +179,6 @@ func TestRunScriptFileNotFound(t *testing.T) {
 }
 
 func TestRunScriptFileBadSyntax(t *testing.T) {
-	t.Parallel()
 
 	badScript := filepath.Join(t.TempDir(), "bad.js")
 	if err := os.WriteFile(badScript, []byte("const x = [bad;"), 0644); err != nil {
@@ -176,7 +195,6 @@ func TestRunScriptFileBadSyntax(t *testing.T) {
 }
 
 func TestRunCommandHelp(t *testing.T) {
-	t.Parallel()
 
 	out := &bytes.Buffer{}
 	root, err := newRootCommand(out)
@@ -197,7 +215,6 @@ func TestRunCommandHelp(t *testing.T) {
 }
 
 func TestParseTUIProfile(t *testing.T) {
-	t.Parallel()
 
 	cases := []struct {
 		input string
@@ -206,6 +223,7 @@ func TestParseTUIProfile(t *testing.T) {
 		{input: "", want: "interactive"},
 		{input: "interactive", want: "interactive"},
 		{input: "raw", want: "raw"},
+		{input: " RAW ", want: "raw"},
 		{input: "persistent", want: "persistent"},
 	}
 	for _, tc := range cases {

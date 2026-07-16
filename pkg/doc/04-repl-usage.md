@@ -368,9 +368,13 @@ js> console.log(JSON.stringify(data, null, 2))
 }
 ```
 
+## Long-Lived REPL API
+
+For embedding a long-lived in-memory or replay-backed REPL in a Go host, use the `replapi.App` facade instead of creating a fresh runtime per evaluation. Run `goja-repl help replapi-guide` for the distinction between live VM continuity and SQLite reconstruction, plus profiles, context ownership, deletion semantics, and HTTP limitations.
+
 ## Protobuf JSON REPL API
 
-The persistent REPL service also has an schema-first protobuf JSON transport for generated clients. The `replhttp.NewHandler(app)` now exposes generated protobuf JSON messages directly under `/api/...`. The pre-protobuf hand-written JSON envelopes were removed before public adoption.
+The persistent REPL service also has a schema-first protobuf JSON transport for generated clients. The `replhttp.NewHandler(app)` now exposes generated protobuf JSON messages directly under `/api/...`. The pre-protobuf hand-written JSON envelopes were removed before public adoption.
 
 The schema-first API uses the protobuf schema in `proto/goja/replapi/v1/replapi.proto` and generated TypeScript bindings from the npm package `replapi-types`.
 
@@ -393,13 +397,18 @@ The schema-first API uses the protobuf schema in `proto/goja/replapi/v1/replapi.
 
 ```ts
 import { fromJson } from "@bufbuild/protobuf";
-import { EvaluateResponseSchema } from "replapi-types";
+import { ErrorResponseSchema, EvaluateResponseSchema } from "replapi-types";
 
-const body = await fetch(`/api/sessions/${sessionID}/evaluate`, {
+const response = await fetch(`/api/sessions/${sessionID}/evaluate`, {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({ schemaVersion: 1, source: "const x = 1; x" }),
-}).then((response) => response.json());
+});
+const body = await response.json();
+if (!response.ok) {
+  const failure = fromJson(ErrorResponseSchema, body);
+  throw new Error(`${failure.code} (${failure.requestId}): ${failure.message}`);
+}
 
 const decoded = fromJson(EvaluateResponseSchema, body);
 console.log(decoded.cell?.execution?.status);
@@ -407,7 +416,12 @@ console.log(decoded.cell?.execution?.status);
 
 Important transport details:
 
+- Evaluate requires `Content-Type: application/json` and exactly the supported nonzero `schemaVersion`.
+- Default limits are 1 MiB for the request body and 256 KiB for decoded JavaScript source; oversized input returns HTTP 413.
 - Unknown protobuf JSON request fields are rejected by the evaluate route.
+- Non-2xx responses use generated `ErrorResponse` with a stable code, safe message, and request ID; internal SQL, path, panic, runtime, and plugin details are logged rather than returned.
+- Every response carries `X-Request-ID`, `X-Content-Type-Options: nosniff`, and `Cache-Control: no-store`.
+- The transport does not provide authentication, authorization, rate limiting, TLS, or tenant isolation. The CLI requires `--allow-remote` for non-loopback binding, but that flag is only an acknowledgement; use `--safe-mode` or a strict module allowlist plus an outer security boundary.
 - `int64` protobuf fields decode as JavaScript `bigint` values with `@bufbuild/protobuf` v2; use protobuf JSON helpers such as `toJson()` before serializing decoded messages again.
 - Persisted arbitrary JSON fields use `google.protobuf.Value`; `toJson()` projects them back to ordinary JSON values.
 - `ExecutionReport.resultJson` intentionally remains a string containing JSON in v1 to preserve the current `replsession` DTO semantics.

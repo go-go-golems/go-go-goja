@@ -27,7 +27,7 @@ func newTestApp(t *testing.T) *replapi.App {
 			t.Fatalf("close store: %v", err)
 		}
 	})
-	app, err := replapi.New(
+	app, err := replapi.New(context.Background(),
 		factory,
 		zerolog.Nop(),
 		replapi.WithProfile(replapi.ProfilePersistent),
@@ -36,5 +36,10 @@ func newTestApp(t *testing.T) *replapi.App {
 	if err != nil {
 		t.Fatalf("new app: %v", err)
 	}
+	t.Cleanup(func() {
+		if err := app.Close(context.Background()); err != nil {
+			t.Fatalf("close app: %v", err)
+		}
+	})
 	return app
 }

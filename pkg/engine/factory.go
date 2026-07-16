@@ -207,7 +207,9 @@ func (f *RuntimeFactory) NewRuntime(opts ...RuntimeOption) (*Runtime, error) {
 
 	vm := goja.New()
 	loop := eventloop.NewEventLoop()
-	go loop.Start()
+	// Start marks the loop running synchronously and launches its own goroutine.
+	// Calling it in another goroutine races immediate Runtime.Close/Stop.
+	loop.Start()
 
 	owner := runtimeowner.NewRuntimeOwner(vm, loop, runtimeowner.Options{
 		Name:              "go-go-goja-runtime",

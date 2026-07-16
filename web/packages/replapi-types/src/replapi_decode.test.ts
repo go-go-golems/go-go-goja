@@ -7,6 +7,7 @@ import { fromJson, toJson } from "@bufbuild/protobuf";
 import type { JsonValue } from "@bufbuild/protobuf";
 
 import {
+	ErrorResponseSchema,
 	EvaluateResponseSchema,
 	SessionExportSchema,
 } from "./generated/proto/goja/replapi/v1/replapi_pb.ts";
@@ -47,6 +48,18 @@ function decodeEvaluateResponse(): void {
 	equal(decoded.session?.bindings[0]?.name, "answer");
 }
 
+function decodeErrorResponse(): void {
+	const decoded = fromJson(
+		ErrorResponseSchema,
+		readFixture("error_response.golden.json"),
+	);
+
+	equal(decoded.schemaVersion, 1);
+	equal(decoded.code, "session_owned");
+	equal(decoded.message, "session is owned by another app");
+	equal(decoded.requestId, "request-test-1");
+}
+
 function decodeSessionExport(): void {
 	const decoded = fromJson(
 		SessionExportSchema,
@@ -82,4 +95,5 @@ function decodeSessionExport(): void {
 }
 
 decodeEvaluateResponse();
+decodeErrorResponse();
 decodeSessionExport();

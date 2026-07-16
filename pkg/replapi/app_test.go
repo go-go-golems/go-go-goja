@@ -23,7 +23,7 @@ func TestAppRestoresPersistedSessionAndContinuesEvaluation(t *testing.T) {
 	}()
 
 	factory := newTestFactory(t)
-	app1, err := New(factory, zerolog.Nop(), WithProfile(ProfilePersistent), WithStore(store))
+	app1, err := New(context.Background(), factory, zerolog.Nop(), WithProfile(ProfilePersistent), WithStore(store))
 	if err != nil {
 		t.Fatalf("new app1: %v", err)
 	}
@@ -35,11 +35,15 @@ func TestAppRestoresPersistedSessionAndContinuesEvaluation(t *testing.T) {
 		t.Fatalf("first evaluate: %v", err)
 	}
 
-	// Simulate a new process by creating a fresh app against the same store.
-	app2, err := New(factory, zerolog.Nop(), WithProfile(ProfilePersistent), WithStore(store))
+	// Simulate orderly process exit: release ownership before the next app.
+	if err := app1.Close(context.Background()); err != nil {
+		t.Fatalf("close app1: %v", err)
+	}
+	app2, err := New(context.Background(), factory, zerolog.Nop(), WithProfile(ProfilePersistent), WithStore(store))
 	if err != nil {
 		t.Fatalf("new app2: %v", err)
 	}
+	defer func() { _ = app2.Close(context.Background()) }()
 	snapshot, err := app2.Snapshot(ctx, session.ID)
 	if err != nil {
 		t.Fatalf("restore snapshot: %v", err)
@@ -70,7 +74,7 @@ func TestAppRawProfileDoesNotRequireStore(t *testing.T) {
 
 	ctx := context.Background()
 	factory := newTestFactory(t)
-	app, err := New(factory, zerolog.Nop(), WithProfile(ProfileRaw))
+	app, err := New(context.Background(), factory, zerolog.Nop(), WithProfile(ProfileRaw))
 	if err != nil {
 		t.Fatalf("new raw app: %v", err)
 	}
@@ -102,7 +106,7 @@ func TestAppPersistentProfileRequiresStore(t *testing.T) {
 	t.Parallel()
 
 	factory := newTestFactory(t)
-	if _, err := New(factory, zerolog.Nop(), WithProfile(ProfilePersistent)); err == nil {
+	if _, err := New(context.Background(), factory, zerolog.Nop(), WithProfile(ProfilePersistent)); err == nil {
 		t.Fatal("expected persistent profile without store to fail")
 	}
 }
@@ -119,7 +123,7 @@ func TestAppSessionOverrideCanDropFromPersistentToRaw(t *testing.T) {
 	}()
 
 	factory := newTestFactory(t)
-	app, err := New(factory, zerolog.Nop(), WithProfile(ProfilePersistent), WithStore(store))
+	app, err := New(context.Background(), factory, zerolog.Nop(), WithProfile(ProfilePersistent), WithStore(store))
 	if err != nil {
 		t.Fatalf("new app: %v", err)
 	}
@@ -158,7 +162,7 @@ func TestAppDeletedSessionIsHiddenFromRestoreAndHistory(t *testing.T) {
 	}()
 
 	factory := newTestFactory(t)
-	app, err := New(factory, zerolog.Nop(), WithProfile(ProfilePersistent), WithStore(store))
+	app, err := New(context.Background(), factory, zerolog.Nop(), WithProfile(ProfilePersistent), WithStore(store))
 	if err != nil {
 		t.Fatalf("new app: %v", err)
 	}

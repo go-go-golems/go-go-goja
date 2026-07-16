@@ -81,7 +81,7 @@ func FuzzRewritePipeline(f *testing.F) {
 	f.Fuzz(func(t *testing.T, source string) {
 		ctx := context.Background()
 		factory := newFactory(t)
-		app, err := replapi.New(factory, zerolog.Nop(), replapi.WithProfile(replapi.ProfileInteractive))
+		app, err := replapi.New(context.Background(), factory, zerolog.Nop(), replapi.WithProfile(replapi.ProfileInteractive))
 		if err != nil {
 			t.Fatalf("create app: %v", err)
 		}

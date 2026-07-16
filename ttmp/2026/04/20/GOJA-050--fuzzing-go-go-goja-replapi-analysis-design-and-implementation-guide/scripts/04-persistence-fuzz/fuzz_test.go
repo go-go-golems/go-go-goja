@@ -40,7 +40,7 @@ func newPersistentApp(t *testing.T) (*replapi.App, *repldb.Store) {
 	if err != nil {
 		t.Fatalf("open store: %v", err)
 	}
-	app, err := replapi.New(newFactory(t), zerolog.Nop(),
+	app, err := replapi.New(context.Background(), newFactory(t), zerolog.Nop(),
 		replapi.WithProfile(replapi.ProfilePersistent),
 		replapi.WithStore(store),
 	)

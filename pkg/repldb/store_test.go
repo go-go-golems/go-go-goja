@@ -34,6 +34,7 @@ func TestOpenBootstrapsSchema(t *testing.T) {
 		"bindings",
 		"binding_versions",
 		"binding_docs",
+		"session_leases",
 	} {
 		if !tableExists(t, store.DB(), tableName) {
 			t.Fatalf("expected table %q to exist", tableName)

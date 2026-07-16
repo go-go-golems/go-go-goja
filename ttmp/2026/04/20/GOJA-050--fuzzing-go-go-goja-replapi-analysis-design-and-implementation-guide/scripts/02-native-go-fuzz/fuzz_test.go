@@ -34,7 +34,7 @@ func newTestFactory(t *testing.T) *engine.RuntimeFactory {
 // newRawApp creates an App in raw mode (no store needed).
 func newRawApp(t *testing.T) *replapi.App {
 	t.Helper()
-	app, err := replapi.New(newTestFactory(t), zerolog.Nop(), replapi.WithProfile(replapi.ProfileRaw))
+	app, err := replapi.New(context.Background(), newTestFactory(t), zerolog.Nop(), replapi.WithProfile(replapi.ProfileRaw))
 	if err != nil {
 		t.Fatalf("create raw app: %v", err)
 	}
@@ -44,7 +44,7 @@ func newRawApp(t *testing.T) *replapi.App {
 // newInteractiveApp creates an App in interactive mode.
 func newInteractiveApp(t *testing.T) *replapi.App {
 	t.Helper()
-	app, err := replapi.New(newTestFactory(t), zerolog.Nop(), replapi.WithProfile(replapi.ProfileInteractive))
+	app, err := replapi.New(context.Background(), newTestFactory(t), zerolog.Nop(), replapi.WithProfile(replapi.ProfileInteractive))
 	if err != nil {
 		t.Fatalf("create interactive app: %v", err)
 	}

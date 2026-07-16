@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "code": "session_owned",
+  "message": "session is owned by another app",
+  "requestId": "request-test-1"
+}
