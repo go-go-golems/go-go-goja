@@ -1,3 +1,4 @@
+---
 # Changelog
 
 ## 2026-07-15
@@ -33,3 +34,7 @@ Phase 3: complete the strict tiny-idp personal-inbox reference app with applicat
 
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/23-personal-knowledge-inbox/08-device-authorization/Makefile — Strict smoke target
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/programauth/device_handlers.go — Device credential lifecycle
+
+## 2026-07-15
+
+Phase 4: made shared-SQL OAuth access/refresh pair persistence atomic; added safe OIDC, device, refresh, revoke, logout, and rate-limit audit/metric observations; added retention/redaction operations guidance and focused negative security tests.

@@ -731,3 +731,60 @@ CLI -- device token --> ggat access + ggrt refresh
 CLI -- refresh --> replacement pair; reuse => revoke family
 CLI -- revoke --> disable refresh family; access expires by TTL
 ```
+
+## Step 11: Phase 4 — make credential-pair persistence atomic and telemetry safe
+
+### Prompt Context
+
+**User prompt (verbatim):** "do phase 4 in its entirety. Remember to keep a detailed diary as you work and commit at appropriate intervals"
+
+**Assistant interpretation:** Complete every Phase 4 task: remove the production cross-table token persistence gap, instrument security lifecycle decisions, document safe operations, prove negative security paths, record evidence, and commit reviewable changes.
+
+### What I did
+
+- Inspected `OAuthTokenService` and confirmed its refresh path created an access token before calling a separate refresh-store transaction. It cleaned up on failure, but production SQL stores share one database and can do better.
+- Added optional `programauth.OAuthTokenPairStore`; SQL `Store` implements create and rotate operations with one database transaction. Hostauth wires this capability only for its shared SQL store. Memory stores retain the deliberately simple split-store behavior.
+- Added `gojahttp.SecurityEventObserver` and a concurrency-safe in-memory counter implementation. The event contract is only name/outcome/reason, preventing raw identifiers and credentials from becoming metric labels.
+- Added safe OIDC login/callback/logout audit+metric observations, device/refresh/revoke/approval observations, and rate-limit decision observations.
+- Extended recursive audit redaction to state, nonce, verifier, and proof key fragments in addition to existing credential material.
+- Added the operations reference `04-security-operations-retention-and-redaction-guide.md`, including retention process, SQL incident queries, event table, and review checklist.
+- Added negative tests for atomic rollback, device-code enumeration, and protocol-secret redaction; existing Phase 1 callback replay, Phase 3 account-isolation/grant-narrowing, and refresh-reuse tests remain the other required evidence.
+
+### Why
+
+- A partially persisted token pair creates silent credential state that was never returned to a caller. With one SQL store, the database transaction is the correct correctness boundary.
+- Security observability must help operators distinguish normal pending, replay, expiry, and rate-limit events without converting telemetry into a secret store.
+- Retention and incident queries are part of production implementation, not post-release documentation.
+
+### What worked
+
+- `go test ./pkg/gojahttp/auth/programauth/... ./pkg/gojahttp/auth/audit/... ./pkg/gojahttp ./pkg/xgoja/hostauth/...` passed after the implementation and new negative tests.
+- The direct SQL rollback test proved that an access-token insert is not visible when refresh-token insertion fails inside `CreateOAuthTokenPair`.
+- Audit tests serialize state, nonce, and PKCE verifier examples and prove their values are absent.
+- Device endpoint tests prove malformed and unknown codes produce the opaque `invalid_grant` shape and never echo the attempted code.
+- `go test ./... -count=1` passed across the full repository after the focused
+  Phase 4 tests.
+
+### What did not need changing
+
+- The existing callback transaction store already had the one-use/replay/concurrent callback tests from Phase 1.
+- The existing device approval tests already reject broader grants and enforce intersection; no second authorization model was added.
+- No raw protocol secrets are added to audit or metrics; events carry only bounded classification values.
+
+### What was tricky to build
+
+- The public access and refresh store interfaces are useful for independent test stores. Replacing them outright would have created a needless compatibility/adaptation layer. The optional pair-store capability expresses the actual condition: one shared transactional backend.
+- A metrics integration that accepts arbitrary maps would make credential leakage likely. The small three-field event type deliberately limits the design.
+- The audit sink may be configured independently from metrics. Event emission is best-effort, matching planned-route audit behavior: authentication decisions must not become unavailable because an audit database is slow or unavailable.
+- `docmgr doctor --fix` must not currently be run against this ticket: it
+  treated `tasks.md`, `README.md`, and `changelog.md` as frontmatter documents
+  and reversed/replaced task content. The task file was restored with only the
+  intended Phase 4 checkbox changes; validate individual frontmatter documents
+  instead.
+
+### Code review instructions
+
+- Review `pkg/gojahttp/auth/programauth/oauth_token.go` with `sqlstore/sqlstore.go`; verify pair issuance/rotation selects the transaction capability only when provided.
+- Review `pkg/gojahttp/auth/keycloakauth/keycloakauth.go`, `programauth/device_handlers.go`, and `ratelimit.go` for the bounded name/outcome/reason contract.
+- Read `reference/04-security-operations-retention-and-redaction-guide.md` before deciding a deployment retention interval or external metrics adapter.
+- Run focused tests followed by `go test ./... -count=1`; do not treat an unrelated hot-reload timing flake as an authentication failure without reproducing it.

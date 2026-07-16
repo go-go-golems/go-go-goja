@@ -34,10 +34,10 @@
 
 ### Phase 4 — Strengthen application credential lifecycle and observability
 
-- [ ] Review `programauth` token-family persistence and replace compensating cleanup with one cross-table transaction if its stores share a SQL database.
-- [ ] Add structured audit events and metrics for OIDC transaction outcomes, device-flow states, token rotation, rate-limit decisions, and logout.
-- [ ] Define retention, redaction, and incident-debugging queries; verify no state, nonce, verifier, authorization code, or bearer token reaches logs.
-- [ ] Add negative tests for account crossover, grant escalation, replay, refresh reuse, and device-code enumeration.
+- [x] Review `programauth` token-family persistence and replace compensating cleanup with one cross-table transaction if its stores share a SQL database.
+- [x] Add structured audit events and metrics for OIDC transaction outcomes, device-flow states, token rotation, rate-limit decisions, and logout.
+- [x] Define retention, redaction, and incident-debugging queries; verify no state, nonce, verifier, authorization code, or bearer token reaches logs.
+- [x] Add negative tests for account crossover, grant escalation, replay, refresh reuse, and device-code enumeration.
 
 ### Phase 5 — Separately design native tiny-idp device-token acceptance
 
