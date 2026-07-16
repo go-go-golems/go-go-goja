@@ -1837,3 +1837,103 @@ base: origin/main at cc9f186
 implementation commit: 2f39f309112387823c10cfefb7796fcd16fd43b3
 pre-commit: GolangCI-Lint + Glazed lint + go generate + go test ./...
 ```
+
+## Step 15: Address PR review and security build failures
+
+I reproduced the two failed security jobs locally and implemented the reviewer's stale-owner deletion fix at the storage transaction boundary. Durable soft deletion now has the same owner/epoch/expiry fencing guarantee as evaluation append, and both live-session and store-only app deletion paths use it.
+
+I also upgraded the pinned Go toolchain to the patched standard library and documented the narrowly justified Gosec suppression for protobuf JSON output. New store- and app-level regressions cover the exact takeover/delete scenario from review.
+
+### Prompt Context
+
+**User prompt (verbatim):** "address the review comments and the build errors"
+
+**Assistant interpretation:** Inspect PR #96 review threads and failed GitHub jobs, implement the requested correctness fix, reproduce security failures locally, and push validated corrections.
+
+**Inferred user intent:** Make the PR review-ready and green without dismissing the ownership race or weakening security checks.
+
+**Commit (code):** d8f92378cc64b9ffbdfc1d67dfe71e155955aa4b — "Fence session deletion and fix security checks"
+
+### What I did
+
+- Read the Codex P1 inline review and both failed GitHub Actions logs.
+- Added `repldb.Store.DeleteSessionFenced`, which verifies lease row, owner ID, epoch, and non-expiry in the same transaction as the soft delete.
+- Extended `LeasePersistence` and routed live persistent deletion through lease renewal plus fenced deletion before lease release/runtime close.
+- Routed App's store-only deletion fallback through the same fenced primitive.
+- Added store-level stale-token/current-owner delete tests and an app-level expired-takeover test proving the stale live owner cannot soft-delete the new owner's session.
+- Upgraded `toolchain go1.26.4` to `go1.26.5` for GO-2026-5856 and GO-2026-4970.
+- Replaced the unnecessary `json.RawMessage` conversion at HTTP response write time and added a scoped `#nosec G705` rationale because `protojson` output is served as `application/json` with `nosniff`.
+- Ran focused tests/race tests, GolangCI-Lint, the CI-equivalent Gosec command, govulncheck, and the complete pre-commit pipeline.
+
+### Why
+
+- Renewing before delete alone leaves a race between lease verification and the unfenced SQL update; the ownership check and soft delete must share one transaction.
+- A stale VM may remain resident after TTL expiry, so lifecycle serialization inside one process cannot substitute for the durable epoch fence.
+- The vulnerability job failures were standard-library issues fixed by the next Go patch release, not dependency call-path changes.
+- Protobuf JSON may contain user-derived strings, but it is encoded JSON rather than HTML and is explicitly delivered with non-sniffable JSON headers; a localized suppression records that trust boundary.
+
+### What worked
+
+- `TestDeleteSessionFencedRejectsStaleOwnerAfterTakeover` proves stale lease A cannot delete after lease B takes epoch 2, while B can delete.
+- `TestStaleLiveOwnerCannotDeleteSessionAfterLeaseTakeover` reproduces the review scenario through two Apps and confirms app B remains live after app A's rejected delete.
+- `govulncheck ./...` under Go 1.26.5 reports zero affecting vulnerabilities.
+- The CI-equivalent Gosec invocation reports zero issues and recognizes one additional justified suppression.
+- Focused race tests and the full pre-commit lint/generation/test pipeline passed.
+
+### What didn't work
+
+GitHub's original jobs failed exactly because:
+
+```text
+Go Vulnerability Check:
+GO-2026-5856 found in crypto/tls@go1.26.4; fixed in go1.26.5
+GO-2026-4970 found in os@go1.26.4; fixed in go1.26.5
+
+GoSec Security Scan:
+pkg/replhttp/proto_handler.go:207 - G705 (CWE-79): XSS via taint analysis
+_, _ = w.Write(json.RawMessage(body))
+```
+
+No local command failed while implementing the fixes.
+
+### What I learned
+
+- Ownership fencing must cover destructive metadata changes, not only append operations.
+- Expiring a lease row on release is harmless for stale tokens only when every durable mutation validates that token transactionally.
+- The workflow's `go-version-file: go.mod` honors the toolchain directive, so patching the directive is sufficient to move security jobs to Go 1.26.5.
+
+### What was tricky to build
+
+- A separate renew followed by ordinary deletion would still be vulnerable. `DeleteSessionFenced` therefore rechecks the current durable token and expiry inside the deletion transaction.
+- Stale deletion should dispose the stale runtime while preserving the durable session. The service returns a fenced error, performs only a stale no-op lease release, closes/removes the old VM, and leaves the current owner's durable/live state intact.
+- Gosec's taint rule cannot infer `protojson` encoding and response headers, so changing from `json.RawMessage` to `[]byte` alone would not establish safety; the suppression needed an explicit encoding/content-type rationale.
+
+### What warrants a second pair of eyes
+
+- Review transaction behavior in `DeleteSessionFenced`, especially lease validation before the update and stale-owner error typing.
+- Confirm that closing/removing the stale VM after rejected deletion is the desired fail-closed lifecycle behavior.
+- Review the G705 suppression alongside middleware header installation and `pbconv.MarshalJSON`.
+
+### What should be done in the future
+
+- Monitor rerun GitHub checks and respond to any further review findings.
+- Keep the pinned Go toolchain current as future standard-library advisories land.
+
+### Code review instructions
+
+- Start with `pkg/repldb/lease.go:DeleteSessionFenced` and its store regression.
+- Follow the call through `pkg/replsession/lifecycle.go` and `pkg/replapi/app.go`.
+- Read `TestStaleLiveOwnerCannotDeleteSessionAfterLeaseTakeover` for the reported end-to-end race.
+- Verify with focused race tests, govulncheck, the workflow Gosec command, and the repository pre-commit hook.
+
+### Technical details
+
+```text
+owner A epoch 1 expires
+owner B acquires epoch 2
+owner A DeleteSession
+  -> renewal/token check fails
+  -> no sessions.deleted_at update
+  -> stale VM closes and is evicted
+owner B remains live and durable session remains visible
+```

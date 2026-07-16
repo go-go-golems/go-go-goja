@@ -171,3 +171,15 @@ Prepared PR branch task/goja-068-replapi-hardening and committed the complete im
 - /home/manuel/code/wesen/go-go-golems/go-go-goja/pkg/replsession/health.go — Exhaustive session health handling
 - /home/manuel/code/wesen/go-go-golems/go-go-goja/pkg/replsession/lifecycle.go — Unnamed lifecycle shutdown results
 - /home/manuel/code/wesen/go-go-golems/go-go-goja/ttmp/2026/07/15/GOJA-068--harden-replapi-runtime-lifecycle-session-ownership-and-http-safety/reference/01-investigation-diary.md — PR preparation and hook-failure record
+
+## 2026-07-16
+
+Addressed PR #96 review/security failures in d8f92378cc64b9ffbdfc1d67dfe71e155955aa4b: durable deletion now validates owner/epoch/expiry transactionally, stale live owners cannot delete takeover sessions, Go toolchain is patched to 1.26.5, and protobuf JSON output has a justified G705 suppression; focused race, govulncheck, Gosec, and full pre-commit checks pass.
+
+### Related Files
+
+- /home/manuel/code/wesen/go-go-golems/go-go-goja/go.mod — Go 1.26.5 standard-library vulnerability fixes
+- /home/manuel/code/wesen/go-go-golems/go-go-goja/pkg/replapi/ownership_test.go — End-to-end stale-owner deletion regression
+- /home/manuel/code/wesen/go-go-golems/go-go-goja/pkg/repldb/lease.go — Transactional fenced soft deletion
+- /home/manuel/code/wesen/go-go-golems/go-go-goja/pkg/replhttp/proto_handler.go — Justified protobuf JSON G705 suppression
+- /home/manuel/code/wesen/go-go-golems/go-go-goja/pkg/replsession/lifecycle.go — Live deletion renewal/fencing and fail-closed stale VM disposal
