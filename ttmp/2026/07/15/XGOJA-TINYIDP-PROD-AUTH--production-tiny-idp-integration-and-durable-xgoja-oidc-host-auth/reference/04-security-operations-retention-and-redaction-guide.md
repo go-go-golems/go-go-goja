@@ -64,7 +64,8 @@ bounded enumerations; do not put a user ID, route parameter, user code, token
 prefix, exception string, callback URL, or remote address in them. The default
 `MemorySecurityMetrics` is a testable counter. A production host can implement
 the observer with its metrics backend without importing that backend into
-`gojahttp`.
+`gojahttp`. Supply the observer through `hostauth.BuilderOptions.SecurityEvents`;
+the built `hostauth.Services` retains the same observer for diagnostics.
 
 Structured audit uses `gojahttp.AuditSink` and the `audit.Record` schema. The
 same lifecycle observation reaches the audit sink, but request metadata is

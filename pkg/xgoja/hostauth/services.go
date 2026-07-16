@@ -57,6 +57,10 @@ type Services struct {
 	AuditStore audit.Store
 
 	RateLimiter gojahttp.RateLimiter
+	// SecurityEvents receives bounded lifecycle observations. BuilderOptions may
+	// supply a production metrics bridge; otherwise the builder retains an
+	// in-memory counter for diagnostics and integration tests.
+	SecurityEvents gojahttp.SecurityEventObserver
 
 	AppAuth    AppAuthStores
 	Capability capability.Store

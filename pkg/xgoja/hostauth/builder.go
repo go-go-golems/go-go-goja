@@ -18,9 +18,10 @@ import (
 
 // BuilderOptions configures a generated-host auth service factory.
 type BuilderOptions struct {
-	Config      Config
-	ActorLoader sessionauth.ActorLoader
-	Now         func() time.Time
+	Config         Config
+	ActorLoader    sessionauth.ActorLoader
+	Now            func() time.Time
+	SecurityEvents gojahttp.SecurityEventObserver
 }
 
 // Builder is the default hostauth ServiceFactory implementation.
@@ -92,7 +93,10 @@ func (b *Builder) BuildHostAuthServices(ctx context.Context, vals *values.Values
 	apiTokenService := programauth.APITokenService{Store: stores.ProgramAuth.APITokens, Agents: agentService, Now: b.options.Now}
 	oauthTokenService := programauth.OAuthTokenService{AccessTokens: stores.ProgramAuth.AccessTokens, RefreshTokens: stores.ProgramAuth.RefreshTokens, PairStore: stores.ProgramAuth.OAuthTokenPairs, Agents: agentService, Now: b.options.Now}
 	deviceService := programauth.DeviceService{Store: stores.ProgramAuth.Devices, Agents: agentService, OAuthTokens: oauthTokenService, Now: b.options.Now, VerificationURI: "/auth/device"}
-	securityEvents := &gojahttp.MemorySecurityMetrics{}
+	securityEvents := b.options.SecurityEvents
+	if securityEvents == nil {
+		securityEvents = &gojahttp.MemorySecurityMetrics{}
+	}
 	authOptions := BuildAuthOptions(sessionManager, stores, auditSink, rateLimiter, apiTokenService, oauthTokenService)
 	authOptions.SecurityEvents = securityEvents
 	nativeHandlers, err := BuildNativeHandlers(ctx, resolved, sessionManager, stores, deviceService, auditSink, securityEvents)
@@ -108,6 +112,7 @@ func (b *Builder) BuildHostAuthServices(ctx context.Context, vals *values.Values
 		AuditSink:            auditSink,
 		AuditStore:           stores.Audit,
 		RateLimiter:          rateLimiter,
+		SecurityEvents:       securityEvents,
 		AppAuth:              stores.AppAuth,
 		Capability:           stores.Capability,
 		AgentStore:           stores.ProgramAuth.Agents,
