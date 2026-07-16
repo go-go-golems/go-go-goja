@@ -24,10 +24,11 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - name: Install arm64 cross-compiler
+      - name: Install release build tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu protobuf-compiler
+          make install-generate-tools
       - uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser-pro
@@ -53,6 +54,10 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      - name: Install release build tools
+        run: |
+          brew install protobuf
+          make install-generate-tools
       - uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser-pro
