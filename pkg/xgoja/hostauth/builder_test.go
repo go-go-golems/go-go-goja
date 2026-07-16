@@ -87,6 +87,21 @@ func TestServiceFactoryModeNoneBuildsNoAuthOptions(t *testing.T) {
 	}
 }
 
+func TestServiceFactoryWiresConfiguredSecurityEventObserver(t *testing.T) {
+	metrics := &gojahttp.MemorySecurityMetrics{}
+	services, err := NewServiceFactory(BuilderOptions{
+		Config:         Config{Mode: ModeDev, Session: SessionConfig{Cookie: CookieConfig{AllowInsecureHTTP: true}}},
+		SecurityEvents: metrics,
+	}).BuildHostAuthServices(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("BuildHostAuthServices: %v", err)
+	}
+	defer func() { _ = services.Close(context.Background()) }()
+	if services.SecurityEvents != metrics || services.AuthOptions.SecurityEvents != metrics {
+		t.Fatalf("configured security observer was not retained: services=%#v auth=%#v", services.SecurityEvents, services.AuthOptions.SecurityEvents)
+	}
+}
+
 func TestServiceFactoryDevBuildsUsableAuthServices(t *testing.T) {
 	now := time.Date(2026, 6, 14, 14, 0, 0, 0, time.UTC)
 	services, err := NewServiceFactory(BuilderOptions{

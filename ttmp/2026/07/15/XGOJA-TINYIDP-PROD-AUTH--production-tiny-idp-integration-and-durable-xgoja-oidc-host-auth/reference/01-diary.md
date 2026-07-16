@@ -775,6 +775,9 @@ CLI -- revoke --> disable refresh family; access expires by TTL
 
 - The public access and refresh store interfaces are useful for independent test stores. Replacing them outright would have created a needless compatibility/adaptation layer. The optional pair-store capability expresses the actual condition: one shared transactional backend.
 - A metrics integration that accepts arbitrary maps would make credential leakage likely. The small three-field event type deliberately limits the design.
+- `BuilderOptions.SecurityEvents` injects a production metrics bridge and the
+  returned `Services` retains it. The default in-memory counter remains only a
+  safe diagnostic fallback, rather than the sole production integration path.
 - The audit sink may be configured independently from metrics. Event emission is best-effort, matching planned-route audit behavior: authentication decisions must not become unavailable because an audit database is slow or unavailable.
 - `docmgr doctor --fix` must not currently be run against this ticket: it
   treated `tasks.md`, `README.md`, and `changelog.md` as frontmatter documents
