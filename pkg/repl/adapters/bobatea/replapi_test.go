@@ -195,7 +195,7 @@ func TestAppWithRuntimeAutoRestoresPersistentSession(t *testing.T) {
 	}()
 
 	factory := newAdapterTestFactory(t)
-	app1, err := replapi.New(factory, zerolog.Nop(), replapi.WithProfile(replapi.ProfilePersistent), replapi.WithStore(store))
+	app1, err := replapi.New(context.Background(), factory, zerolog.Nop(), replapi.WithProfile(replapi.ProfilePersistent), replapi.WithStore(store))
 	if err != nil {
 		t.Fatalf("new app1: %v", err)
 	}
@@ -206,14 +206,18 @@ func TestAppWithRuntimeAutoRestoresPersistentSession(t *testing.T) {
 	if _, err := app1.Evaluate(ctx, session.ID, "const x = 41"); err != nil {
 		t.Fatalf("seed evaluate: %v", err)
 	}
+	if err := app1.Close(context.Background()); err != nil {
+		t.Fatalf("close app1: %v", err)
+	}
 
-	app2, err := replapi.New(factory, zerolog.Nop(), replapi.WithProfile(replapi.ProfilePersistent), replapi.WithStore(store))
+	app2, err := replapi.New(context.Background(), factory, zerolog.Nop(), replapi.WithProfile(replapi.ProfilePersistent), replapi.WithStore(store))
 	if err != nil {
 		t.Fatalf("new app2: %v", err)
 	}
+	defer func() { _ = app2.Close(context.Background()) }()
 
 	var preview string
-	err = app2.WithRuntime(ctx, session.ID, func(rt *engine.Runtime) error {
+	err = app2.WithRuntime(ctx, session.ID, func(_ context.Context, rt *engine.Runtime) error {
 		preview = rt.VM.Get("x").String()
 		return nil
 	})
@@ -253,7 +257,7 @@ func newAdapterTestApp(t *testing.T, profile replapi.Profile, store *repldb.Stor
 	if store != nil {
 		opts = append(opts, replapi.WithStore(store))
 	}
-	app, err := replapi.New(factory, zerolog.Nop(), opts...)
+	app, err := replapi.New(context.Background(), factory, zerolog.Nop(), opts...)
 	if err != nil {
 		t.Fatalf("new app: %v", err)
 	}

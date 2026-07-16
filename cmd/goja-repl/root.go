@@ -5,9 +5,11 @@ package main
 import (
 	"context"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"github.com/go-go-golems/glazed/pkg/cli"
 	"github.com/go-go-golems/glazed/pkg/cmds"
@@ -126,18 +128,18 @@ func (s commandSupport) moduleMiddleware() engine.ModuleMiddleware {
 	return nil
 }
 
-func (s commandSupport) newApp() (*replapi.App, *repldb.Store, error) {
-	return s.newAppWithOptions(appSupportOptions{
+func (s commandSupport) newApp(ctx context.Context) (*replapi.App, *repldb.Store, error) {
+	return s.newAppWithOptions(ctx, appSupportOptions{
 		profile:   replapi.ProfilePersistent,
 		withStore: true,
 	})
 }
 
-func (s commandSupport) newAppWithOptions(options appSupportOptions) (*replapi.App, *repldb.Store, error) {
+func (s commandSupport) newAppWithOptions(ctx context.Context, options appSupportOptions) (*replapi.App, *repldb.Store, error) {
 	var store *repldb.Store
 	var err error
 	if options.withStore {
-		store, err = repldb.Open(context.Background(), s.opts.DBPath)
+		store, err = repldb.Open(ctx, s.opts.DBPath)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -169,7 +171,7 @@ func (s commandSupport) newAppWithOptions(options appSupportOptions) (*replapi.A
 	if store != nil {
 		appOpts = append(appOpts, replapi.WithStore(store))
 	}
-	app, err := replapi.New(factory, log.Logger, appOpts...)
+	app, err := replapi.New(ctx, factory, log.Logger, appOpts...)
 	if err != nil {
 		if store != nil {
 			_ = store.Close()
@@ -214,19 +216,38 @@ type evalSettings struct {
 }
 
 type serveSettings struct {
-	Addr string `glazed:"addr"`
+	Addr        string `glazed:"addr"`
+	AllowRemote bool   `glazed:"allow-remote"`
 }
 
-// runWithApp is a convenience wrapper for the common pattern:
-// build app, defer close, call fn.
+// runWithApp constructs one app/store pair and always closes the app before
+// its caller-owned store. Operation and shutdown failures are both returned.
 func (s commandSupport) runWithApp(fn func(ctx context.Context, app *replapi.App) error) func(ctx context.Context, vals *values.Values) error {
 	return func(ctx context.Context, vals *values.Values) error {
 		_ = vals
-		app, store, err := s.newApp()
+		app, store, err := s.newApp(ctx)
 		if err != nil {
 			return err
 		}
-		defer func() { _ = store.Close() }()
-		return fn(ctx, app)
+		runErr := fn(ctx, app)
+		return stderrors.Join(runErr, closeAppAndStore(app, store))
 	}
+}
+
+// closeAppAndStore enforces runtime/lease shutdown before SQLite shutdown.
+func closeAppAndStore(app *replapi.App, store *repldb.Store) error {
+	var closeErrs []error
+	if app != nil {
+		closeCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		if err := app.Close(closeCtx); err != nil {
+			closeErrs = append(closeErrs, fmt.Errorf("close repl app: %w", err))
+		}
+		cancel()
+	}
+	if store != nil {
+		if err := store.Close(); err != nil {
+			closeErrs = append(closeErrs, fmt.Errorf("close repl store: %w", err))
+		}
+	}
+	return stderrors.Join(closeErrs...)
 }

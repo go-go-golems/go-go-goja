@@ -17,45 +17,79 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (s *Service) persistCell(ctx context.Context, state *sessionState, cell *CellReport) error {
-	if s.store == nil || state == nil || !state.policy.Persist.Enabled || !state.policy.Persist.Evaluations {
-		return nil
+// commitEvaluatedCell publishes a cell only after its durable append succeeds.
+// On failure it returns both the executed cell response and a typed CommitError.
+func (s *Service) commitEvaluatedCell(ctx context.Context, state *sessionState, cell *cellState) (*EvaluateResponse, error) {
+	if state == nil || cell == nil || cell.report == nil {
+		return nil, errors.New("commit cell: state or cell is nil")
 	}
+	response := &EvaluateResponse{Session: state.buildSummary(ctx), Cell: cell.report}
+	record, durable, err := s.buildEvaluationRecord(ctx, state, cell.report)
+	if err != nil {
+		commitErr := state.markCommitFailure(cell, nil, nil, err)
+		response.Session = state.buildSummary(ctx)
+		return response, commitErr
+	}
+	if !durable {
+		state.publishCommittedCell(cell)
+		response.Session = state.buildSummary(ctx)
+		return response, nil
+	}
+	fence := leaseFence(state.lease, record.CellID)
+	var persistErr error
+	if fence != nil && s.leaseStore != nil {
+		persistErr = s.leaseStore.PersistEvaluationFenced(ctx, record, *fence, s.nowUTC())
+	} else {
+		persistErr = s.store.PersistEvaluation(ctx, record)
+	}
+	if persistErr != nil {
+		wrapped := errors.Wrap(persistErr, "persist cell: write evaluation")
+		commitErr := state.markCommitFailure(cell, &record, fence, wrapped)
+		response.Session = state.buildSummary(ctx)
+		return response, commitErr
+	}
+	state.publishCommittedCell(cell)
+	response.Session = state.buildSummary(ctx)
+	return response, nil
+}
+
+// buildEvaluationRecord creates the exact immutable payload retained for retry.
+// durable=false means the selected policy does not journal evaluations.
+func (s *Service) buildEvaluationRecord(ctx context.Context, state *sessionState, cell *CellReport) (repldb.EvaluationRecord, bool, error) {
 	if state == nil || cell == nil {
-		return errors.New("persist cell: state or cell is nil")
+		return repldb.EvaluationRecord{}, false, errors.New("persist cell: state or cell is nil")
+	}
+	if s.store == nil || !state.policy.Persist.Enabled || !state.policy.Persist.Evaluations {
+		return repldb.EvaluationRecord{}, false, nil
 	}
 
 	resultJSON, err := json.Marshal(cell)
 	if err != nil {
-		return errors.Wrap(err, "persist cell: marshal cell report")
+		return repldb.EvaluationRecord{}, true, errors.Wrap(err, "persist cell: marshal cell report")
 	}
 	analysisJSON, err := json.Marshal(cell.Static)
 	if err != nil {
-		return errors.Wrap(err, "persist cell: marshal static report")
+		return repldb.EvaluationRecord{}, true, errors.Wrap(err, "persist cell: marshal static report")
 	}
 	globalsBeforeJSON, err := json.Marshal(cell.Runtime.BeforeGlobals)
 	if err != nil {
-		return errors.Wrap(err, "persist cell: marshal globals before")
+		return repldb.EvaluationRecord{}, true, errors.Wrap(err, "persist cell: marshal globals before")
 	}
 	globalsAfterJSON, err := json.Marshal(cell.Runtime.AfterGlobals)
 	if err != nil {
-		return errors.Wrap(err, "persist cell: marshal globals after")
+		return repldb.EvaluationRecord{}, true, errors.Wrap(err, "persist cell: marshal globals after")
 	}
 
 	consoleEvents := make([]repldb.ConsoleEventRecord, 0, len(cell.Execution.Console))
 	for idx, event := range cell.Execution.Console {
-		consoleEvents = append(consoleEvents, repldb.ConsoleEventRecord{
-			Stream: event.Kind,
-			Seq:    idx + 1,
-			Text:   event.Message,
-		})
+		consoleEvents = append(consoleEvents, repldb.ConsoleEventRecord{Stream: event.Kind, Seq: idx + 1, Text: event.Message})
 	}
 	bindingVersions, bindingDocs, err := s.bindingPersistenceRecords(ctx, state, cell)
 	if err != nil {
-		return err
+		return repldb.EvaluationRecord{}, true, err
 	}
 
-	if err := s.store.PersistEvaluation(ctx, repldb.EvaluationRecord{
+	return repldb.EvaluationRecord{
 		SessionID:         state.id,
 		CellID:            cell.ID,
 		CreatedAt:         cell.CreatedAt,
@@ -70,11 +104,7 @@ func (s *Service) persistCell(ctx context.Context, state *sessionState, cell *Ce
 		ConsoleEvents:     consoleEvents,
 		BindingVersions:   bindingVersions,
 		BindingDocs:       bindingDocs,
-	}); err != nil {
-		return errors.Wrap(err, "persist cell: write evaluation")
-	}
-
-	return nil
+	}, true, nil
 }
 
 func (s *Service) bindingPersistenceRecords(ctx context.Context, state *sessionState, cell *CellReport) ([]repldb.BindingVersionRecord, []repldb.BindingDocRecord, error) {

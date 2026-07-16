@@ -173,7 +173,7 @@ func TestServiceDeleteSessionClosesRuntimeWhenPersistenceDeleteFails(t *testing.
 	}
 
 	closedAt := time.Time{}
-	if err := service.WithRuntime(ctx, session.ID, func(rt *engine.Runtime) error {
+	if err := service.WithRuntime(ctx, session.ID, func(_ context.Context, rt *engine.Runtime) error {
 		return rt.AddCloser(func(context.Context) error {
 			closedAt = time.Now()
 			return nil

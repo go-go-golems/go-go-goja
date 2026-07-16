@@ -35,7 +35,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	app, err := replapi.New(factory, zerolog.Nop(), replapi.WithProfile(replapi.ProfileRaw))
+	app, err := replapi.New(context.Background(), factory, zerolog.Nop(), replapi.WithProfile(replapi.ProfileRaw))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "create app: %v\n", err)
 		os.Exit(1)

@@ -25,6 +25,7 @@ func FuzzPersistenceRoundTrip(f *testing.F) {
 		func() {
 			defer func() {
 				if r := recover(); r != nil {
+					_ = app1.Close(context.Background())
 					_ = store1.Close()
 					t.Fatalf("panic in seed phase source=%q: %v", truncate(seed, 60), r)
 				}
@@ -33,11 +34,13 @@ func FuzzPersistenceRoundTrip(f *testing.F) {
 		}()
 
 		sessionID := session.ID
+		_ = app1.Close(context.Background())
 		_ = store1.Close()
 
 		// Phase 2: Restore in a new app and verify.
 		app2, store2 := newPersistentApp(t)
 		defer func() { _ = store2.Close() }()
+		defer func() { _ = app2.Close(context.Background()) }()
 
 		func() {
 			defer func() {
@@ -85,11 +88,13 @@ func TestFuzzPersistenceBasicRoundTrip(t *testing.T) {
 	if resp1.Cell.Execution.Status != "ok" {
 		t.Fatalf("seed status: %q", resp1.Cell.Execution.Status)
 	}
+	_ = app1.Close(context.Background())
 	_ = store1.Close()
 
 	// Phase 2: Restore in new app on same DB.
 	app2, store2 := newPersistentAppAtPath(t, dbPath)
 	defer func() { _ = store2.Close() }()
+	defer func() { _ = app2.Close(context.Background()) }()
 
 	snapshot, err := app2.Snapshot(ctx, session.ID)
 	if err != nil {
@@ -129,11 +134,13 @@ func TestFuzzPersistenceHistoryPreserved(t *testing.T) {
 	for _, src := range sources {
 		_, _, _, _ = safeEval(ctx, app1, session.ID, src)
 	}
+	_ = app1.Close(context.Background())
 	_ = store1.Close()
 
 	// Check history via new app.
 	app2, store2 := newPersistentAppAtPath(t, dbPath)
 	defer func() { _ = store2.Close() }()
+	defer func() { _ = app2.Close(context.Background()) }()
 
 	history, err := app2.History(ctx, session.ID)
 	if err != nil {
@@ -159,10 +166,12 @@ func TestFuzzPersistenceDelete(t *testing.T) {
 	if err := app1.DeleteSession(ctx, session.ID); err != nil {
 		t.Fatalf("delete: %v", err)
 	}
+	_ = app1.Close(context.Background())
 	_ = store1.Close()
 
 	app2, store2 := newPersistentApp(t)
 	defer func() { _ = store2.Close() }()
+	defer func() { _ = app2.Close(context.Background()) }()
 
 	sessions, err := app2.ListSessions(ctx)
 	if err != nil {

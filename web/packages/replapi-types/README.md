@@ -8,13 +8,21 @@ The generated files are produced by Buf from `proto/goja/replapi/v1/replapi.prot
 
 ```ts
 import { fromJson } from "@bufbuild/protobuf";
-import { EvaluateResponseSchema } from "replapi-types";
+import { ErrorResponseSchema, EvaluateResponseSchema } from "replapi-types";
 
-const body = await fetch(`/api/v1/sessions/${sessionId}/evaluate`, {
+const response = await fetch(`/api/sessions/${sessionId}/evaluate`, {
 	method: "POST",
-	headers: { "Content-Type": "application/json" },
+	headers: {
+		"Content-Type": "application/json",
+		"X-Request-ID": crypto.randomUUID(),
+	},
 	body: JSON.stringify({ schemaVersion: 1, source: "1 + 2" }),
-}).then((response) => response.json());
+});
+const body = await response.json();
+if (!response.ok) {
+	const failure = fromJson(ErrorResponseSchema, body);
+	throw new Error(`${failure.code} (${failure.requestId}): ${failure.message}`);
+}
 
 const decoded = fromJson(EvaluateResponseSchema, body);
 console.log(decoded.cell?.execution?.status);

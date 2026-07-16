@@ -401,6 +401,9 @@ func (s *sessionState) buildSummaryLockedWithGlobals(globals map[string]GlobalSt
 }
 
 func (s *sessionState) cellByID(cellID int) *cellState {
+	if cell := s.inFlightCell; cell != nil && cell.report != nil && cell.report.ID == cellID {
+		return cell
+	}
 	for _, cell := range s.cells {
 		if cell != nil && cell.report != nil && cell.report.ID == cellID {
 			return cell

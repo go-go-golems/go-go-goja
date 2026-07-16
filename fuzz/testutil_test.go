@@ -24,7 +24,7 @@ func newFactory(t *testing.T) *engine.RuntimeFactory {
 
 func newRawApp(t *testing.T) *replapi.App {
 	t.Helper()
-	app, err := replapi.New(newFactory(t), zerolog.Nop(), replapi.WithProfile(replapi.ProfileRaw))
+	app, err := replapi.New(context.Background(), newFactory(t), zerolog.Nop(), replapi.WithProfile(replapi.ProfileRaw))
 	if err != nil {
 		t.Fatalf("create raw app: %v", err)
 	}
@@ -33,7 +33,7 @@ func newRawApp(t *testing.T) *replapi.App {
 
 func newInteractiveApp(t *testing.T) *replapi.App {
 	t.Helper()
-	app, err := replapi.New(newFactory(t), zerolog.Nop(), replapi.WithProfile(replapi.ProfileInteractive))
+	app, err := replapi.New(context.Background(), newFactory(t), zerolog.Nop(), replapi.WithProfile(replapi.ProfileInteractive))
 	if err != nil {
 		t.Fatalf("create interactive app: %v", err)
 	}
@@ -48,7 +48,7 @@ func newPersistentApp(t *testing.T) (*replapi.App, *repldb.Store) {
 	if err != nil {
 		t.Fatalf("open store: %v", err)
 	}
-	app, err := replapi.New(newFactory(t), zerolog.Nop(),
+	app, err := replapi.New(context.Background(), newFactory(t), zerolog.Nop(),
 		replapi.WithProfile(replapi.ProfilePersistent),
 		replapi.WithStore(store),
 	)
@@ -65,7 +65,7 @@ func newPersistentAppAtPath(t *testing.T, dbPath string) (*replapi.App, *repldb.
 	if err != nil {
 		t.Fatalf("open store at %s: %v", dbPath, err)
 	}
-	app, err := replapi.New(newFactory(t), zerolog.Nop(),
+	app, err := replapi.New(context.Background(), newFactory(t), zerolog.Nop(),
 		replapi.WithProfile(replapi.ProfilePersistent),
 		replapi.WithStore(store),
 	)

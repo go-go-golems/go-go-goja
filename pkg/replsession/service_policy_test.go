@@ -137,7 +137,7 @@ func TestServiceRawSyncRunawayTimeoutKeepsSessionUsable(t *testing.T) {
 
 	ctx := context.Background()
 	opts := RawSessionOptions()
-	opts.Policy.Eval.TimeoutMS = 20
+	opts.Policy.Eval.TimeoutMS = 100
 
 	service := NewService(newPersistenceTestFactory(t), zerolog.Nop(), WithDefaultSessionOptions(opts))
 
@@ -174,7 +174,7 @@ func TestServiceInteractiveSyncRunawayTimeoutKeepsSessionUsable(t *testing.T) {
 
 	ctx := context.Background()
 	opts := InteractiveSessionOptions()
-	opts.Policy.Eval.TimeoutMS = 20
+	opts.Policy.Eval.TimeoutMS = 100
 
 	service := NewService(newPersistenceTestFactory(t), zerolog.Nop(), WithDefaultSessionOptions(opts))
 

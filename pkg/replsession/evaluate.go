@@ -32,15 +32,41 @@ func (s *Service) Evaluate(ctx context.Context, sessionID string, source string)
 	if err != nil {
 		return nil, err
 	}
+	op, err := state.beginOperation(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer op.Release()
+	ctx = op.Context()
+	if err := state.evaluationHealthError(); err != nil {
+		return nil, err
+	}
+	guardCtx, stopLeaseGuard, err := s.startSessionLeaseGuard(ctx, state)
+	if err != nil {
+		return nil, err
+	}
+	var response *EvaluateResponse
+	var evalErr error
+	func() {
+		defer func() {
+			if guardErr := stopLeaseGuard(); guardErr != nil {
+				state.markFenced(guardErr)
+				if evalErr == nil || !errors.Is(evalErr, ErrCommitFailed) {
+					response = nil
+					evalErr = state.evaluationHealthError()
+				}
+			}
+		}()
+		response, evalErr = s.evaluateWithLease(guardCtx, state, source)
+	}()
+	return response, evalErr
+}
 
-	state.mu.Lock()
-	defer state.mu.Unlock()
-
+func (s *Service) evaluateWithLease(ctx context.Context, state *sessionState, source string) (*EvaluateResponse, error) {
 	// Short-circuit empty or whitespace-only source to avoid panics in
 	// jsparse.Resolve (which assumes program.Body is non-empty).
 	if strings.TrimSpace(source) == "" {
-		state.nextCellID++
-		cellID := state.nextCellID
+		cellID := state.nextCellID + 1
 		now := time.Now().UTC()
 		cell := &CellReport{
 			ID:        cellID,
@@ -71,13 +97,11 @@ func (s *Service) Evaluate(ctx context.Context, sessionID string, source string)
 			},
 			Provenance: []ProvenanceRecord{},
 		}
-		state.cells = append(state.cells, &cellState{report: cell})
-		return &EvaluateResponse{Session: state.buildSummaryLocked(), Cell: cell}, nil
+		return s.commitEvaluatedCell(ctx, state, &cellState{report: cell})
 	}
 
 	policy := state.policy // already normalized at session creation/restore
-	state.nextCellID++
-	cellID := state.nextCellID
+	cellID := state.nextCellID + 1
 	filename := fmt.Sprintf("<repl-cell-%d>", cellID)
 
 	var (
@@ -178,11 +202,7 @@ func (s *Service) Evaluate(ctx context.Context, sessionID string, source string)
 			LeakedGlobals:   []string{},
 			PersistedByWrap: []string{},
 		}
-		state.cells = append(state.cells, &cellState{report: cell, analysis: analysis})
-		if err := s.persistCell(ctx, state, cell); err != nil {
-			return nil, err
-		}
-		return &EvaluateResponse{Session: state.buildSummaryLocked(), Cell: cell}, nil
+		return s.commitEvaluatedCell(ctx, state, &cellState{report: cell, analysis: analysis})
 	}
 
 	if policy.UsesInstrumentedExecution() {
@@ -309,12 +329,14 @@ func (s *Service) evaluateInstrumented(ctx context.Context, state *sessionState,
 		state.upsertDeclaredBinding(analysis, name, cell.ID)
 	}
 
-	// Append the cell before refreshing runtime details so that cellByID
-	// can resolve the declaring cell for function source mapping.
-	state.cells = append(state.cells, &cellState{report: cell, analysis: analysis})
-
-	if err := state.refreshBindingRuntimeDetails(ctx); err != nil {
-		return nil, errors.Wrap(err, "refresh binding runtime details")
+	// Expose the candidate only to function-source mapping. It is not published
+	// in committed history until the durable append succeeds.
+	candidate := &cellState{report: cell, analysis: analysis}
+	state.inFlightCell = candidate
+	refreshErr := state.refreshBindingRuntimeDetails(ctx)
+	state.inFlightCell = nil
+	if refreshErr != nil {
+		return nil, errors.Wrap(refreshErr, "refresh binding runtime details")
 	}
 
 	cell.Execution = ExecutionReport{
@@ -340,10 +362,7 @@ func (s *Service) evaluateInstrumented(ctx context.Context, state *sessionState,
 		CurrentCellValue: outcome.LastValue,
 	}
 
-	if err := s.persistCell(ctx, state, cell); err != nil {
-		return nil, err
-	}
-	return &EvaluateResponse{Session: state.buildSummaryLockedWithGlobals(afterGlobals), Cell: cell}, nil
+	return s.commitEvaluatedCell(ctx, state, candidate)
 }
 
 func (s *Service) evaluateRaw(ctx context.Context, state *sessionState, cell *CellReport, analysis *jsparse.AnalysisResult, rewrite RewriteReport, policy SessionPolicy) (*EvaluateResponse, error) {
@@ -438,14 +457,7 @@ func (s *Service) evaluateRaw(ctx context.Context, state *sessionState, cell *Ce
 		cell.Runtime.RemovedBindings = dedupeSortedStrings(removedBindings)
 	}
 
-	state.cells = append(state.cells, &cellState{report: cell, analysis: analysis})
-	if err := s.persistCell(ctx, state, cell); err != nil {
-		return nil, err
-	}
-	if observeRuntime {
-		return &EvaluateResponse{Session: state.buildSummaryLockedWithGlobals(afterGlobals), Cell: cell}, nil
-	}
-	return &EvaluateResponse{Session: state.buildSummaryLocked(), Cell: cell}, nil
+	return s.commitEvaluatedCell(ctx, state, &cellState{report: cell, analysis: analysis})
 }
 
 func wrapTopLevelAwaitExpression(source string) (string, bool) {

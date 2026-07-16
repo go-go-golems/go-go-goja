@@ -50,8 +50,14 @@ func NewREPLAPIAdapter(app *replapi.App, sessionID string) (*REPLAPIAdapter, err
 		TSParser: tsParser,
 		TSMu:     &ret.tsMu,
 		WithRuntime: func(ctx context.Context, fn func(*goja.Runtime, *docaccess.Hub) error) error {
-			return app.WithRuntime(ctx, sessionID, func(runtime *engine.Runtime) error {
-				return fn(runtime.VM, js.DocHubFromRuntime(runtime))
+			return app.WithRuntime(ctx, sessionID, func(opCtx context.Context, runtime *engine.Runtime) error {
+				if err := opCtx.Err(); err != nil {
+					return err
+				}
+				if err := fn(runtime.VM, js.DocHubFromRuntime(runtime)); err != nil {
+					return err
+				}
+				return opCtx.Err()
 			})
 		},
 		BindingHints: func(ctx context.Context) ([]jsparse.CompletionCandidate, error) {
@@ -85,15 +91,14 @@ func (a *REPLAPIAdapter) EvaluateStream(ctx context.Context, code string, emit f
 	if a == nil || a.app == nil {
 		return errors.New("replapi adapter: app is nil")
 	}
-	resp, err := a.app.Evaluate(ctx, a.sessionID, code)
-	if err != nil {
-		emit(bobarepl.Event{
-			Kind:  bobarepl.EventStderr,
-			Props: map[string]any{"text": err.Error(), "append": err.Error(), "is_error": true},
-		})
-		return nil
-	}
+	resp, evalErr := a.app.Evaluate(ctx, a.sessionID, code)
 	if resp == nil || resp.Cell == nil {
+		if evalErr != nil {
+			emit(bobarepl.Event{
+				Kind:  bobarepl.EventStderr,
+				Props: map[string]any{"text": evalErr.Error(), "append": evalErr.Error(), "is_error": true},
+			})
+		}
 		return nil
 	}
 	for _, event := range resp.Cell.Execution.Console {
@@ -114,12 +119,16 @@ func (a *REPLAPIAdapter) EvaluateStream(ctx context.Context, code string, emit f
 			Kind:  bobarepl.EventStderr,
 			Props: map[string]any{"text": resp.Cell.Execution.Error, "append": resp.Cell.Execution.Error, "is_error": true},
 		})
-		return nil
-	}
-	if resp.Cell.Execution.Result != "" {
+	} else if resp.Cell.Execution.Result != "" {
 		emit(bobarepl.Event{
 			Kind:  bobarepl.EventResultMarkdown,
 			Props: map[string]any{"markdown": resp.Cell.Execution.Result},
+		})
+	}
+	if evalErr != nil {
+		emit(bobarepl.Event{
+			Kind:  bobarepl.EventStderr,
+			Props: map[string]any{"text": evalErr.Error(), "append": evalErr.Error(), "is_error": true},
 		})
 	}
 	return nil

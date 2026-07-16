@@ -3892,6 +3892,76 @@ func (x *BindingDocRecord) GetNormalizedJson() *structpb.Value {
 	return nil
 }
 
+// ErrorResponse is the stable protobuf-JSON envelope for transport and domain
+// failures. message is safe for remote clients; internal details are logged.
+type ErrorResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SchemaVersion uint32                 `protobuf:"varint,1,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
+	Code          string                 `protobuf:"bytes,2,opt,name=code,proto3" json:"code,omitempty"`
+	Message       string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	RequestId     string                 `protobuf:"bytes,4,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ErrorResponse) Reset() {
+	*x = ErrorResponse{}
+	mi := &file_proto_goja_replapi_v1_replapi_proto_msgTypes[51]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ErrorResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ErrorResponse) ProtoMessage() {}
+
+func (x *ErrorResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_goja_replapi_v1_replapi_proto_msgTypes[51]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ErrorResponse.ProtoReflect.Descriptor instead.
+func (*ErrorResponse) Descriptor() ([]byte, []int) {
+	return file_proto_goja_replapi_v1_replapi_proto_rawDescGZIP(), []int{51}
+}
+
+func (x *ErrorResponse) GetSchemaVersion() uint32 {
+	if x != nil {
+		return x.SchemaVersion
+	}
+	return 0
+}
+
+func (x *ErrorResponse) GetCode() string {
+	if x != nil {
+		return x.Code
+	}
+	return ""
+}
+
+func (x *ErrorResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *ErrorResponse) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
 var File_proto_goja_replapi_v1_replapi_proto protoreflect.FileDescriptor
 
 const file_proto_goja_replapi_v1_replapi_proto_rawDesc = "" +
@@ -4260,7 +4330,13 @@ const file_proto_goja_replapi_v1_replapi_proto_rawDesc = "" +
 	"\vsource_kind\x18\x03 \x01(\tR\n" +
 	"sourceKind\x12\x17\n" +
 	"\araw_doc\x18\x04 \x01(\tR\x06rawDoc\x12?\n" +
-	"\x0fnormalized_json\x18\x05 \x01(\v2\x16.google.protobuf.ValueR\x0enormalizedJson*T\n" +
+	"\x0fnormalized_json\x18\x05 \x01(\v2\x16.google.protobuf.ValueR\x0enormalizedJson\"\x83\x01\n" +
+	"\rErrorResponse\x12%\n" +
+	"\x0eschema_version\x18\x01 \x01(\rR\rschemaVersion\x12\x12\n" +
+	"\x04code\x18\x02 \x01(\tR\x04code\x12\x18\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x04 \x01(\tR\trequestId*T\n" +
 	"\bEvalMode\x12\x19\n" +
 	"\x15EVAL_MODE_UNSPECIFIED\x10\x00\x12\x11\n" +
 	"\rEVAL_MODE_RAW\x10\x01\x12\x1a\n" +
@@ -4279,7 +4355,7 @@ func file_proto_goja_replapi_v1_replapi_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_goja_replapi_v1_replapi_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_proto_goja_replapi_v1_replapi_proto_msgTypes = make([]protoimpl.MessageInfo, 51)
+var file_proto_goja_replapi_v1_replapi_proto_msgTypes = make([]protoimpl.MessageInfo, 52)
 var file_proto_goja_replapi_v1_replapi_proto_goTypes = []any{
 	(EvalMode)(0),                  // 0: goja.replapi.v1.EvalMode
 	(*EvaluateRequest)(nil),        // 1: goja.replapi.v1.EvaluateRequest
@@ -4333,8 +4409,9 @@ var file_proto_goja_replapi_v1_replapi_proto_goTypes = []any{
 	(*ConsoleEventRecord)(nil),     // 49: goja.replapi.v1.ConsoleEventRecord
 	(*BindingVersionRecord)(nil),   // 50: goja.replapi.v1.BindingVersionRecord
 	(*BindingDocRecord)(nil),       // 51: goja.replapi.v1.BindingDocRecord
-	(*timestamppb.Timestamp)(nil),  // 52: google.protobuf.Timestamp
-	(*structpb.Value)(nil),         // 53: google.protobuf.Value
+	(*ErrorResponse)(nil),          // 52: goja.replapi.v1.ErrorResponse
+	(*timestamppb.Timestamp)(nil),  // 53: google.protobuf.Timestamp
+	(*structpb.Value)(nil),         // 54: google.protobuf.Value
 }
 var file_proto_goja_replapi_v1_replapi_proto_depIdxs = []int32{
 	12, // 0: goja.replapi.v1.EvaluateResponse.session:type_name -> goja.replapi.v1.SessionSummary
@@ -4348,7 +4425,7 @@ var file_proto_goja_replapi_v1_replapi_proto_depIdxs = []int32{
 	51, // 8: goja.replapi.v1.DocsResponse.docs:type_name -> goja.replapi.v1.BindingDocRecord
 	47, // 9: goja.replapi.v1.ExportSessionResponse.session_export:type_name -> goja.replapi.v1.SessionExport
 	13, // 10: goja.replapi.v1.SessionSummary.policy:type_name -> goja.replapi.v1.SessionPolicy
-	52, // 11: goja.replapi.v1.SessionSummary.created_at:type_name -> google.protobuf.Timestamp
+	53, // 11: goja.replapi.v1.SessionSummary.created_at:type_name -> google.protobuf.Timestamp
 	27, // 12: goja.replapi.v1.SessionSummary.bindings:type_name -> goja.replapi.v1.BindingView
 	26, // 13: goja.replapi.v1.SessionSummary.history:type_name -> goja.replapi.v1.HistoryEntry
 	34, // 14: goja.replapi.v1.SessionSummary.current_globals:type_name -> goja.replapi.v1.GlobalStateView
@@ -4357,7 +4434,7 @@ var file_proto_goja_replapi_v1_replapi_proto_depIdxs = []int32{
 	15, // 17: goja.replapi.v1.SessionPolicy.observe:type_name -> goja.replapi.v1.ObservePolicy
 	16, // 18: goja.replapi.v1.SessionPolicy.persist:type_name -> goja.replapi.v1.PersistPolicy
 	0,  // 19: goja.replapi.v1.EvalPolicy.mode:type_name -> goja.replapi.v1.EvalMode
-	52, // 20: goja.replapi.v1.CellReport.created_at:type_name -> google.protobuf.Timestamp
+	53, // 20: goja.replapi.v1.CellReport.created_at:type_name -> google.protobuf.Timestamp
 	20, // 21: goja.replapi.v1.CellReport.static_report:type_name -> goja.replapi.v1.StaticReport
 	22, // 22: goja.replapi.v1.CellReport.rewrite:type_name -> goja.replapi.v1.RewriteReport
 	18, // 23: goja.replapi.v1.CellReport.execution:type_name -> goja.replapi.v1.ExecutionReport
@@ -4377,7 +4454,7 @@ var file_proto_goja_replapi_v1_replapi_proto_depIdxs = []int32{
 	34, // 37: goja.replapi.v1.RuntimeReport.before_globals:type_name -> goja.replapi.v1.GlobalStateView
 	34, // 38: goja.replapi.v1.RuntimeReport.after_globals:type_name -> goja.replapi.v1.GlobalStateView
 	35, // 39: goja.replapi.v1.RuntimeReport.diffs:type_name -> goja.replapi.v1.GlobalDiffView
-	52, // 40: goja.replapi.v1.HistoryEntry.created_at:type_name -> google.protobuf.Timestamp
+	53, // 40: goja.replapi.v1.HistoryEntry.created_at:type_name -> google.protobuf.Timestamp
 	28, // 41: goja.replapi.v1.BindingView.static_view:type_name -> goja.replapi.v1.BindingStaticView
 	29, // 42: goja.replapi.v1.BindingView.runtime:type_name -> goja.replapi.v1.BindingRuntimeView
 	25, // 43: goja.replapi.v1.BindingView.provenance:type_name -> goja.replapi.v1.ProvenanceRecord
@@ -4391,24 +4468,24 @@ var file_proto_goja_replapi_v1_replapi_proto_depIdxs = []int32{
 	39, // 51: goja.replapi.v1.BindingReferenceGroup.locations:type_name -> goja.replapi.v1.IdentifierUseView
 	41, // 52: goja.replapi.v1.ScopeView.bindings:type_name -> goja.replapi.v1.ScopeBinding
 	40, // 53: goja.replapi.v1.ScopeView.children:type_name -> goja.replapi.v1.ScopeView
-	52, // 54: goja.replapi.v1.SessionRecord.created_at:type_name -> google.protobuf.Timestamp
-	52, // 55: goja.replapi.v1.SessionRecord.updated_at:type_name -> google.protobuf.Timestamp
-	52, // 56: goja.replapi.v1.SessionRecord.deleted_at:type_name -> google.protobuf.Timestamp
-	53, // 57: goja.replapi.v1.SessionRecord.metadata_json:type_name -> google.protobuf.Value
+	53, // 54: goja.replapi.v1.SessionRecord.created_at:type_name -> google.protobuf.Timestamp
+	53, // 55: goja.replapi.v1.SessionRecord.updated_at:type_name -> google.protobuf.Timestamp
+	53, // 56: goja.replapi.v1.SessionRecord.deleted_at:type_name -> google.protobuf.Timestamp
+	54, // 57: goja.replapi.v1.SessionRecord.metadata_json:type_name -> google.protobuf.Value
 	46, // 58: goja.replapi.v1.SessionExport.session:type_name -> goja.replapi.v1.SessionRecord
 	48, // 59: goja.replapi.v1.SessionExport.evaluations:type_name -> goja.replapi.v1.EvaluationRecord
-	52, // 60: goja.replapi.v1.EvaluationRecord.created_at:type_name -> google.protobuf.Timestamp
-	53, // 61: goja.replapi.v1.EvaluationRecord.result_json:type_name -> google.protobuf.Value
-	53, // 62: goja.replapi.v1.EvaluationRecord.analysis_json:type_name -> google.protobuf.Value
-	53, // 63: goja.replapi.v1.EvaluationRecord.globals_before_json:type_name -> google.protobuf.Value
-	53, // 64: goja.replapi.v1.EvaluationRecord.globals_after_json:type_name -> google.protobuf.Value
+	53, // 60: goja.replapi.v1.EvaluationRecord.created_at:type_name -> google.protobuf.Timestamp
+	54, // 61: goja.replapi.v1.EvaluationRecord.result_json:type_name -> google.protobuf.Value
+	54, // 62: goja.replapi.v1.EvaluationRecord.analysis_json:type_name -> google.protobuf.Value
+	54, // 63: goja.replapi.v1.EvaluationRecord.globals_before_json:type_name -> google.protobuf.Value
+	54, // 64: goja.replapi.v1.EvaluationRecord.globals_after_json:type_name -> google.protobuf.Value
 	49, // 65: goja.replapi.v1.EvaluationRecord.console_events:type_name -> goja.replapi.v1.ConsoleEventRecord
 	50, // 66: goja.replapi.v1.EvaluationRecord.binding_versions:type_name -> goja.replapi.v1.BindingVersionRecord
 	51, // 67: goja.replapi.v1.EvaluationRecord.binding_docs:type_name -> goja.replapi.v1.BindingDocRecord
-	52, // 68: goja.replapi.v1.BindingVersionRecord.created_at:type_name -> google.protobuf.Timestamp
-	53, // 69: goja.replapi.v1.BindingVersionRecord.summary_json:type_name -> google.protobuf.Value
-	53, // 70: goja.replapi.v1.BindingVersionRecord.export_json:type_name -> google.protobuf.Value
-	53, // 71: goja.replapi.v1.BindingDocRecord.normalized_json:type_name -> google.protobuf.Value
+	53, // 68: goja.replapi.v1.BindingVersionRecord.created_at:type_name -> google.protobuf.Timestamp
+	54, // 69: goja.replapi.v1.BindingVersionRecord.summary_json:type_name -> google.protobuf.Value
+	54, // 70: goja.replapi.v1.BindingVersionRecord.export_json:type_name -> google.protobuf.Value
+	54, // 71: goja.replapi.v1.BindingDocRecord.normalized_json:type_name -> google.protobuf.Value
 	72, // [72:72] is the sub-list for method output_type
 	72, // [72:72] is the sub-list for method input_type
 	72, // [72:72] is the sub-list for extension type_name
@@ -4427,7 +4504,7 @@ func file_proto_goja_replapi_v1_replapi_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_goja_replapi_v1_replapi_proto_rawDesc), len(file_proto_goja_replapi_v1_replapi_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   51,
+			NumMessages:   52,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

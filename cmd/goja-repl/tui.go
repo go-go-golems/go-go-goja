@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	stderrors "errors"
 	"fmt"
 	"io"
 	"strings"
@@ -52,7 +53,7 @@ func newTUICommand(out io.Writer, opts *rootOptions) *tuiCommand {
 	}
 }
 
-func (c *tuiCommand) Run(ctx context.Context, vals *values.Values) error {
+func (c *tuiCommand) Run(ctx context.Context, vals *values.Values) (retErr error) {
 	settings := tuiSettings{}
 	if err := vals.DecodeSectionInto(schema.DefaultSlug, &settings); err != nil {
 		return err
@@ -73,7 +74,7 @@ func (c *tuiCommand) Run(ctx context.Context, vals *values.Values) error {
 		return errors.Wrap(err, "load shared help system")
 	}
 
-	app, store, err := c.newAppWithOptions(appSupportOptions{
+	app, store, err := c.newAppWithOptions(ctx, appSupportOptions{
 		profile:    profile,
 		withStore:  profile == replapi.ProfilePersistent,
 		helpSystem: helpSystem,
@@ -81,9 +82,9 @@ func (c *tuiCommand) Run(ctx context.Context, vals *values.Values) error {
 	if err != nil {
 		return err
 	}
-	if store != nil {
-		defer func() { _ = store.Close() }()
-	}
+	defer func() {
+		retErr = stderrors.Join(retErr, closeAppAndStore(app, store))
+	}()
 
 	sessionID := strings.TrimSpace(settings.SessionID)
 	if sessionID == "" {
@@ -146,16 +147,14 @@ func (c *tuiCommand) Run(ctx context.Context, vals *values.Values) error {
 }
 
 func parseTUIProfile(raw string) (replapi.Profile, error) {
-	switch strings.ToLower(strings.TrimSpace(raw)) {
-	case "", string(replapi.ProfileInteractive):
+	if strings.TrimSpace(raw) == "" {
 		return replapi.ProfileInteractive, nil
-	case string(replapi.ProfileRaw):
-		return replapi.ProfileRaw, nil
-	case string(replapi.ProfilePersistent):
-		return replapi.ProfilePersistent, nil
-	default:
-		return "", errors.Errorf("tui: unsupported profile %q", raw)
 	}
+	profile, err := replapi.ParseProfile(raw)
+	if err != nil {
+		return "", errors.Wrap(err, "tui")
+	}
+	return profile, nil
 }
 
 func newQuietInMemoryBus() (*eventbus.Bus, error) {

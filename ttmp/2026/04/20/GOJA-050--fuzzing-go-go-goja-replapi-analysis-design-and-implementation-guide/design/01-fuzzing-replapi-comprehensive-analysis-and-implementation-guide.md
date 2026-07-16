@@ -732,7 +732,10 @@ FuzzEvaluateRaw(f):
   
   f.Fuzz(func(t, source):
     factory = engine.NewBuilder().WithModules(DefaultRegistryModules()).Build()
-    app = replapi.New(factory, NopLogger, WithProfile(ProfileRaw))
+    appCtx, cancelApp = context.WithCancel(context.Background())
+    defer cancelApp()
+    app = replapi.New(appCtx, factory, NopLogger, WithProfile(ProfileRaw))
+    defer app.Close(context.Background())
     session = app.CreateSession(ctx)
     
     defer func():
@@ -793,21 +796,23 @@ FuzzPersistenceRoundTrip(f):
   f.Fuzz(func(t, seed, restore, continuation):
     // Phase 1: Seed
     store1 = repldb.Open(tempfile)
-    app1 = replapi.New(factory, NopLogger, WithProfile(Persistent), WithStore(store1))
+    app1 = replapi.New(appCtx, factory, NopLogger, WithProfile(Persistent), WithStore(store1))
     session = app1.CreateSession(ctx)
     app1.Evaluate(ctx, session.ID, seed)
-    
+
+    app1.Close(shutdownCtx) // release runtimes and lease first
     store1.Close()
-    
+
     // Phase 2: Restore
     store2 = repldb.Open(same-file)
-    app2 = replapi.New(factory, NopLogger, WithProfile(Persistent), WithStore(store2))
+    app2 = replapi.New(appCtx, factory, NopLogger, WithProfile(Persistent), WithStore(store2))
     snapshot = app2.Snapshot(ctx, session.ID) // triggers auto-restore
-    
+
     // Phase 3: Continue
     app2.Evaluate(ctx, session.ID, restore)
     app2.Evaluate(ctx, session.ID, continuation)
-    
+
+    app2.Close(shutdownCtx)
     store2.Close()
   )
 ```

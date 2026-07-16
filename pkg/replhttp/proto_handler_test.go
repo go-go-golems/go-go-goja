@@ -35,7 +35,9 @@ func TestHandlerSessionLifecycle(t *testing.T) {
 
 	evalBody := bytes.NewBufferString(`{"schemaVersion":1,"source":"const x = 1; x"}`)
 	evalRes := httptest.NewRecorder()
-	handler.ServeHTTP(evalRes, httptest.NewRequest(http.MethodPost, "/api/sessions/"+sessionID+"/evaluate", evalBody))
+	evalReq := httptest.NewRequest(http.MethodPost, "/api/sessions/"+sessionID+"/evaluate", evalBody)
+	evalReq.Header.Set("Content-Type", "application/json")
+	handler.ServeHTTP(evalRes, evalReq)
 	if evalRes.Code != http.StatusOK {
 		t.Fatalf("expected 200 evaluate, got %d: %s", evalRes.Code, evalRes.Body.String())
 	}
@@ -76,12 +78,18 @@ func TestHandlerRejectsUnknownEvaluateFields(t *testing.T) {
 	}
 
 	evalRes := httptest.NewRecorder()
-	handler.ServeHTTP(evalRes, httptest.NewRequest(http.MethodPost, "/api/sessions/"+createPayload.GetSession().GetId()+"/evaluate", strings.NewReader(`{"source":"1","surprise":true}`)))
+	evalReq := httptest.NewRequest(http.MethodPost, "/api/sessions/"+createPayload.GetSession().GetId()+"/evaluate", strings.NewReader(`{"schemaVersion":1,"source":"1","surprise":true}`))
+	evalReq.Header.Set("Content-Type", "application/json")
+	handler.ServeHTTP(evalRes, evalReq)
 	if evalRes.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400 for unknown field, got %d: %s", evalRes.Code, evalRes.Body.String())
 	}
-	if !strings.Contains(evalRes.Body.String(), "unknown field") {
-		t.Fatalf("expected unknown field error, got %s", evalRes.Body.String())
+	var errorPayload replapiv1.ErrorResponse
+	if err := pbconv.UnmarshalOptions.Unmarshal(evalRes.Body.Bytes(), &errorPayload); err != nil {
+		t.Fatalf("decode error response: %v", err)
+	}
+	if errorPayload.GetCode() != "invalid_argument" || strings.Contains(errorPayload.GetMessage(), "unknown field") {
+		t.Fatalf("expected stable redacted invalid_argument error, got %#v", &errorPayload)
 	}
 }
 

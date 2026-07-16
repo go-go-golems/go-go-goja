@@ -9,6 +9,22 @@ import (
 	"github.com/dop251/goja_nodejs/require"
 )
 
+func TestRuntimeCanCloseImmediatelyAfterCreation(t *testing.T) {
+	factory, err := NewRuntimeFactoryBuilder().UseModuleMiddleware(MiddlewareSafe()).Build()
+	if err != nil {
+		t.Fatalf("build factory: %v", err)
+	}
+	for i := 0; i < 20; i++ {
+		runtime, err := factory.NewRuntime()
+		if err != nil {
+			t.Fatalf("new runtime %d: %v", i, err)
+		}
+		if err := runtime.Close(context.Background()); err != nil {
+			t.Fatalf("close runtime %d: %v", i, err)
+		}
+	}
+}
+
 func TestFactoryWithRequireOptions(t *testing.T) {
 	loader := func(path string) ([]byte, error) {
 		trimmed := strings.TrimPrefix(path, "./")

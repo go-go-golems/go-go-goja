@@ -39,6 +39,17 @@ type Service struct {
 	store              Persistence
 	sessions           map[string]*sessionState
 	defaultSessionOpts SessionOptions
+	lifetimeParent     context.Context
+	lifetimeCtx        context.Context
+	lifetimeCancel     context.CancelCauseFunc
+	phase              ServicePhase
+	closeAttempt       chan struct{}
+	closeAccum         error
+	closeErr           error
+	leaseStore         LeasePersistence
+	ownerID            string
+	now                func() time.Time
+	leaseTTL           time.Duration
 }
 
 type sessionState struct {
@@ -48,12 +59,25 @@ type sessionState struct {
 	createdAt   time.Time
 	runtime     *engine.Runtime
 	logger      zerolog.Logger
-	mu          sync.Mutex
 	nextCellID  int
 	cells       []*cellState
 	bindings    map[string]*bindingState
 	consoleSink []ConsoleEvent
 	ignored     map[string]struct{}
+
+	gate        chan struct{}
+	stopGate    chan struct{}
+	lifecycleMu sync.Mutex
+	phase       SessionPhase
+	ctx         context.Context
+	cancel      context.CancelCauseFunc
+	closeErr    error
+
+	health        SessionHealth
+	healthCause   error
+	pendingCommit *pendingCommit
+	inFlightCell  *cellState
+	lease         *repldb.SessionLease
 }
 
 type cellState struct {
@@ -80,6 +104,16 @@ type Persistence interface {
 	PersistEvaluation(ctx context.Context, record repldb.EvaluationRecord) error
 }
 
+// LeasePersistence is the ownership/fencing surface used when a host enables
+// multi-process persistent-session coordination.
+type LeasePersistence interface {
+	AcquireSessionLease(ctx context.Context, sessionID string, ownerID string, now time.Time, ttl time.Duration) (repldb.SessionLease, error)
+	RenewSessionLease(ctx context.Context, lease repldb.SessionLease, now time.Time, ttl time.Duration) (repldb.SessionLease, error)
+	ReleaseSessionLease(ctx context.Context, lease repldb.SessionLease) error
+	DeleteSessionFenced(ctx context.Context, sessionID string, lease repldb.SessionLease, now time.Time, deletedAt time.Time) error
+	PersistEvaluationFenced(ctx context.Context, record repldb.EvaluationRecord, fence repldb.WriteFence, now time.Time) error
+}
+
 // Option configures a Service.
 type Option func(*Service)
 
@@ -91,10 +125,28 @@ func WithPersistence(store Persistence) Option {
 	}
 }
 
+// WithLeaseOwnership enables per-session leases and fenced durable appends.
+func WithLeaseOwnership(store LeasePersistence, ownerID string, now func() time.Time, ttl time.Duration) Option {
+	return func(service *Service) {
+		service.leaseStore = store
+		service.ownerID = strings.TrimSpace(ownerID)
+		service.now = now
+		service.leaseTTL = ttl
+	}
+}
+
 // WithDefaultSessionOptions configures the default options used by CreateSession.
 func WithDefaultSessionOptions(opts SessionOptions) Option {
 	return func(service *Service) {
 		service.defaultSessionOpts = NormalizeSessionOptions(opts)
+	}
+}
+
+// WithLifetimeContext sets the parent for service and session-owned resources.
+// Create/restore operation contexts remain startup-only contexts.
+func WithLifetimeContext(ctx context.Context) Option {
+	return func(service *Service) {
+		service.lifetimeParent = nonNilContext(ctx)
 	}
 }
 
@@ -108,12 +160,17 @@ func NewService(factory *engine.RuntimeFactory, logger zerolog.Logger, opts ...O
 		logger:             logger,
 		sessions:           map[string]*sessionState{},
 		defaultSessionOpts: InteractiveSessionOptions(),
+		lifetimeParent:     context.Background(),
+		phase:              ServicePhaseOpen,
+		now:                func() time.Time { return time.Now().UTC() },
+		leaseTTL:           30 * time.Second,
 	}
 	for _, opt := range opts {
 		if opt != nil {
 			opt(service)
 		}
 	}
+	service.lifetimeCtx, service.lifetimeCancel = context.WithCancelCause(service.lifetimeParent)
 	return service
 }
 
@@ -123,7 +180,9 @@ func (s *Service) CreateSession(ctx context.Context) (*SessionSummary, error) {
 }
 
 // CreateSessionWithOptions allocates a fresh runtime using explicit session options.
+// ctx controls startup work only; the runtime lifetime is owned by the service.
 func (s *Service) CreateSessionWithOptions(ctx context.Context, opts SessionOptions) (*SessionSummary, error) {
+	ctx = nonNilContext(ctx)
 	resolved := s.resolveSessionOptions(opts)
 	if resolved.Policy.PersistenceEnabled() && s.store == nil {
 		return nil, errors.New("create session: persistence enabled but no store configured")
@@ -134,24 +193,39 @@ func (s *Service) CreateSessionWithOptions(ctx context.Context, opts SessionOpti
 	if id == "" {
 		id = newDefaultSessionID()
 	}
-	if explicitID {
-		s.mu.RLock()
-		_, exists := s.sessions[id]
-		s.mu.RUnlock()
-		if exists {
-			return nil, errors.Errorf("create session: session %q already exists", id)
-		}
+
+	s.mu.RLock()
+	phase := s.phase
+	_, exists := s.sessions[id]
+	s.mu.RUnlock()
+	if phase != ServicePhaseOpen {
+		return nil, servicePhaseError(phase)
+	}
+	if explicitID && exists {
+		return nil, errors.Errorf("create session: session %q already exists", id)
 	}
 
-	rt, err := s.factory.NewRuntime(engine.WithStartupContext(ctx), engine.WithLifetimeContext(ctx))
+	sessionCtx, sessionCancel := context.WithCancelCause(s.lifetimeCtx)
+	rt, err := s.factory.NewRuntime(engine.WithStartupContext(ctx), engine.WithLifetimeContext(sessionCtx))
 	if err != nil {
+		sessionCancel(err)
 		return nil, errors.Wrap(err, "create runtime")
 	}
+	var state *sessionState
+	cleanup := func(cause error) {
+		sessionCancel(cause)
+		cleanupCtx := context.WithoutCancel(ctx)
+		if state != nil {
+			_ = s.releaseSessionLease(cleanupCtx, state)
+		}
+		_ = rt.Close(cleanupCtx)
+	}
+
 	createdAt := resolved.CreatedAt.UTC()
 	if createdAt.IsZero() {
 		createdAt = time.Now().UTC()
 	}
-	state := &sessionState{
+	state = &sessionState{
 		id:        id,
 		profile:   resolved.Profile,
 		policy:    NormalizeSessionPolicy(resolved.Policy),
@@ -160,23 +234,29 @@ func (s *Service) CreateSessionWithOptions(ctx context.Context, opts SessionOpti
 		logger:    s.logger.With().Str("session", id).Logger(),
 		bindings:  map[string]*bindingState{},
 		ignored:   map[string]struct{}{},
+		gate:      newCapacityOneGate(),
+		stopGate:  newCapacityOneGate(),
+		phase:     SessionPhaseActive,
+		health:    SessionHealthHealthy,
+		ctx:       sessionCtx,
+		cancel:    sessionCancel,
 	}
 	if state.policy.Observe.ConsoleCapture {
 		if err := state.installConsoleCapture(ctx); err != nil {
-			_ = rt.Close(ctx)
+			cleanup(err)
 			return nil, errors.Wrap(err, "install console capture")
 		}
 	}
 	if state.policy.Observe.JSDocExtraction {
 		if err := state.installDocSentinels(ctx); err != nil {
-			_ = rt.Close(ctx)
+			cleanup(err)
 			return nil, errors.Wrap(err, "install doc sentinels")
 		}
 	}
 	if state.policy.Persist.Enabled {
 		metadataJSON, err := resolved.SessionMetadataJSON()
 		if err != nil {
-			_ = rt.Close(ctx)
+			cleanup(err)
 			return nil, errors.Wrap(err, "persist session metadata")
 		}
 		if err := s.store.CreateSession(ctx, repldb.SessionRecord{
@@ -186,21 +266,34 @@ func (s *Service) CreateSessionWithOptions(ctx context.Context, opts SessionOpti
 			EngineKind:   "goja",
 			MetadataJSON: metadataJSON,
 		}); err != nil {
-			_ = rt.Close(ctx)
+			cleanup(err)
 			return nil, errors.Wrap(err, "persist session")
 		}
+		lease, err := s.acquireSessionLease(ctx, id, state.policy)
+		if err != nil {
+			cleanup(err)
+			return nil, errors.Wrap(err, "acquire session ownership")
+		}
+		state.lease = lease
 	}
 
+	summary := state.buildSummary(ctx)
 	s.mu.Lock()
+	if s.phase != ServicePhaseOpen {
+		phase = s.phase
+		s.mu.Unlock()
+		cleanup(servicePhaseError(phase))
+		return nil, servicePhaseError(phase)
+	}
 	if _, exists := s.sessions[id]; exists {
 		s.mu.Unlock()
-		_ = rt.Close(ctx)
+		cleanup(ErrSessionClosing)
 		return nil, errors.Errorf("create session: session %q already exists", id)
 	}
 	s.sessions[id] = state
 	s.mu.Unlock()
 
-	return state.buildSummary(ctx), nil
+	return summary, nil
 }
 
 // Snapshot returns the current session summary.
@@ -209,15 +302,18 @@ func (s *Service) Snapshot(ctx context.Context, sessionID string) (*SessionSumma
 	if err != nil {
 		return nil, err
 	}
-	state.mu.Lock()
-	defer state.mu.Unlock()
-	return state.buildSummary(ctx), nil
+	op, err := state.beginOperation(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer op.Release()
+	return state.buildSummary(op.Context()), nil
 }
 
-// WithRuntime runs fn while holding the target session lock, allowing callers
-// to inspect the live runtime without bypassing session ownership rules.
-func (s *Service) WithRuntime(ctx context.Context, sessionID string, fn func(*engine.Runtime) error) error {
-	_ = ctx
+// WithRuntime runs fn while owning the target session operation gate. The
+// runtime must not escape the callback, and fn must not re-enter this service
+// for the same session. The callback must honor opCtx so unload/close can stop it.
+func (s *Service) WithRuntime(ctx context.Context, sessionID string, fn func(context.Context, *engine.Runtime) error) error {
 	if fn == nil {
 		return errors.New("with runtime: callback is nil")
 	}
@@ -225,55 +321,104 @@ func (s *Service) WithRuntime(ctx context.Context, sessionID string, fn func(*en
 	if err != nil {
 		return err
 	}
-	state.mu.Lock()
-	defer state.mu.Unlock()
-	return fn(state.runtime)
-}
-
-// DeleteSession shuts down a session and removes it from the service.
-func (s *Service) DeleteSession(ctx context.Context, sessionID string) error {
-	s.mu.Lock()
-	state, ok := s.sessions[sessionID]
-	if ok {
-		delete(s.sessions, sessionID)
+	op, err := state.beginOperation(ctx)
+	if err != nil {
+		return err
 	}
-	s.mu.Unlock()
-	if !ok {
-		return ErrSessionNotFound
+	defer op.Release()
+	if err := state.evaluationHealthError(); err != nil {
+		return err
 	}
-
-	var persistErr error
-	if state.policy.Persist.Enabled {
-		persistErr = s.store.DeleteSession(ctx, sessionID, time.Now().UTC())
+	guardCtx, stopGuard, err := s.startSessionLeaseGuard(op.Context(), state)
+	if err != nil {
+		return err
 	}
-	closeErr := state.runtime.Close(ctx)
-
-	if persistErr != nil {
-		if closeErr != nil {
-			return errors.Wrapf(persistErr, "persist session deletion (runtime close also failed: %v)", closeErr)
-		}
-		return errors.Wrap(persistErr, "persist session deletion")
+	callbackErr := fn(guardCtx, state.runtime)
+	if guardErr := stopGuard(); guardErr != nil {
+		state.markFenced(guardErr)
+		return state.evaluationHealthError()
 	}
-	return closeErr
+	return callbackErr
 }
 
 // RestoreSession rebuilds a live session by replaying persisted source cells.
+// ctx controls load/replay startup work; the restored runtime retains a
+// service-owned lifetime context after this method returns.
 func (s *Service) RestoreSession(ctx context.Context, opts SessionOptions, history []string) (*SessionSummary, error) {
+	return s.restoreSession(ctx, opts, history, nil)
+}
+
+// RestoreSessionWithLease restores using ownership acquired before durable
+// history was read. On success the live session assumes responsibility for release.
+func (s *Service) RestoreSessionWithLease(ctx context.Context, opts SessionOptions, history []string, ownedLease repldb.SessionLease) (*SessionSummary, error) {
+	return s.restoreSession(ctx, opts, history, &ownedLease)
+}
+
+func (s *Service) restoreSession(ctx context.Context, opts SessionOptions, history []string, providedLease *repldb.SessionLease) (*SessionSummary, error) {
+	ctx = nonNilContext(ctx)
 	resolved := s.resolveSessionOptions(opts)
+	lease := providedLease
+	leaseTransferred := false
+	defer func() {
+		if lease != nil && !leaseTransferred && s.leaseStore != nil {
+			_ = s.leaseStore.ReleaseSessionLease(context.WithoutCancel(ctx), *lease)
+		}
+	}()
 	if strings.TrimSpace(resolved.ID) == "" {
 		return nil, errors.New("restore session: session id is empty")
 	}
 	if state, err := s.getSession(resolved.ID); err == nil {
-		state.mu.Lock()
-		defer state.mu.Unlock()
-		return state.buildSummary(ctx), nil
+		if lease != nil {
+			leaseTransferred = true // existing state has the same app owner token
+		}
+		op, err := state.beginOperation(ctx)
+		if err != nil {
+			return nil, err
+		}
+		defer op.Release()
+		return state.buildSummary(op.Context()), nil
+	} else if !errors.Is(err, ErrSessionNotFound) {
+		return nil, err
 	}
+
+	s.mu.RLock()
+	phase := s.phase
+	s.mu.RUnlock()
+	if phase != ServicePhaseOpen {
+		return nil, servicePhaseError(phase)
+	}
+
+	if lease == nil {
+		var err error
+		lease, err = s.acquireSessionLease(ctx, resolved.ID, resolved.Policy)
+		if err != nil {
+			return nil, errors.Wrap(err, "restore session: acquire ownership")
+		}
+	} else if lease.SessionID != resolved.ID || lease.OwnerID != s.ownerID {
+		return nil, errors.New("restore session: provided lease does not match session owner")
+	}
+	replayCtx := ctx
+	stopLeaseGuard := func() error { return nil }
+	if lease != nil {
+		renewed, err := s.leaseStore.RenewSessionLease(ctx, *lease, s.nowUTC(), s.leaseTTL)
+		if err != nil {
+			return nil, errors.Wrap(err, "restore session: verify ownership")
+		}
+		lease = &renewed
+		replayCtx, stopLeaseGuard = s.startLeaseGuard(ctx, *lease)
+	}
+	defer func() { _ = stopLeaseGuard() }()
 
 	replayOpts := resolved
 	replayOpts.ID = ""
 	replayOpts.Policy.Persist = PersistPolicy{}
-	tmpService := NewService(s.factory, s.logger, WithDefaultSessionOptions(replayOpts))
-	tmpSummary, err := tmpService.CreateSessionWithOptions(ctx, replayOpts)
+	tmpService := NewService(
+		s.factory,
+		s.logger,
+		WithLifetimeContext(s.lifetimeCtx),
+		WithDefaultSessionOptions(replayOpts),
+	)
+	tmpSummary, err := tmpService.CreateSessionWithOptions(replayCtx, replayOpts)
 	if err != nil {
 		return nil, errors.Wrap(err, "restore session: create replay runtime")
 	}
@@ -285,42 +430,58 @@ func (s *Service) RestoreSession(ctx context.Context, opts SessionOptions, histo
 	restoreFailed := true
 	defer func() {
 		if restoreFailed {
-			_ = tmpState.runtime.Close(ctx)
+			tmpState.cancel(ErrSessionClosing)
+			_ = tmpState.runtime.Close(context.WithoutCancel(replayCtx))
 		}
 	}()
 
 	for idx, source := range history {
-		if _, err := tmpService.Evaluate(ctx, tmpSummary.ID, source); err != nil {
+		if _, err := tmpService.Evaluate(replayCtx, tmpSummary.ID, source); err != nil {
 			return nil, errors.Wrapf(err, "restore session: replay cell %d", idx+1)
 		}
 	}
 
-	tmpState.mu.Lock()
 	tmpState.id = resolved.ID
 	tmpState.profile = resolved.Profile
 	tmpState.policy = NormalizeSessionPolicy(resolved.Policy)
 	if !resolved.CreatedAt.IsZero() {
 		tmpState.createdAt = resolved.CreatedAt.UTC()
 	}
+	if guardErr := stopLeaseGuard(); guardErr != nil {
+		return nil, errors.Wrap(guardErr, "restore session: renew ownership")
+	}
 	tmpState.logger = s.logger.With().Str("session", resolved.ID).Logger()
-	tmpState.mu.Unlock()
+	tmpState.lease = lease
+	summary := tmpState.buildSummary(ctx)
 
 	s.mu.Lock()
+	if s.phase != ServicePhaseOpen {
+		phase = s.phase
+		s.mu.Unlock()
+		return nil, servicePhaseError(phase)
+	}
 	if existing, ok := s.sessions[resolved.ID]; ok {
 		s.mu.Unlock()
-		_ = tmpState.runtime.Close(ctx)
-		existing.mu.Lock()
-		defer existing.mu.Unlock()
-		return existing.buildSummary(ctx), nil
+		tmpState.cancel(ErrSessionClosing)
+		_ = tmpState.runtime.Close(context.WithoutCancel(replayCtx))
+		restoreFailed = false
+		leaseTransferred = true // same app owner/epoch remains with the published state
+		op, err := existing.beginOperation(ctx)
+		if err != nil {
+			return nil, err
+		}
+		defer op.Release()
+		return existing.buildSummary(op.Context()), nil
 	}
+	tmpService.mu.Lock()
 	delete(tmpService.sessions, tmpSummary.ID)
+	tmpService.mu.Unlock()
 	s.sessions[resolved.ID] = tmpState
 	s.mu.Unlock()
 
 	restoreFailed = false
-	tmpState.mu.Lock()
-	defer tmpState.mu.Unlock()
-	return tmpState.buildSummary(ctx), nil
+	leaseTransferred = true
+	return summary, nil
 }
 
 func (s *Service) resolveSessionOptions(opts SessionOptions) SessionOptions {
@@ -354,11 +515,15 @@ func newDefaultSessionID() string {
 func (s *Service) getSession(sessionID string) (*sessionState, error) {
 	s.mu.RLock()
 	state, ok := s.sessions[sessionID]
+	phase := s.phase
 	s.mu.RUnlock()
-	if !ok {
-		return nil, ErrSessionNotFound
+	if ok {
+		return state, nil
 	}
-	return state, nil
+	if phase != ServicePhaseOpen {
+		return nil, servicePhaseError(phase)
+	}
+	return nil, ErrSessionNotFound
 }
 
 func (s *sessionState) installConsoleCapture(ctx context.Context) error {

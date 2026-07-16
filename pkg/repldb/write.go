@@ -109,6 +109,23 @@ func (s *Store) PersistEvaluation(ctx context.Context, record EvaluationRecord) 
 	}
 	defer func() { _ = tx.Rollback() }()
 
+	if err := persistEvaluationTx(ctx, tx, record); err != nil {
+		return err
+	}
+
+	if s.beforeEvaluationCommit != nil {
+		if err := s.beforeEvaluationCommit(); err != nil {
+			return errors.Wrap(err, "persist evaluation: before commit")
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return errors.Wrap(err, "persist evaluation: commit tx")
+	}
+
+	return nil
+}
+
+func persistEvaluationTx(ctx context.Context, tx *sql.Tx, record EvaluationRecord) error {
 	evaluationID, err := insertEvaluationTx(ctx, tx, record)
 	if err != nil {
 		return err
@@ -132,11 +149,6 @@ func (s *Store) PersistEvaluation(ctx context.Context, record EvaluationRecord) 
 	); err != nil {
 		return errors.Wrap(err, "persist evaluation: update session timestamp")
 	}
-
-	if err := tx.Commit(); err != nil {
-		return errors.Wrap(err, "persist evaluation: commit tx")
-	}
-
 	return nil
 }
 
