@@ -1751,3 +1751,89 @@ pkg/replapi/config.go
 pkg/doc/34-replapi-guide.md
 pkg/doc/04-repl-usage.md
 ```
+
+## Step 14: Prepare the review branch and pull request
+
+I created a dedicated review branch, staged the complete GOJA-068 change set, inspected the staged file list and diff, and committed the implementation only after the repository pre-commit checks passed. The hook exposed lint rules that the earlier vet/Glazed validation did not cover, so I repaired those findings rather than bypassing the hook.
+
+The resulting implementation commit contains the complete lifecycle, persistence, ownership, migration, HTTP, generated-client, test, and ticket documentation work. Build artifacts and dependency directories remained ignored and were not staged.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Open a PR"
+
+**Assistant interpretation:** Create a focused Git branch, commit the completed GOJA-068 working tree with repository hooks enabled, push it, and open a GitHub pull request against `main`.
+
+**Inferred user intent:** Move the fully validated ticket into the normal review and CI workflow with a useful PR summary and no accidental local artifacts.
+
+**Commit (code):** 2f39f309112387823c10cfefb7796fcd16fd43b3 — "Harden replapi lifecycle, persistence, and HTTP safety"
+
+### What I did
+
+- Created branch `task/goja-068-replapi-hardening` from current `origin/main`.
+- Reviewed status, remotes, ignored build output, staged paths, staged statistics, and secret-like text before committing.
+- Kept `node_modules/` and generated package `dist/` output ignored.
+- Ran `git diff --cached --check` and committed through the configured Lefthook pre-commit pipeline.
+- Fixed all hook findings and reran focused tests, GolangCI-Lint, the complete hook lint suite, code generation, and full Go tests.
+
+### Why
+
+- The ticket spans tightly coupled public API and storage invariants, so one atomic implementation commit prevents intermediate commits from exposing uncompilable constructor or schema states.
+- Running the real repository hook is required because it includes lint policies beyond the earlier standalone vet and Glazed checks.
+
+### What worked
+
+- The final commit passed GolangCI-Lint, Glazed lint, generated-code checks, and `go test ./...` through Lefthook.
+- The working tree was clean immediately after the implementation commit.
+- The immutable SQLite fixture, generated protobuf bindings, and ticket documents were intentionally included; ignored dependency/build outputs were not.
+
+### What didn't work
+
+- The first commit attempt was rejected by the pre-commit lint hook with seven findings:
+
+```text
+ttmp/.../scripts/01-probe-http-session-context/main.go:24:20: Error return value of `os.RemoveAll` is not checked (errcheck)
+ttmp/.../scripts/01-probe-http-session-context/main.go:28:19: Error return value of `store.Close` is not checked (errcheck)
+ttmp/.../scripts/02-probe-persistent-split-brain/main.go:19:20: Error return value of `os.RemoveAll` is not checked (errcheck)
+ttmp/.../scripts/02-probe-persistent-split-brain/main.go:23:19: Error return value of `store.Close` is not checked (errcheck)
+pkg/replsession/health.go:86:2: missing cases in switch of type replsession.SessionHealth: replsession.SessionHealthHealthy (exhaustive)
+pkg/replsession/evaluate.go:30:1: named return "response" with type "*EvaluateResponse" found (nonamedreturns)
+pkg/replsession/lifecycle.go:221:1: named return "terminal" with type "bool" found (nonamedreturns)
+```
+
+I wrapped probe cleanup calls with explicit ignored assignments, added app cleanup, made the health switch exhaustive, extracted evaluation work behind a local result/deferred-guard pattern without named returns, and replaced lifecycle named returns with local values. The next hook run passed.
+
+### What I learned
+
+- Standalone `go vet` and Glazed lint do not replace the repository's configured GolangCI-Lint policy.
+- Lease-guard cleanup can preserve panic-safe deferred behavior without named returns by assigning local result variables inside a closure.
+- Ticket probe programs are compiled and linted as part of the repository and must follow production cleanup hygiene.
+
+### What was tricky to build
+
+- Removing named returns from `Evaluate` could have accidentally stopped lease heartbeat cleanup on panic or changed the special response-plus-`CommitError` behavior. A small inner closure retains deferred guard shutdown while the public function returns unnamed values.
+- The pre-commit hook runs code generation, including a Dagger-backed frontend build, so generated output had to be checked after the hook to confirm no tracked noise remained.
+
+### What warrants a second pair of eyes
+
+- Review `Service.Evaluate` around `evaluateWithLease` to confirm guard errors still preserve commit-error responses and fence all other failures exactly as before.
+- Confirm the single atomic implementation commit is acceptable for review despite the ticket's breadth; the phased diary and design guide provide the detailed navigation path.
+
+### What should be done in the future
+
+- Monitor GitHub CI and address review findings on the same branch.
+
+### Code review instructions
+
+- Follow the phase-by-phase path in the implementation guide and Steps 6–13 of this diary.
+- Start code review with configuration/lifecycle, then persistence/migrations/ownership, then HTTP/host integration.
+- Verify the PR checks match the successful local pre-commit hook.
+
+### Technical details
+
+```text
+branch: task/goja-068-replapi-hardening
+base: origin/main at cc9f186
+implementation commit: 2f39f309112387823c10cfefb7796fcd16fd43b3
+pre-commit: GolangCI-Lint + Glazed lint + go generate + go test ./...
+```

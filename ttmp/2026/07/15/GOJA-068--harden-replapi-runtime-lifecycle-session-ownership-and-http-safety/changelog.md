@@ -160,3 +160,14 @@ Published the final GOJA-068 index, implementation guide, investigation diary, P
 ## 2026-07-15
 
 Ticket closed
+
+## 2026-07-16
+
+Prepared PR branch task/goja-068-replapi-hardening and committed the complete implementation as 2f39f309112387823c10cfefb7796fcd16fd43b3 after fixing seven pre-commit GolangCI-Lint findings; the final Lefthook lint, generation, and full test pipeline passed.
+
+### Related Files
+
+- /home/manuel/code/wesen/go-go-golems/go-go-goja/pkg/replsession/evaluate.go — Lease guard refactor preserving commit-error behavior while satisfying nonamedreturns
+- /home/manuel/code/wesen/go-go-golems/go-go-goja/pkg/replsession/health.go — Exhaustive session health handling
+- /home/manuel/code/wesen/go-go-golems/go-go-goja/pkg/replsession/lifecycle.go — Unnamed lifecycle shutdown results
+- /home/manuel/code/wesen/go-go-golems/go-go-goja/ttmp/2026/07/15/GOJA-068--harden-replapi-runtime-lifecycle-session-ownership-and-http-safety/reference/01-investigation-diary.md — PR preparation and hook-failure record
