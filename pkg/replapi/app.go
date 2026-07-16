@@ -225,7 +225,8 @@ func (a *App) DeleteSession(ctx context.Context, sessionID string) error {
 	if leaseErr != nil {
 		return leaseErr
 	}
-	deleteErr := a.store.DeleteSession(ctx, sessionID, time.Now().UTC())
+	now := a.config.Clock.Now()
+	deleteErr := a.store.DeleteSessionFenced(ctx, sessionID, lease, now, now)
 	releaseErr := a.store.ReleaseSessionLease(ctx, lease)
 	if deleteErr != nil {
 		if releaseErr != nil {

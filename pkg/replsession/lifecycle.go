@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	"time"
 )
 
 // SessionPhase is the lifecycle phase of one live session runtime.
@@ -249,7 +248,20 @@ func (s *Service) stopSessionState(ctx context.Context, state *sessionState, dis
 
 	var persistErr error
 	if disposition == stopDelete && state.policy.Persist.Enabled {
-		if err := s.store.DeleteSession(ctx, state.id, time.Now().UTC()); err != nil {
+		deletedAt := s.nowUTC()
+		if s.ownershipEnabled(state.policy) {
+			renewed, err := s.renewSessionLease(ctx, state)
+			if err == nil {
+				err = s.leaseStore.DeleteSessionFenced(ctx, state.id, renewed, deletedAt, deletedAt)
+			}
+			if err != nil {
+				if isOwnershipError(err) {
+					state.markFenced(err)
+					err = state.evaluationHealthError()
+				}
+				persistErr = fmt.Errorf("persist fenced session deletion: %w", err)
+			}
+		} else if err := s.store.DeleteSession(ctx, state.id, deletedAt); err != nil {
 			persistErr = fmt.Errorf("persist session deletion: %w", err)
 		}
 	}

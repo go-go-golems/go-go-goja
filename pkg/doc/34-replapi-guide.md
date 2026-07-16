@@ -185,7 +185,7 @@ Persistent apps use a schema-v2 SQLite lease for each live session. Every `App` 
 
 The default lease TTL is 30 seconds and can be changed with `WithLeaseTTL`. Ownership renews before evaluation and `WithRuntime`, and at one-third of the TTL during long evaluation or replay. Expired takeover increments a monotonic fencing epoch. Every durable append verifies owner ID, epoch, non-expiry, and expected next cell ID in the same transaction.
 
-If another app takes over an expired lease, the stale app becomes `fenced` before its next JavaScript operation. `App.Close`, `UnloadSession`, and delete release ownership before the caller closes the store. `RecoverSession` can discard a fenced VM and restore after the current owner releases or expires.
+If another app takes over an expired lease, the stale app becomes `fenced` before its next JavaScript operation. Durable deletion verifies owner ID, epoch, and non-expiry in the same transaction as the soft delete, so a stale live owner cannot delete the current owner's session. `App.Close`, `UnloadSession`, and successful delete release ownership before the caller closes the store. `RecoverSession` can discard a fenced VM and restore after the current owner releases or expires.
 
 Lease fencing protects SQLite, not arbitrary external systems. JavaScript that writes files, calls remote services, or emits messages still needs idempotency keys or an external fencing mechanism.
 

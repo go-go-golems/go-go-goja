@@ -174,6 +174,62 @@ func (s *Store) ReleaseSessionLease(ctx context.Context, lease SessionLease) err
 	return nil
 }
 
+// DeleteSessionFenced verifies ownership and lease expiry in the same
+// transaction that soft-deletes the durable session.
+func (s *Store) DeleteSessionFenced(ctx context.Context, sessionID string, lease SessionLease, now time.Time, deletedAt time.Time) error {
+	if s == nil || s.db == nil {
+		return fmt.Errorf("delete session fenced: store is nil")
+	}
+	if strings.TrimSpace(sessionID) == "" || sessionID != lease.SessionID || strings.TrimSpace(lease.OwnerID) == "" || lease.Epoch <= 0 {
+		return fmt.Errorf("delete session fenced: invalid session or lease")
+	}
+	now = normalizeLeaseTime(now)
+	if deletedAt.IsZero() {
+		deletedAt = now
+	} else {
+		deletedAt = deletedAt.UTC()
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("delete session fenced: begin transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	current, found, err := loadSessionLeaseTx(ctx, tx, sessionID)
+	if err != nil {
+		return err
+	}
+	if !found {
+		return &LeaseLostError{SessionID: sessionID, OwnerID: lease.OwnerID, Epoch: lease.Epoch, Reason: "lease row is absent"}
+	}
+	if current.OwnerID != lease.OwnerID || current.Epoch != lease.Epoch {
+		return &LeaseLostError{SessionID: sessionID, OwnerID: lease.OwnerID, Epoch: lease.Epoch, Reason: "owner or epoch no longer matches"}
+	}
+	if !current.LeaseUntil.After(now) {
+		return &LeaseLostError{SessionID: sessionID, OwnerID: lease.OwnerID, Epoch: lease.Epoch, Reason: "lease expired"}
+	}
+
+	result, err := tx.ExecContext(ctx, `
+		UPDATE sessions
+		SET deleted_at = ?, updated_at = ?
+		WHERE session_id = ? AND deleted_at IS NULL
+	`, formatLeaseTime(deletedAt), formatLeaseTime(deletedAt), sessionID)
+	if err != nil {
+		return fmt.Errorf("delete session fenced: update session: %w", err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("delete session fenced: rows affected: %w", err)
+	}
+	if rows != 1 {
+		return ErrSessionNotFound
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("delete session fenced: commit: %w", err)
+	}
+	return nil
+}
+
 // PersistEvaluationFenced verifies ownership, expiry, and expected durable head
 // in the same transaction that writes the evaluation and child rows.
 func (s *Store) PersistEvaluationFenced(ctx context.Context, record EvaluationRecord, fence WriteFence, now time.Time) error {

@@ -202,6 +202,54 @@ func TestPersistentLeaseRejectsSecondOwnerAndFencesExpiredOwnerAfterTakeover(t *
 	}
 }
 
+func TestStaleLiveOwnerCannotDeleteSessionAfterLeaseTakeover(t *testing.T) {
+	ctx := context.Background()
+	store := openTestStore(t)
+	defer func() { _ = store.Close() }()
+	clock := newFakeClock(time.Date(2026, time.July, 16, 11, 0, 0, 0, time.UTC))
+	factory := newTestFactory(t)
+	newApp := func(owner string) *App {
+		app, err := New(ctx, factory, zerolog.Nop(),
+			WithProfile(ProfilePersistent),
+			WithStore(store),
+			withOwnerIDForTest(owner),
+			WithClock(clock),
+			WithLeaseTTL(time.Minute),
+		)
+		if err != nil {
+			t.Fatalf("new app %s: %v", owner, err)
+		}
+		return app
+	}
+
+	appA := newApp("delete-owner-a")
+	defer func() { _ = appA.Close(context.Background()) }()
+	session, err := appA.CreateSession(ctx)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	if _, err := appA.Evaluate(ctx, session.ID, `const durable = 1; durable`); err != nil {
+		t.Fatalf("seed session: %v", err)
+	}
+
+	clock.Advance(2 * time.Minute)
+	appB := newApp("delete-owner-b")
+	defer func() { _ = appB.Close(context.Background()) }()
+	if _, err := appB.Snapshot(ctx, session.ID); err != nil {
+		t.Fatalf("take over expired session: %v", err)
+	}
+
+	if err := appA.DeleteSession(ctx, session.ID); !errors.Is(err, replsession.ErrSessionFenced) {
+		t.Fatalf("expected stale delete to be fenced, got %v", err)
+	}
+	if _, err := store.LoadSession(ctx, session.ID); err != nil {
+		t.Fatalf("stale owner soft-deleted current owner's session: %v", err)
+	}
+	if snapshot, err := appB.Snapshot(ctx, session.ID); err != nil || snapshot.CellCount != 1 {
+		t.Fatalf("current owner lost session after stale delete: snapshot=%#v err=%v", snapshot, err)
+	}
+}
+
 func TestRestoreHeartbeatPreventsTakeoverDuringLongReplay(t *testing.T) {
 	ctx := context.Background()
 	store := openTestStore(t)

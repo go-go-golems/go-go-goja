@@ -141,6 +141,37 @@ func TestPersistEvaluationFencedRejectsExpiryStaleEpochAndWrongHead(t *testing.T
 	}
 }
 
+func TestDeleteSessionFencedRejectsStaleOwnerAfterTakeover(t *testing.T) {
+	ctx := context.Background()
+	store := openTestStore(t)
+	defer func() { _ = store.Close() }()
+	now := time.Date(2026, time.July, 16, 10, 0, 0, 0, time.UTC)
+	createLeaseTestSession(t, store, now)
+
+	leaseA, err := store.AcquireSessionLease(ctx, "lease-session", "owner-a", now, time.Minute)
+	if err != nil {
+		t.Fatalf("acquire owner-a: %v", err)
+	}
+	takeoverAt := now.Add(2 * time.Minute)
+	leaseB, err := store.AcquireSessionLease(ctx, "lease-session", "owner-b", takeoverAt, time.Minute)
+	if err != nil {
+		t.Fatalf("owner-b takeover: %v", err)
+	}
+	if err := store.DeleteSessionFenced(ctx, "lease-session", leaseA, takeoverAt, takeoverAt); !errors.Is(err, ErrLeaseLost) {
+		t.Fatalf("expected stale delete rejection, got %v", err)
+	}
+	if _, err := store.LoadSession(ctx, "lease-session"); err != nil {
+		t.Fatalf("stale owner deleted active session: %v", err)
+	}
+
+	if err := store.DeleteSessionFenced(ctx, "lease-session", leaseB, takeoverAt, takeoverAt); err != nil {
+		t.Fatalf("current owner fenced delete: %v", err)
+	}
+	if _, err := store.LoadSession(ctx, "lease-session"); !errors.Is(err, ErrSessionNotFound) {
+		t.Fatalf("expected current owner deletion to hide session, got %v", err)
+	}
+}
+
 func createLeaseTestSession(t *testing.T, store *Store, now time.Time) {
 	t.Helper()
 	if err := store.CreateSession(context.Background(), SessionRecord{SessionID: "lease-session", CreatedAt: now, UpdatedAt: now, EngineKind: "goja"}); err != nil {

@@ -1,7 +1,6 @@
 package replhttp
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -204,5 +203,7 @@ func (h *handlerRuntime) writeProto(w http.ResponseWriter, r *http.Request, stat
 	}
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
-	_, _ = w.Write(json.RawMessage(body))
+	// #nosec G705 -- body is emitted by protojson, served as application/json,
+	// and protected by X-Content-Type-Options: nosniff.
+	_, _ = w.Write(body)
 }

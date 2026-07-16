@@ -110,6 +110,7 @@ type LeasePersistence interface {
 	AcquireSessionLease(ctx context.Context, sessionID string, ownerID string, now time.Time, ttl time.Duration) (repldb.SessionLease, error)
 	RenewSessionLease(ctx context.Context, lease repldb.SessionLease, now time.Time, ttl time.Duration) (repldb.SessionLease, error)
 	ReleaseSessionLease(ctx context.Context, lease repldb.SessionLease) error
+	DeleteSessionFenced(ctx context.Context, sessionID string, lease repldb.SessionLease, now time.Time, deletedAt time.Time) error
 	PersistEvaluationFenced(ctx context.Context, record repldb.EvaluationRecord, fence repldb.WriteFence, now time.Time) error
 }
 
