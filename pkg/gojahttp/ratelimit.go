@@ -259,16 +259,31 @@ func (e *Enforcer) checkRateLimits(ctx context.Context, httpReq *http.Request, r
 		}
 		decision, err := e.auth.RateLimiter.CheckRateLimit(ctx, RateLimitRequest{HTTPRequest: httpReq, Request: req, Plan: *plan, Spec: spec, Stage: stage, Key: key, KeyParts: keyParts, Actor: actor, Resource: resource, Resources: resources})
 		if err != nil {
+			e.observeRateLimit(ctx, spec.Policy, "error")
 			if spec.FailOpen {
 				continue
 			}
 			return err
+		}
+		if decision.Allowed {
+			e.observeRateLimit(ctx, spec.Policy, "allowed")
+		} else {
+			e.observeRateLimit(ctx, spec.Policy, "denied")
 		}
 		if !decision.Allowed {
 			return &RateLimitError{Policy: spec.Policy, RetryAfter: decision.RetryAfter, Reason: decision.Reason}
 		}
 	}
 	return nil
+}
+
+func (e *Enforcer) observeRateLimit(ctx context.Context, policy, outcome string) {
+	if e.auth.SecurityEvents != nil {
+		e.auth.SecurityEvents.ObserveSecurityEvent(ctx, SecurityEvent{Name: "auth.rate_limit", Outcome: outcome, Reason: policy})
+	}
+	if e.auth.Audit != nil {
+		_ = e.auth.Audit.RecordAudit(ctx, AuditEvent{Event: "auth.rate_limit", Outcome: outcome, Reason: policy, Method: "INTERNAL", Pattern: "rate-limit"})
+	}
 }
 
 func buildRateLimitKey(httpReq *http.Request, req *RequestDTO, plan *RoutePlan, sec *SecureContext, spec RateLimitSpec) (string, map[string]string) {

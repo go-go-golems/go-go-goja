@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth"
 	"golang.org/x/oauth2"
 )
@@ -32,6 +33,8 @@ type Config struct {
 	SessionManager   *sessionauth.Manager
 	UserNormalizer   UserNormalizer
 	TransactionStore TransactionStore
+	Audit            gojahttp.AuditSink
+	SecurityEvents   gojahttp.SecurityEventObserver
 }
 
 // OIDCClaims is the normalized identity material extracted from the verified ID
@@ -98,6 +101,8 @@ type Handlers struct {
 	afterLoginURL      string
 	afterLogoutURL     string
 	endSessionEndpoint string
+	audit              gojahttp.AuditSink
+	securityEvents     gojahttp.SecurityEventObserver
 }
 
 // New discovers the OIDC provider and returns login/callback/logout handlers.
@@ -147,6 +152,8 @@ func New(ctx context.Context, cfg Config) (*Handlers, error) {
 		afterLoginURL:      defaultIfEmpty(cfg.AfterLoginURL, "/"),
 		afterLogoutURL:     defaultIfEmpty(cfg.AfterLogoutURL, "/"),
 		endSessionEndpoint: strings.TrimSpace(discovery.EndSessionEndpoint),
+		audit:              cfg.Audit,
+		securityEvents:     cfg.SecurityEvents,
 	}, nil
 }
 
@@ -156,21 +163,25 @@ func (h *Handlers) LogoutHandler() http.Handler   { return http.HandlerFunc(h.ha
 
 func (h *Handlers) handleLogin(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
+		h.observe(r.Context(), "oidc.login", "rejected", "method")
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 	state, err := sessionauth.RandomToken()
 	if err != nil {
+		h.observe(r.Context(), "oidc.login", "failed", "state_generation")
 		http.Error(w, "create login state", http.StatusInternalServerError)
 		return
 	}
 	nonce, err := sessionauth.RandomToken()
 	if err != nil {
+		h.observe(r.Context(), "oidc.login", "failed", "nonce_generation")
 		http.Error(w, "create login nonce", http.StatusInternalServerError)
 		return
 	}
 	verifier, err := sessionauth.RandomToken()
 	if err != nil {
+		h.observe(r.Context(), "oidc.login", "failed", "verifier_generation")
 		http.Error(w, "create pkce verifier", http.StatusInternalServerError)
 		return
 	}
@@ -179,63 +190,76 @@ func (h *Handlers) handleLogin(w http.ResponseWriter, r *http.Request) {
 		redirectURL = h.afterLoginURL
 	}
 	if err := h.transactions.Put(r.Context(), Transaction{State: state, Nonce: nonce, PKCEVerifier: verifier, CreatedAt: time.Now(), RedirectURL: redirectURL}); err != nil {
+		h.observe(r.Context(), "oidc.login", "failed", "transaction_store")
 		http.Error(w, "store login transaction", http.StatusInternalServerError)
 		return
 	}
 	url := h.oauth2Config.AuthCodeURL(state, oauth2.S256ChallengeOption(verifier), oauth2.SetAuthURLParam("nonce", nonce))
+	h.observe(r.Context(), "oidc.login", "issued", "")
 	http.Redirect(w, r, url, http.StatusFound)
 }
 
 func (h *Handlers) handleCallback(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
+		h.observe(r.Context(), "oidc.callback", "rejected", "method")
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 	if errText := r.URL.Query().Get("error"); errText != "" {
+		h.observe(r.Context(), "oidc.callback", "rejected", "provider_error")
 		http.Error(w, "oidc error: "+errText, http.StatusUnauthorized)
 		return
 	}
 	state := r.URL.Query().Get("state")
 	code := r.URL.Query().Get("code")
 	if state == "" || code == "" {
+		h.observe(r.Context(), "oidc.callback", "rejected", "missing_parameters")
 		http.Error(w, "missing oidc callback state or code", http.StatusBadRequest)
 		return
 	}
 	tx, err := h.transactions.Take(r.Context(), state)
 	if err != nil {
+		h.observe(r.Context(), "oidc.callback", "rejected", "transaction_unavailable")
 		http.Error(w, "invalid oidc state", http.StatusUnauthorized)
 		return
 	}
 	token, err := h.oauth2Config.Exchange(r.Context(), code, oauth2.VerifierOption(tx.PKCEVerifier))
 	if err != nil {
+		h.observe(r.Context(), "oidc.callback", "rejected", "token_exchange")
 		http.Error(w, "oidc token exchange failed", http.StatusUnauthorized)
 		return
 	}
 	rawIDToken, ok := token.Extra("id_token").(string)
 	if !ok || rawIDToken == "" {
+		h.observe(r.Context(), "oidc.callback", "rejected", "missing_id_token")
 		http.Error(w, "oidc response missing id_token", http.StatusUnauthorized)
 		return
 	}
 	idToken, err := h.verifier.Verify(r.Context(), rawIDToken)
 	if err != nil {
+		h.observe(r.Context(), "oidc.callback", "rejected", "id_token_verification")
 		http.Error(w, "oidc id_token verification failed", http.StatusUnauthorized)
 		return
 	}
 	if idToken.Nonce != tx.Nonce {
+		h.observe(r.Context(), "oidc.callback", "rejected", "nonce_mismatch")
 		http.Error(w, "oidc nonce mismatch", http.StatusUnauthorized)
 		return
 	}
 	claims, err := claimsFromIDToken(idToken)
 	if err != nil {
+		h.observe(r.Context(), "oidc.callback", "rejected", "claims")
 		http.Error(w, "oidc claims invalid", http.StatusUnauthorized)
 		return
 	}
 	userSession, err := h.normalizer.NormalizeOIDCUser(r.Context(), claims)
 	if err != nil {
+		h.observe(r.Context(), "oidc.callback", "rejected", "user_normalization")
 		http.Error(w, "user normalization failed", http.StatusUnauthorized)
 		return
 	}
 	if userSession.UserID == "" {
+		h.observe(r.Context(), "oidc.callback", "rejected", "empty_user")
 		http.Error(w, "user normalization returned empty user id", http.StatusUnauthorized)
 		return
 	}
@@ -245,25 +269,38 @@ func (h *Handlers) handleCallback(w http.ResponseWriter, r *http.Request) {
 		sessionauth.WithClaims(userSession.Claims),
 	)
 	if err != nil {
+		h.observe(r.Context(), "oidc.callback", "failed", "session_creation")
 		http.Error(w, "create app session", http.StatusInternalServerError)
 		return
 	}
 	h.sessionManager.SetCookie(w, session.ID)
+	h.observe(r.Context(), "oidc.callback", "accepted", "")
 	http.Redirect(w, r, tx.RedirectURL, http.StatusFound)
 }
 
 func (h *Handlers) handleLogout(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost && r.Method != http.MethodGet {
+		h.observe(r.Context(), "oidc.logout", "rejected", "method")
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 	_ = h.sessionManager.RevokeRequestSession(r.Context(), r)
+	h.observe(r.Context(), "oidc.logout", "accepted", "")
 	h.sessionManager.ClearCookie(w)
 	if r.Method == http.MethodGet {
 		http.Redirect(w, r, h.logoutRedirectURL(r), http.StatusFound)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handlers) observe(ctx context.Context, event, outcome, reason string) {
+	if h.securityEvents != nil {
+		h.securityEvents.ObserveSecurityEvent(ctx, gojahttp.SecurityEvent{Name: event, Outcome: outcome, Reason: reason})
+	}
+	if h.audit != nil {
+		_ = h.audit.RecordAudit(ctx, gojahttp.AuditEvent{Event: event, Outcome: outcome, Reason: reason, Method: "INTERNAL", Pattern: "oidc"})
+	}
 }
 
 func (h *Handlers) logoutRedirectURL(r *http.Request) string {

@@ -154,12 +154,13 @@ type AuthResult struct {
 }
 
 type AuthOptions struct {
-	Authenticator Authenticator
-	Resources     ResourceResolver
-	Authorizer    Authorizer
-	CSRF          CSRFProtector
-	Audit         AuditSink
-	RateLimiter   RateLimiter
+	Authenticator  Authenticator
+	Resources      ResourceResolver
+	Authorizer     Authorizer
+	CSRF           CSRFProtector
+	Audit          AuditSink
+	RateLimiter    RateLimiter
+	SecurityEvents SecurityEventObserver
 }
 
 type Authenticator interface {

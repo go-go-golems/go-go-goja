@@ -347,7 +347,7 @@ func secretKey(key string) bool {
 	if key == "capability" {
 		return true
 	}
-	for _, fragment := range []string{"token", "secret", "password", "cookie", "session", "authorization", "credential", "code"} {
+	for _, fragment := range []string{"token", "secret", "password", "cookie", "session", "authorization", "credential", "code", "state", "nonce", "verifier", "proof"} {
 		if strings.Contains(key, fragment) {
 			return true
 		}

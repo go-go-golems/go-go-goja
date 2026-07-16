@@ -90,10 +90,12 @@ func (b *Builder) BuildHostAuthServices(ctx context.Context, vals *values.Values
 	}
 	agentService := programauth.AgentService{Store: stores.ProgramAuth.Agents, Now: b.options.Now}
 	apiTokenService := programauth.APITokenService{Store: stores.ProgramAuth.APITokens, Agents: agentService, Now: b.options.Now}
-	oauthTokenService := programauth.OAuthTokenService{AccessTokens: stores.ProgramAuth.AccessTokens, RefreshTokens: stores.ProgramAuth.RefreshTokens, Agents: agentService, Now: b.options.Now}
+	oauthTokenService := programauth.OAuthTokenService{AccessTokens: stores.ProgramAuth.AccessTokens, RefreshTokens: stores.ProgramAuth.RefreshTokens, PairStore: stores.ProgramAuth.OAuthTokenPairs, Agents: agentService, Now: b.options.Now}
 	deviceService := programauth.DeviceService{Store: stores.ProgramAuth.Devices, Agents: agentService, OAuthTokens: oauthTokenService, Now: b.options.Now, VerificationURI: "/auth/device"}
+	securityEvents := &gojahttp.MemorySecurityMetrics{}
 	authOptions := BuildAuthOptions(sessionManager, stores, auditSink, rateLimiter, apiTokenService, oauthTokenService)
-	nativeHandlers, err := BuildNativeHandlers(ctx, resolved, sessionManager, stores, deviceService)
+	authOptions.SecurityEvents = securityEvents
+	nativeHandlers, err := BuildNativeHandlers(ctx, resolved, sessionManager, stores, deviceService, auditSink, securityEvents)
 	if err != nil {
 		return nil, err
 	}
@@ -126,12 +128,12 @@ func (b *Builder) BuildHostAuthServices(ctx context.Context, vals *values.Values
 
 // BuildNativeHandlers maps resolved auth config into Go-owned HTTP handlers
 // mounted by xgoja serve before the JavaScript app host fallback.
-func BuildNativeHandlers(ctx context.Context, cfg ResolvedConfig, sessionManager *sessionauth.Manager, stores *StoreBundle, deviceService programauth.DeviceService) ([]NativeHandler, error) {
+func BuildNativeHandlers(ctx context.Context, cfg ResolvedConfig, sessionManager *sessionauth.Manager, stores *StoreBundle, deviceService programauth.DeviceService, auditSink gojahttp.AuditSink, securityEvents gojahttp.SecurityEventObserver) ([]NativeHandler, error) {
 	nativeHandlers := []NativeHandler{
 		{Method: "GET", Path: "/auth/readyz", Handler: readinessHandler(BuildReadinessReport(cfg))},
 	}
 	if deviceService.Store != nil {
-		deviceHandlers, err := programauth.NewDeviceHandlers(programauth.DeviceHandlersConfig{Service: deviceService, SessionManager: sessionManager})
+		deviceHandlers, err := programauth.NewDeviceHandlers(programauth.DeviceHandlersConfig{Service: deviceService, SessionManager: sessionManager, Audit: auditSink, SecurityEvents: securityEvents})
 		if err != nil {
 			return nil, err
 		}
@@ -166,6 +168,8 @@ func BuildNativeHandlers(ctx context.Context, cfg ResolvedConfig, sessionManager
 		SessionManager:   sessionManager,
 		UserNormalizer:   DefaultOIDCUserNormalizer(stores),
 		TransactionStore: stores.OIDCTransaction,
+		Audit:            auditSink,
+		SecurityEvents:   securityEvents,
 	})
 	if err != nil {
 		return nil, err
