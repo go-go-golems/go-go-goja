@@ -15,11 +15,15 @@ import (
 type DeviceHandlersConfig struct {
 	Service        DeviceService
 	SessionManager *sessionauth.Manager
+	Audit          gojahttp.AuditSink
+	SecurityEvents gojahttp.SecurityEventObserver
 }
 
 type DeviceHandlers struct {
 	service        DeviceService
 	sessionManager *sessionauth.Manager
+	audit          gojahttp.AuditSink
+	securityEvents gojahttp.SecurityEventObserver
 }
 
 func NewDeviceHandlers(cfg DeviceHandlersConfig) (*DeviceHandlers, error) {
@@ -29,27 +33,31 @@ func NewDeviceHandlers(cfg DeviceHandlersConfig) (*DeviceHandlers, error) {
 	if cfg.Service.OAuthTokens.AccessTokens == nil || cfg.Service.OAuthTokens.RefreshTokens == nil {
 		return nil, fmt.Errorf("device handlers require oauth token service")
 	}
-	return &DeviceHandlers{service: cfg.Service, sessionManager: cfg.SessionManager}, nil
+	return &DeviceHandlers{service: cfg.Service, sessionManager: cfg.SessionManager, audit: cfg.Audit, securityEvents: cfg.SecurityEvents}, nil
 }
 
 func (h *DeviceHandlers) StartHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
+			h.observe(r, "programauth.device.start", "rejected", "method")
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
 		var body deviceStartRequest
 		if err := decodeJSONRequest(r, &body); err != nil {
+			h.observe(r, "programauth.device.start", "rejected", "invalid_request")
 			writeOAuthError(w, http.StatusBadRequest, "invalid_request", err.Error(), 0)
 			return
 		}
 		grants, err := grantsFromActions(body.Actions, body.TenantID)
 		if err != nil {
+			h.observe(r, "programauth.device.start", "rejected", "invalid_scope")
 			writeOAuthError(w, http.StatusBadRequest, "invalid_scope", err.Error(), 0)
 			return
 		}
 		started, err := h.service.StartDeviceAuthorization(r.Context(), DeviceStartSpec{ClientName: firstNonEmpty(body.ClientName, body.ClientNameSnake), TenantID: body.TenantID, Grants: grants, VerificationURI: body.VerificationURI})
 		if err != nil {
+			h.observe(r, "programauth.device.start", "failed", "persistence")
 			writeOAuthError(w, http.StatusBadRequest, "invalid_request", err.Error(), 0)
 			return
 		}
@@ -61,30 +69,36 @@ func (h *DeviceHandlers) StartHandler() http.Handler {
 			"expires_in":                int(started.Device.ExpiresAt.Sub(started.Device.CreatedAt).Seconds()),
 			"interval":                  started.Device.PollIntervalSeconds,
 		})
+		h.observe(r, "programauth.device.start", "issued", "")
 	})
 }
 
 func (h *DeviceHandlers) TokenHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
+			h.observe(r, "programauth.device.poll", "rejected", "method")
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
 		deviceCode, grantType, err := readDeviceTokenRequest(r)
 		if err != nil {
+			h.observe(r, "programauth.device.poll", "rejected", "invalid_request")
 			writeOAuthError(w, http.StatusBadRequest, "invalid_request", err.Error(), 0)
 			return
 		}
 		if grantType != "" && grantType != "urn:ietf:params:oauth:grant-type:device_code" {
+			h.observe(r, "programauth.device.poll", "rejected", "grant_type")
 			writeOAuthError(w, http.StatusBadRequest, "unsupported_grant_type", "unsupported grant_type", 0)
 			return
 		}
 		issued, err := h.service.PollDeviceAuthorization(r.Context(), deviceCode)
 		if err != nil {
+			h.observe(r, "programauth.device.poll", "rejected", devicePollReason(err))
 			handleDevicePollError(w, err)
 			return
 		}
 		writeIssuedTokenPair(w, issued)
+		h.observe(r, "programauth.device.poll", "issued", "")
 	})
 }
 
@@ -94,24 +108,29 @@ func (h *DeviceHandlers) TokenHandler() http.Handler {
 func (h *DeviceHandlers) RefreshHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
+			h.observe(r, "programauth.refresh", "rejected", "method")
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
 		refreshToken, grantType, err := readRefreshTokenRequest(r)
 		if err != nil {
+			h.observe(r, "programauth.refresh", "rejected", "invalid_request")
 			writeOAuthError(w, http.StatusBadRequest, "invalid_request", err.Error(), 0)
 			return
 		}
 		if grantType != "" && grantType != "refresh_token" {
+			h.observe(r, "programauth.refresh", "rejected", "grant_type")
 			writeOAuthError(w, http.StatusBadRequest, "unsupported_grant_type", "unsupported grant_type", 0)
 			return
 		}
 		issued, err := h.service.OAuthTokens.RefreshTokenPair(r.Context(), refreshToken, 0, 0)
 		if err != nil {
+			h.observe(r, "programauth.refresh", "rejected", "invalid_grant")
 			writeOAuthError(w, http.StatusBadRequest, "invalid_grant", "invalid refresh token", 0)
 			return
 		}
 		writeIssuedTokenPair(w, issued)
+		h.observe(r, "programauth.refresh", "rotated", "")
 	})
 }
 
@@ -121,58 +140,103 @@ func (h *DeviceHandlers) RefreshHandler() http.Handler {
 func (h *DeviceHandlers) RevokeHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
+			h.observe(r, "programauth.refresh_revoke", "rejected", "method")
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
 		refreshToken, _, err := readRefreshTokenRequest(r)
 		if err != nil {
+			h.observe(r, "programauth.refresh_revoke", "rejected", "invalid_request")
 			writeOAuthError(w, http.StatusBadRequest, "invalid_request", err.Error(), 0)
 			return
 		}
 		if err := h.service.OAuthTokens.RevokeRefreshToken(r.Context(), refreshToken); err != nil && !errors.Is(err, gojahttp.ErrUnauthenticated) {
+			h.observe(r, "programauth.refresh_revoke", "failed", "persistence")
 			writeOAuthError(w, http.StatusInternalServerError, "server_error", "refresh token revocation failed", 0)
 			return
 		}
 		writeJSONResponse(w, http.StatusOK, map[string]any{"ok": true})
+		h.observe(r, "programauth.refresh_revoke", "accepted", "")
 	})
 }
 
 func (h *DeviceHandlers) ApproveHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
+			h.observe(r, "programauth.device.approve", "rejected", "method")
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
 		if h.sessionManager == nil {
+			h.observe(r, "programauth.device.approve", "rejected", "session_unavailable")
 			writeOAuthError(w, http.StatusUnauthorized, "unauthorized", "session manager is not configured", 0)
 			return
 		}
 		session, err := h.sessionManager.SessionFromRequest(r.Context(), r)
 		if err != nil {
+			h.observe(r, "programauth.device.approve", "rejected", "unauthenticated")
 			writeOAuthError(w, http.StatusUnauthorized, "unauthorized", "unauthenticated", 0)
 			return
 		}
 		if err := h.sessionManager.VerifyCSRF(r.Context(), gojahttp.CSRFRequest{HTTPRequest: r, Actor: &gojahttp.Actor{ID: session.UserID}}); err != nil {
+			h.observe(r, "programauth.device.approve", "rejected", "csrf")
 			writeOAuthError(w, http.StatusForbidden, "access_denied", "missing or invalid CSRF token", 0)
 			return
 		}
 		var body deviceApproveRequest
 		if err := decodeJSONRequest(r, &body); err != nil {
+			h.observe(r, "programauth.device.approve", "rejected", "invalid_request")
 			writeOAuthError(w, http.StatusBadRequest, "invalid_request", err.Error(), 0)
 			return
 		}
 		grants, err := grantsFromActions(body.Actions, body.TenantID)
 		if err != nil {
+			h.observe(r, "programauth.device.approve", "rejected", "invalid_scope")
 			writeOAuthError(w, http.StatusBadRequest, "invalid_scope", err.Error(), 0)
 			return
 		}
 		approved, err := h.service.ApproveDeviceAuthorization(r.Context(), DeviceApprovalSpec{UserCode: firstNonEmpty(body.UserCode, body.UserCodeSnake), SubjectUserID: session.UserID, TenantID: body.TenantID, AgentName: body.AgentName, AgentKind: AgentKindDevice, Grants: grants})
 		if err != nil {
+			h.observe(r, "programauth.device.approve", "rejected", "approval")
 			writeOAuthError(w, statusForDeviceApprovalError(err), "invalid_request", err.Error(), 0)
 			return
 		}
 		writeJSONResponse(w, http.StatusOK, map[string]any{"ok": true, "device": approved})
+		h.observe(r, "programauth.device.approve", "accepted", "")
 	})
+}
+
+func (h *DeviceHandlers) observe(r *http.Request, event, outcome, reason string) {
+	if h.securityEvents != nil {
+		h.securityEvents.ObserveSecurityEvent(r.Context(), gojahttp.SecurityEvent{Name: event, Outcome: outcome, Reason: reason})
+	}
+	if h.audit != nil {
+		_ = h.audit.RecordAudit(r.Context(), gojahttp.AuditEvent{Event: event, Outcome: outcome, Reason: reason, Method: "INTERNAL", Pattern: "device-auth", HTTPRequest: r})
+	}
+}
+
+func devicePollReason(err error) string {
+	var deviceErr DeviceError
+	if errors.As(err, &deviceErr) {
+		switch {
+		case errors.Is(deviceErr, ErrDeviceAuthorizationPending):
+			return "pending"
+		case errors.Is(deviceErr, ErrDeviceSlowDown):
+			return "slow_down"
+		}
+	}
+	switch {
+	case errors.Is(err, ErrDeviceExpired):
+		return "expired"
+	case errors.Is(err, ErrDeviceDenied):
+		return "denied"
+	case errors.Is(err, ErrDeviceConsumed):
+		return "consumed"
+	case errors.Is(err, gojahttp.ErrUnauthenticated):
+		return "invalid_code"
+	default:
+		return "failed"
+	}
 }
 
 type deviceStartRequest struct {

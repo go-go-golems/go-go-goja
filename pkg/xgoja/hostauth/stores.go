@@ -26,11 +26,12 @@ import (
 
 // ProgramAuthStores groups host-owned automation credential stores.
 type ProgramAuthStores struct {
-	Agents        programauth.AgentStore
-	APITokens     programauth.APITokenStore
-	AccessTokens  programauth.AccessTokenStore
-	RefreshTokens programauth.RefreshTokenStore
-	Devices       programauth.DeviceAuthorizationStore
+	Agents          programauth.AgentStore
+	APITokens       programauth.APITokenStore
+	AccessTokens    programauth.AccessTokenStore
+	RefreshTokens   programauth.RefreshTokenStore
+	OAuthTokenPairs programauth.OAuthTokenPairStore
+	Devices         programauth.DeviceAuthorizationStore
 }
 
 // StoreBundle contains the concrete stores built from ResolvedStoresConfig.
@@ -224,7 +225,7 @@ func (b *storeBuilder) buildProgramAuthStores(ctx context.Context, cfg ResolvedS
 				return ProgramAuthStores{}, err
 			}
 		}
-		return ProgramAuthStores{Agents: store, APITokens: store, AccessTokens: store, RefreshTokens: store, Devices: store}, nil
+		return ProgramAuthStores{Agents: store, APITokens: store, AccessTokens: store, RefreshTokens: store, OAuthTokenPairs: store, Devices: store}, nil
 	default:
 		return ProgramAuthStores{}, fmt.Errorf("build programauth store: unsupported driver %q", cfg.Driver)
 	}

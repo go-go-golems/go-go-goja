@@ -39,6 +39,9 @@ func TestNormalizeRecordAndRedaction(t *testing.T) {
 			"capabilityId":  "cap-123",
 			"nested":        map[string]any{"accessToken": "secret-token", "value": "kept"},
 			"authorization": "Bearer secret",
+			"state":         "secret-state",
+			"nonce":         "secret-nonce",
+			"pkceVerifier":  "secret-verifier",
 		},
 	})
 	if record.Event != "project.updated" || record.ActorID != "u1" || record.ResourceID != "p1" || record.TenantID != "o1" {
@@ -52,7 +55,7 @@ func TestNormalizeRecordAndRedaction(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := string(encoded)
-	for _, forbidden := range []string{"secret-session", "secret-capability", "secret-token", "Bearer secret"} {
+	for _, forbidden := range []string{"secret-session", "secret-capability", "secret-token", "Bearer secret", "secret-state", "secret-nonce", "secret-verifier"} {
 		if strings.Contains(text, forbidden) {
 			t.Fatalf("record leaked %q: %s", forbidden, text)
 		}
