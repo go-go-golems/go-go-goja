@@ -1,0 +1,70 @@
+package fetch
+
+import "github.com/go-go-golems/go-go-goja/pkg/tsgen/spec"
+
+func (m *Module) TypeScriptModule() *spec.Module {
+	name := "fetch"
+	if m != nil && m.name != "" {
+		name = m.name
+	}
+	return &spec.Module{
+		Name: name,
+		RawDTS: []string{
+			"export function fetch(url: string, options?: FetchOptions): Promise<FetchResponse>;",
+			"export function client(): FetchClientBuilder;",
+			"export namespace auth {",
+			"  function none(): AuthSpec;",
+			"  function bearer(): BearerAuthBuilder;",
+			"}",
+			"export interface FetchOptions {",
+			"  method?: string;",
+			"  headers?: Record<string, string>;",
+			"  body?: string | Uint8Array;",
+			"  json?: unknown;",
+			"  timeout?: string;",
+			"}",
+			"export interface FetchResponse {",
+			"  url: string;",
+			"  status: number;",
+			"  statusText: string;",
+			"  ok: boolean;",
+			"  headers: Record<string, string[]>;",
+			"  text(): Promise<string>;",
+			"  json(): Promise<unknown>;",
+			"}",
+			"export interface FetchClientBuilder {",
+			"  baseUrl(url: string): FetchClientBuilder;",
+			"  timeout(duration: string): FetchClientBuilder;",
+			"  header(name: string, value: string): FetchClientBuilder;",
+			"  auth(spec: AuthSpec): FetchClientBuilder;",
+			"  acceptJson(): FetchClientBuilder;",
+			"  expectJson(): FetchClientBuilder;",
+			"  expectText(): FetchClientBuilder;",
+			"  expectResponse(): FetchClientBuilder;",
+			"  get(path: string): RequestBuilder;",
+			"  post(path: string): RequestBuilder;",
+			"  put(path: string): RequestBuilder;",
+			"  patch(path: string): RequestBuilder;",
+			"  delete(path: string): RequestBuilder;",
+			"  request(method: string, path: string): RequestBuilder;",
+			"}",
+			"export interface RequestBuilder {",
+			"  query(name: string, value: string | number | boolean): RequestBuilder;",
+			"  header(name: string, value: string): RequestBuilder;",
+			"  json(value: unknown): RequestBuilder;",
+			"  body(value: string | Uint8Array): RequestBuilder;",
+			"  expectJson(): RequestBuilder;",
+			"  expectText(): RequestBuilder;",
+			"  expectResponse(): RequestBuilder;",
+			"  run(): Promise<unknown>;",
+			"}",
+			"export interface AuthSpec {}",
+			"export interface BearerAuthBuilder extends AuthSpec {",
+			"  token(value: string): BearerAuthBuilder;",
+			"  fromEnv(name: string): BearerAuthBuilder;",
+			"  fromFile(path: string): BearerAuthBuilder;",
+			"  jsonPath(path: string): BearerAuthBuilder;",
+			"}",
+		},
+	}
+}

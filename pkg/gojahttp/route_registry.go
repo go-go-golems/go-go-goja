@@ -34,15 +34,16 @@ type Route struct {
 }
 
 type RouteDescriptor struct {
-	Method       string       `json:"method"`
-	Pattern      string       `json:"pattern"`
-	Kind         RouteKind    `json:"kind,omitempty"`
-	Planned      bool         `json:"planned"`
-	SecurityMode SecurityMode `json:"securityMode,omitempty"`
-	Action       string       `json:"action,omitempty"`
-	Name         string       `json:"name,omitempty"`
-	CSRFRequired bool         `json:"csrfRequired,omitempty"`
-	AuditEvent   string       `json:"auditEvent,omitempty"`
+	Method            string       `json:"method"`
+	Pattern           string       `json:"pattern"`
+	Kind              RouteKind    `json:"kind,omitempty"`
+	Planned           bool         `json:"planned"`
+	SecurityMode      SecurityMode `json:"securityMode,omitempty"`
+	Action            string       `json:"action,omitempty"`
+	Name              string       `json:"name,omitempty"`
+	CSRFRequired      bool         `json:"csrfRequired,omitempty"`
+	AuditEvent        string       `json:"auditEvent,omitempty"`
+	RateLimitPolicies string       `json:"rateLimitPolicies,omitempty"`
 }
 
 type Registry struct {
@@ -93,6 +94,13 @@ func (r *Registry) Routes() []RouteDescriptor {
 			descriptor.Name = route.Plan.Name
 			descriptor.CSRFRequired = route.Plan.CSRF.Required
 			descriptor.AuditEvent = route.Plan.Audit.Event
+			if len(route.Plan.RateLimits) > 0 {
+				policies := make([]string, 0, len(route.Plan.RateLimits))
+				for _, limit := range route.Plan.RateLimits {
+					policies = append(policies, limit.Policy)
+				}
+				descriptor.RateLimitPolicies = strings.Join(policies, ",")
+			}
 		}
 		out = append(out, descriptor)
 	}

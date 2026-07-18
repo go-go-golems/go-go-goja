@@ -1,7 +1,7 @@
 ---
 Title: Deploy an xgoja-generated Keycloak auth host to yolo.scapegoat.dev
 Ticket: XGOJA-AUTH-DEPLOY
-Status: active
+Status: complete
 Topics:
     - goja
     - keycloak
@@ -40,10 +40,11 @@ ExternalSources:
     - /home/manuel/code/wesen/terraform/docs/shared-keycloak-platform-playbook.md
     - /home/manuel/code/wesen/go-go-golems/infra-tooling/docs/platform/source-repo-to-gitops-pr.md
 Summary: Productionize an xgoja-generated Keycloak auth host (from examples/xgoja/19 + 21) and deploy it to the yolo.scapegoat.dev K3s cluster via the shared GHCR + Argo GitOps + Vault + Keycloak pipeline. In-repo work only; cluster/terraform/vault changes are specified and approval-gated.
-LastUpdated: 2026-06-16T09:35:00-04:00
+LastUpdated: 2026-06-18T17:34:37.869034328-04:00
 WhatFor: Use when onboarding an engineer to deploying go-go-goja auth hosts to the cluster, or when implementing cmd/goja-auth-host and its release pipeline.
 WhenToUse: Before promoting the example host to a production binary, before adding the Dockerfile target / GitOps target, and before requesting the out-of-repo cluster/terraform/vault changes.
 ---
+
 
 # Deploy an xgoja-generated Keycloak auth host to yolo.scapegoat.dev
 

@@ -1,0 +1,19 @@
+users:
+  - login: alice
+    sub: user-alice-fixed
+    email: alice@example.test
+    name: Alice Inbox
+    email_verified: true
+    claims:
+      preferred_username: alice
+      groups: [inbox-users]
+      tenant: personal
+  - login: bob
+    sub: user-bob-fixed
+    email: bob@example.test
+    name: Bob Inbox
+    email_verified: true
+    claims:
+      preferred_username: bob
+      groups: [inbox-users]
+      tenant: personal

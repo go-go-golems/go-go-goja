@@ -116,12 +116,17 @@ func (c *capability) XGojaConfigFromGlazed(_ context.Context, req providerapi.XG
 }
 
 func httpConfigSection(options ...schema.SectionOption) (schema.Section, error) {
+	return httpConfigSectionWithDefaults(defaultSettings(true), options...)
+}
+
+func httpConfigSectionWithDefaults(defaults settings, options ...schema.SectionOption) (schema.Section, error) {
+	defaults = normalizeSettings(defaults)
 	options = append(options,
 		schema.WithFields(
-			fields.New("enabled", fields.TypeBool, fields.WithDefault(true), fields.WithHelp("Start the xgoja HTTP server for modules such as express")),
-			fields.New("listen", fields.TypeString, fields.WithDefault("127.0.0.1:8787"), fields.WithHelp("HTTP listen address for xgoja-owned HTTP modules")),
-			fields.New("dev-errors", fields.TypeBool, fields.WithDefault(false), fields.WithHelp("Return development JavaScript error details from the xgoja-owned HTTP host")),
-			fields.New("reject-raw-routes", fields.TypeBool, fields.WithDefault(true), fields.WithHelp("Reject matched raw/unplanned routes; planned routes and static mounts are unaffected")),
+			fields.New("enabled", fields.TypeBool, fields.WithDefault(defaults.Enabled), fields.WithHelp("Start the xgoja HTTP server for modules such as express")),
+			fields.New("listen", fields.TypeString, fields.WithDefault(defaults.Listen), fields.WithHelp("HTTP listen address for xgoja-owned HTTP modules")),
+			fields.New("dev-errors", fields.TypeBool, fields.WithDefault(defaults.DevErrors), fields.WithHelp("Return development JavaScript error details from the xgoja-owned HTTP host")),
+			fields.New("reject-raw-routes", fields.TypeBool, fields.WithDefault(defaults.RejectRawRoutes), fields.WithHelp("Reject matched raw/unplanned routes; planned routes and static mounts are unaffected")),
 		),
 	)
 	return schema.NewSection("http", "HTTP server", options...)

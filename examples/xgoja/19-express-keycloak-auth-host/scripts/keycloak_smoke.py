@@ -37,9 +37,11 @@ class LoginFormParser(HTMLParser):
             method = attrs_map.get("method", "get").lower()
             form_id = attrs_map.get("id", "")
             # Keycloak's login form usually has id=kc-form-login and an action
-            # URL containing /login-actions/authenticate. Accept either signal so
-            # minor theme changes do not break the smoke.
-            if method == "post" and (form_id == "kc-form-login" or "login-actions/authenticate" in action):
+            # URL containing /login-actions/authenticate. tinyidp uses a simpler
+            # generic POST form. Accept the Keycloak signals first, then fall
+            # back to the first POST form so this helper can drive both IdPs.
+            is_keycloak_login = form_id == "kc-form-login" or "login-actions/authenticate" in action
+            if method == "post" and (is_keycloak_login or not self.form_action):
                 self.in_form = True
                 self.form_action = html.unescape(action)
                 self.form_method = method
@@ -112,9 +114,18 @@ def login(opener: urllib.request.OpenerDirector, jar: CookieJar, base_url: str, 
         raise RuntimeError(f"could not find Keycloak login form at {final_url}; body={excerpt!r}")
 
     form = dict(parser.fields)
-    form["username"] = username
-    form["password"] = password
-    form.setdefault("credentialId", "")
+    if "login" in form:
+        # tinyidp accepts a single synthetic login name. Passwords are ignored
+        # because tinyidp is a local mock IdP, not an account system.
+        form["login"] = username
+        if "password" in form:
+            form["password"] = password
+    elif "login-actions/authenticate" in parser.form_action or "kc-form-login" in parser.form_action or "password" in form:
+        form["username"] = username
+        form["password"] = password
+        form.setdefault("credentialId", "")
+    else:
+        form["login"] = username
     encoded = urllib.parse.urlencode(form).encode("utf-8")
     action = urllib.parse.urljoin(final_url, parser.form_action)
     headers = {"Content-Type": "application/x-www-form-urlencoded"}

@@ -65,11 +65,12 @@ type CookieConfig struct {
 // StoresConfig configures the persistent stores used by host-owned auth
 // infrastructure. Per-store blocks inherit from Default field-by-field.
 type StoresConfig struct {
-	Default    StoreConfig `yaml:"default" json:"default"`
-	Session    StoreConfig `yaml:"session" json:"session"`
-	Audit      StoreConfig `yaml:"audit" json:"audit"`
-	AppAuth    StoreConfig `yaml:"appauth" json:"appauth"`
-	Capability StoreConfig `yaml:"capability" json:"capability"`
+	Default     StoreConfig `yaml:"default" json:"default"`
+	Session     StoreConfig `yaml:"session" json:"session"`
+	Audit       StoreConfig `yaml:"audit" json:"audit"`
+	AppAuth     StoreConfig `yaml:"appauth" json:"appauth"`
+	Capability  StoreConfig `yaml:"capability" json:"capability"`
+	ProgramAuth StoreConfig `yaml:"programauth" json:"programauth"`
 }
 
 // StoreConfig configures one store. ApplySchema is a pointer so inheritance can
@@ -115,10 +116,11 @@ type ResolvedCookieConfig struct {
 }
 
 type ResolvedStoresConfig struct {
-	Session    ResolvedStoreConfig
-	Audit      ResolvedStoreConfig
-	AppAuth    ResolvedStoreConfig
-	Capability ResolvedStoreConfig
+	Session     ResolvedStoreConfig
+	Audit       ResolvedStoreConfig
+	AppAuth     ResolvedStoreConfig
+	Capability  ResolvedStoreConfig
+	ProgramAuth ResolvedStoreConfig
 }
 
 type ResolvedStoreConfig struct {

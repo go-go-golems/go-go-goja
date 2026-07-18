@@ -1,0 +1,47 @@
+schema: xgoja/v2
+name: programmatic-agent-auth-agent
+app:
+  name: programmatic-agent-auth-agent
+  envPrefix: XGOJA_AGENT_AUTH_CLIENT_DEMO
+go:
+  module: xgoja.generated/programmatic-agent-auth-agent
+  version: "1.26"
+workspace:
+  mode: auto
+providers:
+  - id: go-go-goja-host
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/host
+    register: Register
+runtime:
+  modules:
+    - provider: go-go-goja-host
+      name: fetch
+      as: fetch
+      config:
+        allow: true
+        allowedOrigins:
+          - http://127.0.0.1:*
+        timeout: 5s
+        maxResponseBytes: 1048576
+        credentials:
+          allowFiles: true
+sources:
+  - id: agent-verbs
+    kind: jsverbs
+    from:
+      dir: ./verbs
+    include:
+      - agent.js
+    language: javascript
+commands:
+  - id: verbs
+    type: builtin.jsverbs
+    name: verbs
+    sources:
+      - agent-verbs
+artifacts:
+  - id: binary
+    type: binary
+    output: dist/programmatic-agent-auth-agent
+    sources:
+      - agent-verbs

@@ -1,7 +1,7 @@
 ---
 Title: Token and Device Login Programmatic API Auth Design
 Ticket: XGOJA-PROGRAMMATIC-AUTH-DESIGN
-Status: active
+Status: complete
 Topics:
     - goja
     - xgoja
@@ -15,10 +15,13 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-06-15T17:38:52.432531465-04:00
+LastUpdated: 2026-06-21T19:19:59.791473194-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
+
+
 
 # Token and Device Login Programmatic API Auth Design
 

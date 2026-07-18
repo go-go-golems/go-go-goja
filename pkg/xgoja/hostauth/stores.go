@@ -15,16 +15,28 @@ import (
 	auditsql "github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/audit/sqlstore"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/capability"
 	capabilitysql "github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/capability/sqlstore"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/programauth"
+	programauthsql "github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/programauth/sqlstore"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth"
 	sessionauthsql "github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth/sqlstore"
 )
 
+// ProgramAuthStores groups host-owned automation credential stores.
+type ProgramAuthStores struct {
+	Agents        programauth.AgentStore
+	APITokens     programauth.APITokenStore
+	AccessTokens  programauth.AccessTokenStore
+	RefreshTokens programauth.RefreshTokenStore
+	Devices       programauth.DeviceAuthorizationStore
+}
+
 // StoreBundle contains the concrete stores built from ResolvedStoresConfig.
 type StoreBundle struct {
-	Session    sessionauth.Store
-	Audit      audit.Store
-	AppAuth    AppAuthStores
-	Capability capability.Store
+	Session     sessionauth.Store
+	Audit       audit.Store
+	AppAuth     AppAuthStores
+	Capability  capability.Store
+	ProgramAuth ProgramAuthStores
 
 	Closers []func(context.Context) error
 }
@@ -76,7 +88,11 @@ func (b *storeBuilder) build(ctx context.Context, cfg ResolvedStoresConfig) (*St
 	if err != nil {
 		return nil, err
 	}
-	return &StoreBundle{Session: sessionStore, Audit: auditStore, AppAuth: appAuthStores, Capability: capabilityStore, Closers: append([]func(context.Context) error(nil), b.closers...)}, nil
+	programAuthStores, err := b.buildProgramAuthStores(ctx, cfg.ProgramAuth)
+	if err != nil {
+		return nil, err
+	}
+	return &StoreBundle{Session: sessionStore, Audit: auditStore, AppAuth: appAuthStores, Capability: capabilityStore, ProgramAuth: programAuthStores, Closers: append([]func(context.Context) error(nil), b.closers...)}, nil
 }
 
 func (b *storeBuilder) buildSessionStore(ctx context.Context, cfg ResolvedStoreConfig) (sessionauth.Store, error) {
@@ -176,6 +192,36 @@ func (b *storeBuilder) buildCapabilityStore(ctx context.Context, cfg ResolvedSto
 	}
 }
 
+func (b *storeBuilder) buildProgramAuthStores(ctx context.Context, cfg ResolvedStoreConfig) (ProgramAuthStores, error) {
+	switch cfg.Driver {
+	case StoreDriverMemory:
+		return ProgramAuthStores{
+			Agents:        programauth.NewMemoryAgentStore(),
+			APITokens:     programauth.NewMemoryAPITokenStore(),
+			AccessTokens:  programauth.NewMemoryAccessTokenStore(),
+			RefreshTokens: programauth.NewMemoryRefreshTokenStore(),
+			Devices:       programauth.NewMemoryDeviceAuthorizationStore(),
+		}, nil
+	case StoreDriverSQLite, StoreDriverPostgres:
+		db, err := b.openDB(cfg)
+		if err != nil {
+			return ProgramAuthStores{}, fmt.Errorf("build programauth store: %w", err)
+		}
+		store, err := programauthsql.New(programauthsql.Config{DB: db, Dialect: programAuthDialect(cfg.Driver)})
+		if err != nil {
+			return ProgramAuthStores{}, fmt.Errorf("build programauth store: %w", err)
+		}
+		if cfg.ApplySchema {
+			if err := store.ApplySchema(ctx); err != nil {
+				return ProgramAuthStores{}, err
+			}
+		}
+		return ProgramAuthStores{Agents: store, APITokens: store, AccessTokens: store, RefreshTokens: store, Devices: store}, nil
+	default:
+		return ProgramAuthStores{}, fmt.Errorf("build programauth store: unsupported driver %q", cfg.Driver)
+	}
+}
+
 func (b *storeBuilder) openDB(cfg ResolvedStoreConfig) (*sql.DB, error) {
 	key := sqlDBKey{driver: cfg.Driver, dsn: cfg.DSN}
 	if db, ok := b.dbs[key]; ok {
@@ -233,6 +279,13 @@ func capabilityDialect(driver StoreDriver) capabilitysql.Dialect {
 		return capabilitysql.DialectSQLite
 	}
 	return capabilitysql.DialectPostgres
+}
+
+func programAuthDialect(driver StoreDriver) programauthsql.Dialect {
+	if driver == StoreDriverSQLite {
+		return programauthsql.DialectSQLite
+	}
+	return programauthsql.DialectPostgres
 }
 
 func closeAll(ctx context.Context, closers []func(context.Context) error) error {

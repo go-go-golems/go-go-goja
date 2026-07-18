@@ -1,0 +1,68 @@
+schema: xgoja/v2
+name: programmatic-agent-auth-server
+app:
+  name: programmatic-agent-auth-server
+  envPrefix: XGOJA_AGENT_AUTH_SERVER_DEMO
+go:
+  module: xgoja.generated/programmatic-agent-auth-server
+  version: "1.26"
+workspace:
+  mode: auto
+providers:
+  - id: go-go-goja-host
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/host
+    register: Register
+  - id: go-go-goja-hostauth
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/hostauth
+    register: Register
+  - id: go-go-goja-http
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http
+    register: Register
+runtime:
+  modules:
+    - provider: go-go-goja-host
+      name: fs
+      as: fs:host
+      config:
+        allow: true
+    - provider: go-go-goja-hostauth
+      name: auth
+      as: auth
+      config:
+        audit:
+          maxLimit: 50
+    - provider: go-go-goja-http
+      name: express
+      config:
+        reject-raw-routes: true
+        dev-errors: false
+auth:
+  mode: dev
+  session:
+    cookie:
+      allow-insecure-http: true
+  stores:
+    default:
+      driver: memory
+sources:
+  - id: server-verbs
+    kind: jsverbs
+    from:
+      dir: ./verbs
+    include:
+      - server.js
+    language: javascript
+commands:
+  - id: http-serve
+    type: provider.command-set
+    name: serve
+    mount: serve
+    provider: go-go-goja-http
+    sources:
+      - server-verbs
+artifacts:
+  - id: binary
+    type: binary
+    output: dist/programmatic-agent-auth-server
+    sources:
+      - server-verbs

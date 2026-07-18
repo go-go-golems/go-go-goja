@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/keycloakauth"
+	programauthsql "github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/programauth/sqlstore"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth"
 )
 
@@ -62,8 +63,9 @@ func TestBuildAuthOptionsWiresSessionAuditResourcesAndAuthorizer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BuildSessionManager: %v", err)
 	}
-	options := BuildAuthOptions(manager, stores, nil)
-	if options.Authenticator == nil || options.CSRF == nil || options.Resources == nil || options.Authorizer == nil {
+	limiter := gojahttp.NewMemoryRateLimiter()
+	options := BuildAuthOptions(manager, stores, nil, limiter, nil, nil)
+	if options.Authenticator == nil || options.CSRF == nil || options.Resources == nil || options.Authorizer == nil || options.RateLimiter == nil {
 		t.Fatalf("auth options missing fields: %#v", options)
 	}
 	if options.Audit != nil {
@@ -101,10 +103,10 @@ func TestServiceFactoryDevBuildsUsableAuthServices(t *testing.T) {
 			t.Fatalf("Close: %v", err)
 		}
 	}()
-	if services.AuthOptions.Authenticator == nil || services.AuthOptions.CSRF == nil || services.AuthOptions.Audit == nil || services.AuthOptions.Resources == nil || services.AuthOptions.Authorizer == nil {
+	if services.AuthOptions.Authenticator == nil || services.AuthOptions.CSRF == nil || services.AuthOptions.Audit == nil || services.AuthOptions.Resources == nil || services.AuthOptions.Authorizer == nil || services.AuthOptions.RateLimiter == nil {
 		t.Fatalf("auth options missing fields: %#v", services.AuthOptions)
 	}
-	if services.SessionManager == nil || services.SessionStore == nil || services.AuditStore == nil || services.Capability == nil {
+	if services.RateLimiter == nil || services.SessionManager == nil || services.SessionStore == nil || services.AuditStore == nil || services.Capability == nil || services.AgentStore == nil || services.APITokenStore == nil || services.AccessTokenStore == nil || services.RefreshTokenStore == nil || services.DeviceStore == nil {
 		t.Fatalf("services missing stores/managers: %#v", services)
 	}
 
@@ -147,7 +149,7 @@ func TestServiceFactoryOIDCBuildsNativeHandlers(t *testing.T) {
 	if services.Config.Mode != ModeOIDC || services.Config.OIDC.RedirectURL != "http://localhost:8787/auth/callback" {
 		t.Fatalf("config = %#v", services.Config)
 	}
-	if services.SessionManager == nil || services.AuthOptions.Authenticator == nil {
+	if services.SessionManager == nil || services.AuthOptions.Authenticator == nil || services.AuthOptions.RateLimiter == nil {
 		t.Fatalf("missing session/auth options: %#v", services)
 	}
 	got := map[string]bool{}
@@ -185,6 +187,41 @@ func TestDefaultOIDCUserNormalizerUpsertsUserWithoutGrantingMemberships(t *testi
 	}
 	if session.Claims["keycloakSub"] != "kc-sub-1" || session.Claims["preferredUsername"] != "demo" {
 		t.Fatalf("claims = %#v", session.Claims)
+	}
+}
+
+func TestServiceFactoryUsesSQLProgramAuthStore(t *testing.T) {
+	applySchema := true
+	factory := NewServiceFactory(BuilderOptions{Config: Config{
+		Mode: ModeDev,
+		Stores: StoresConfig{
+			Default:     StoreConfig{Driver: "memory"},
+			ProgramAuth: StoreConfig{Driver: "sqlite", DSN: "file:hostauth-programauth-store?mode=memory&cache=shared", ApplySchema: &applySchema},
+		},
+	}})
+	services, err := factory.BuildHostAuthServices(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("BuildHostAuthServices: %v", err)
+	}
+	defer func() {
+		if err := services.Close(context.Background()); err != nil {
+			t.Fatalf("Close: %v", err)
+		}
+	}()
+	if _, ok := services.AgentStore.(*programauthsql.Store); !ok {
+		t.Fatalf("agent store type = %T", services.AgentStore)
+	}
+	if _, ok := services.APITokenStore.(*programauthsql.Store); !ok {
+		t.Fatalf("api token store type = %T", services.APITokenStore)
+	}
+	if _, ok := services.AccessTokenStore.(*programauthsql.Store); !ok {
+		t.Fatalf("access token store type = %T", services.AccessTokenStore)
+	}
+	if _, ok := services.RefreshTokenStore.(*programauthsql.Store); !ok {
+		t.Fatalf("refresh token store type = %T", services.RefreshTokenStore)
+	}
+	if _, ok := services.DeviceStore.(*programauthsql.Store); !ok {
+		t.Fatalf("device store type = %T", services.DeviceStore)
 	}
 }
 

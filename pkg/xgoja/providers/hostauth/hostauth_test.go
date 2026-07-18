@@ -9,6 +9,7 @@ import (
 	"github.com/dop251/goja"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/audit"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/capability"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/programauth"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/app"
 	hostauthsvc "github.com/go-go-golems/go-go-goja/pkg/xgoja/hostauth"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
@@ -99,6 +100,85 @@ func TestAuthAuditQueryFromJavaScript(t *testing.T) {
 	}
 	state := ret.(string)
 	for _, want := range []string{`"count":1`, `"event":"new denied"`, `"tenantId":"o1"`, `"resourceId":"p2"`} {
+		if !strings.Contains(state, want) {
+			t.Fatalf("state missing %s: %s", want, state)
+		}
+	}
+}
+
+func TestAuthProgrammaticAgentsAndTokensFromJavaScript(t *testing.T) {
+	registry := providerapi.NewProviderRegistry()
+	if err := Register(registry); err != nil {
+		t.Fatalf("register provider: %v", err)
+	}
+	agentIDs := []string{"agt_js"}
+	tokenIDs := []string{"tok_js"}
+	agentStore := programauth.NewMemoryAgentStore()
+	agentService := programauth.AgentService{Store: agentStore, NewID: func() (string, error) {
+		id := agentIDs[0]
+		agentIDs = agentIDs[1:]
+		return id, nil
+	}}
+	tokenStore := programauth.NewMemoryAPITokenStore()
+	tokenService := programauth.APITokenService{Store: tokenStore, Agents: agentService, NewID: func() (string, error) {
+		id := tokenIDs[0]
+		tokenIDs = tokenIDs[1:]
+		return id, nil
+	}}
+	hostServices := app.HostServices{}
+	if err := hostServices.SetHostService(hostauthsvc.ServicesKey, &hostauthsvc.Services{
+		AuditStore:    &audit.MemoryStore{},
+		Capability:    capability.NewMemoryStore(),
+		AgentStore:    agentStore,
+		APITokenStore: tokenStore,
+		Agents:        agentService,
+		APITokens:     tokenService,
+	}); err != nil {
+		t.Fatalf("set hostauth services: %v", err)
+	}
+	runtimePlan := &app.RuntimePlan{Runtime: app.RuntimeSection{Modules: []app.RuntimeModulePlan{{Provider: PackageID, Name: "auth", As: "auth"}}}}
+	factory := app.NewRuntimeFactory(registry, runtimePlan, hostServices)
+	rt, err := factory.NewRuntime(context.Background())
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+	defer func() { _ = rt.Close(context.Background()) }()
+
+	ret, err := rt.Owner.Call(context.Background(), "hostauth.programauth-test", func(_ context.Context, vm *goja.Runtime) (any, error) {
+		value, runErr := vm.RunString(`
+			const auth = require("auth");
+			const grants = auth.grants().tenant("o1").resource("project", "p1").allow("project.read").done();
+			const issued = auth.agents.create("daily-report-bot")
+				.kind("ci")
+				.tenantId("o1")
+				.createdBy("u1")
+				.grants(grants)
+				.issueApiToken("daily-report-key")
+				.run();
+			const listed = auth.tokens.api.list().agent(issued.agent.id).run();
+			const revoked = auth.tokens.api.revoke().id(issued.token.id).run();
+			const listedAll = auth.tokens.api.list().agent(issued.agent.id).includeRevoked(true).run();
+			JSON.stringify({
+				agentId: issued.agent.id,
+				tokenId: issued.token.id,
+				rawOnce: issued.token.value.length > 20,
+				listedHasRaw: Object.prototype.hasOwnProperty.call(listed[0], "value"),
+				listedCount: listed.length,
+				revoked: !!revoked.revokedAt,
+				listedAll: listedAll.length,
+				scope: issued.token.scopes[0]
+			});
+		`)
+		if runErr != nil {
+			return nil, runErr
+		}
+		return value.String(), nil
+	})
+	if err != nil {
+		t.Fatalf("run auth programauth module: %v", err)
+	}
+	state := ret.(string)
+	for _, want := range []string{`"agentId":"agt_js"`, `"tokenId":"tok_js"`, `"rawOnce":true`, `"listedHasRaw":false`, `"listedCount":1`, `"revoked":true`, `"listedAll":1`, `"scope":"tenant:o1:resource:project:p1:project.read"`} {
 		if !strings.Contains(state, want) {
 			t.Fatalf("state missing %s: %s", want, state)
 		}

@@ -1,7 +1,7 @@
 ---
 Title: Remove stale goja-repl essay deployment artifacts
 Ticket: XGOJA-ESSAY-CLEANUP
-Status: active
+Status: complete
 Topics:
     - goja
     - deployment
@@ -13,10 +13,11 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-06-16T13:02:44.787283889-04:00
+LastUpdated: 2026-06-18T17:34:37.037732034-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 # Remove stale goja-repl essay deployment artifacts
 

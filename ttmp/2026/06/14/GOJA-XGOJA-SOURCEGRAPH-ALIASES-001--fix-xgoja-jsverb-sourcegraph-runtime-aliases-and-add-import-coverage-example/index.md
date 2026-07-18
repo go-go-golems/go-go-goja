@@ -1,7 +1,7 @@
 ---
 Title: Fix xgoja jsverb sourcegraph runtime aliases and add import coverage example
 Ticket: GOJA-XGOJA-SOURCEGRAPH-ALIASES-001
-Status: active
+Status: complete
 Topics:
     - xgoja
     - code-generation
@@ -13,10 +13,11 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-06-14T09:24:48.126833832-04:00
+LastUpdated: 2026-06-18T17:36:06.59915744-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 # Fix xgoja jsverb sourcegraph runtime aliases and add import coverage example
 

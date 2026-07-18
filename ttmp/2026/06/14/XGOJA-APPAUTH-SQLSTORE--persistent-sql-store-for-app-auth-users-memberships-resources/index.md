@@ -1,7 +1,7 @@
 ---
 Title: Persistent SQL store for app auth users memberships resources
 Ticket: XGOJA-APPAUTH-SQLSTORE
-Status: active
+Status: complete
 Topics:
     - goja
     - http
@@ -13,10 +13,11 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-06-14T09:54:18.53755733-04:00
+LastUpdated: 2026-06-18T17:36:04.013213907-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 # Persistent SQL store for app auth users memberships resources
 

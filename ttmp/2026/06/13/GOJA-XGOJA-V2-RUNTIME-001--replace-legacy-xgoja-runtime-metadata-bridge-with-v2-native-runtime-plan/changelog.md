@@ -210,3 +210,8 @@ Addressed PR #76 source-scope review comments: empty command source scopes now r
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/xgoja/app/root_test.go — Regression for nested and root-mounted builtin jsverb source isolation
 - /home/manuel/workspaces/2026-06-12/goja-sessionstream/go-go-goja/pkg/xgoja/app/source_registry.go — Empty scoped registries no longer fall back to all sources
 
+
+## 2026-06-18
+
+Ticket closed
+

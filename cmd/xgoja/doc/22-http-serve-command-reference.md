@@ -221,3 +221,5 @@ The exact command path depends on the jsverb namespace and command-set mount.
 - `xgoja help provider-runtime-config-and-host-services`
 - `xgoja help hostauth-config-reference`
 - `xgoja help express-auth-host-integration-guide`
+- `xgoja help express-route-auth-requirements`
+- `xgoja help guarded-fetch-client-api`

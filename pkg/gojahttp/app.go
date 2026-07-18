@@ -77,6 +77,11 @@ func (r *RouteNeedsPolicy) Audit(event string) *RouteNeedsPolicy {
 	return r
 }
 
+func (r *RouteNeedsPolicy) RateLimit(spec RateLimitSpec) *RouteNeedsPolicy {
+	r.builder.plan.RateLimits = append(r.builder.plan.RateLimits, spec)
+	return r
+}
+
 func (r *RouteNeedsPolicy) Allow(action string) *RouteNeedsHandler {
 	r.builder.plan.Action = strings.TrimSpace(action)
 	return &RouteNeedsHandler{builder: r.builder}
@@ -89,6 +94,11 @@ func (r *RouteNeedsHandler) CSRF(required ...bool) *RouteNeedsHandler {
 
 func (r *RouteNeedsHandler) Audit(event string) *RouteNeedsHandler {
 	r.builder.plan.Audit.Event = strings.TrimSpace(event)
+	return r
+}
+
+func (r *RouteNeedsHandler) RateLimit(spec RateLimitSpec) *RouteNeedsHandler {
+	r.builder.plan.RateLimits = append(r.builder.plan.RateLimits, spec)
 	return r
 }
 
@@ -117,6 +127,84 @@ func (r *RouteNeedsHandler) HandleJSON(handler JSONHandler) error {
 	})
 }
 
+// RateLimit starts a Go-native route rate limit builder.
+func RateLimit(policy string) RateLimitBuilder {
+	return RateLimitBuilder{spec: RateLimitSpec{Policy: strings.TrimSpace(policy)}}
+}
+
+// RateLimitBuilder builds RateLimitSpec values for planned routes.
+type RateLimitBuilder struct{ spec RateLimitSpec }
+
+func (b RateLimitBuilder) Limit(count int, window time.Duration) RateLimitBuilder {
+	b.spec.Limit = count
+	b.spec.Window = window
+	return b
+}
+
+func (b RateLimitBuilder) PerSecond(count int) RateLimitBuilder {
+	return b.Limit(count, time.Second)
+}
+
+func (b RateLimitBuilder) PerMinute(count int) RateLimitBuilder {
+	return b.Limit(count, time.Minute)
+}
+
+func (b RateLimitBuilder) PerHour(count int) RateLimitBuilder {
+	return b.Limit(count, time.Hour)
+}
+
+func (b RateLimitBuilder) Burst(count int) RateLimitBuilder {
+	b.spec.Burst = count
+	return b
+}
+
+func (b RateLimitBuilder) ByIP() RateLimitBuilder {
+	b.spec.KeyParts = append(b.spec.KeyParts, RateLimitKeyPart{Kind: RateLimitKeyIP})
+	return b
+}
+
+func (b RateLimitBuilder) ByRoute() RateLimitBuilder {
+	b.spec.KeyParts = append(b.spec.KeyParts, RateLimitKeyPart{Kind: RateLimitKeyRoute})
+	return b
+}
+
+func (b RateLimitBuilder) ByActor() RateLimitBuilder {
+	b.spec.KeyParts = append(b.spec.KeyParts, RateLimitKeyPart{Kind: RateLimitKeyActor})
+	return b
+}
+
+func (b RateLimitBuilder) ByParam(param string) RateLimitBuilder {
+	b.spec.KeyParts = append(b.spec.KeyParts, RateLimitKeyPart{Kind: RateLimitKeyParam, Key: strings.TrimSpace(param)})
+	return b
+}
+
+func (b RateLimitBuilder) ByTenantParam(param string) RateLimitBuilder {
+	b.spec.KeyParts = append(b.spec.KeyParts, RateLimitKeyPart{Kind: RateLimitKeyTenantParam, Key: strings.TrimSpace(param)})
+	return b
+}
+
+func (b RateLimitBuilder) ByHeader(header string) RateLimitBuilder {
+	b.spec.KeyParts = append(b.spec.KeyParts, RateLimitKeyPart{Kind: RateLimitKeyHeader, Key: strings.TrimSpace(header)})
+	return b
+}
+
+func (b RateLimitBuilder) ByBodyField(field string) RateLimitBuilder {
+	b.spec.KeyParts = append(b.spec.KeyParts, RateLimitKeyPart{Kind: RateLimitKeyBodyField, Key: strings.TrimSpace(field)})
+	return b
+}
+
+func (b RateLimitBuilder) ByResource(name string) RateLimitBuilder {
+	b.spec.KeyParts = append(b.spec.KeyParts, RateLimitKeyPart{Kind: RateLimitKeyResource, Key: strings.TrimSpace(name)})
+	return b
+}
+
+func (b RateLimitBuilder) FailOpen(value bool) RateLimitBuilder {
+	b.spec.FailOpen = value
+	return b
+}
+
+func (b RateLimitBuilder) Spec() RateLimitSpec { return b.spec }
+
 // User starts a Go-native user auth spec builder.
 func User() UserAuthBuilder {
 	return UserAuthBuilder{spec: SecuritySpec{Mode: SecurityModeUser, Required: true}}
@@ -134,6 +222,33 @@ func (b UserAuthBuilder) MFAFresh(within time.Duration) SecuritySpec {
 	b.spec.Required = true
 	b.spec.MFAFreshWithin = within
 	return b.spec
+}
+
+// Agent restricts a planned route to authenticated agent principals.
+func Agent() SecuritySpec {
+	return SecuritySpec{Mode: SecurityModeUser, Required: true, AuthRequirements: []AuthRequirement{{PrincipalKind: PrincipalKindAgent}}}
+}
+
+// SessionUser restricts a planned route to browser-session user principals.
+func SessionUser() SecuritySpec {
+	return SecuritySpec{Mode: SecurityModeUser, Required: true, AuthRequirements: []AuthRequirement{{Method: AuthMethodSession, PrincipalKind: PrincipalKindUser}}}
+}
+
+// AnyOf combines route auth specs as alternatives. The result accepts any
+// authenticated principal that satisfies at least one non-empty requirement.
+func AnyOf(specs ...SecuritySpec) SecuritySpec {
+	out := SecuritySpec{Mode: SecurityModeUser, Required: true}
+	for _, spec := range specs {
+		if spec.MFAFreshWithin > out.MFAFreshWithin {
+			out.MFAFreshWithin = spec.MFAFreshWithin
+		}
+		if len(spec.AuthRequirements) == 0 {
+			out.AuthRequirements = nil
+			return out
+		}
+		out.AuthRequirements = append(out.AuthRequirements, spec.AuthRequirements...)
+	}
+	return out
 }
 
 // Resource starts a Go-native resource spec builder.

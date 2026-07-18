@@ -1,0 +1,98 @@
+# Required schema selector. Step 02 keeps the same xgoja v2 document shape as
+# Step 01 and adds HTTP provider sections below.
+schema: xgoja/v2
+
+# Snapshot-specific spec name. Each step uses a distinct name so generated
+# diagnostics and binaries identify the current tutorial stage.
+name: personal-knowledge-inbox-hello-web-server
+
+# Application identity for generated command/config metadata. Minimal shape:
+#   app:
+#     name: string        # required
+#     envPrefix: string   # optional; introduced in later config-heavy steps
+app:
+  name: personal-knowledge-inbox-hello-web-server
+
+# Generated Go module settings. The module path is local to this generated
+# snapshot; it is not the repository module path.
+go:
+  module: xgoja.generated/personal-knowledge-inbox-hello-web-server
+  version: "1.26"
+
+# Workspace resolution strategy. `auto` lets xgoja find local providers during
+# development. The Makefile also passes an absolute --xgoja-replace path.
+workspace:
+  mode: auto
+
+# New in Step 02: providers make Go packages available to generated runtimes.
+# Provider entry shape:
+#   - id: string        # local provider id used by runtime/commands
+#     import: string    # Go import path of provider package
+#     register: string  # exported registration function, usually Register
+# Here the HTTP provider contributes the Express module and the `serve` command.
+providers:
+  - id: go-go-goja-http
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http
+    register: Register
+
+# New in Step 02: runtime modules choose which provider modules JavaScript can
+# require(). Module entry shape:
+#   - provider: string  # provider id from `providers`
+#     name: string      # provider module name
+#     as: string        # optional require() alias; omitted means use `name`
+#     config: object    # optional provider-specific config
+# The Express module lets jsverbs register planned HTTP routes.
+runtime:
+  modules:
+    - provider: go-go-goja-http
+      name: express
+      config:
+        # Reject unplanned/raw matched routes. This keeps examples aligned with
+        # the planned-route model used by auth later.
+        reject-raw-routes: true
+        # Do not return JavaScript stack details in HTTP responses by default.
+        dev-errors: false
+
+# Source sets are unchanged from Step 01: one jsverbs directory, narrowed to the
+# tutorial verb file. Additional source kinds later include assets.
+sources:
+  - id: inbox-verbs
+    kind: jsverbs
+    from:
+      dir: ./verbs
+    include:
+      - hello.js
+    language: javascript
+
+# Commands now have two surfaces:
+# 1. builtin.jsverbs keeps the Step 01 CLI command path.
+# 2. provider.command-set mounts the HTTP provider's long-running `serve`
+#    command. Provider command-set shape:
+#      - id: string
+#        type: provider.command-set
+#        name: string            # command-set name contributed by provider
+#        mount: string           # generated CLI command name
+#        provider: string        # provider id
+#        sources: [source-id]    # jsverbs route-registration sources
+commands:
+  - id: verbs
+    type: builtin.jsverbs
+    name: verbs
+    sources:
+      - inbox-verbs
+  - id: http-serve
+    type: provider.command-set
+    name: serve
+    mount: serve
+    provider: go-go-goja-http
+    sources:
+      - inbox-verbs
+
+# Binary artifact. Step 02 changes only the output name; it still embeds the
+# jsverbs source set so the built binary can run without reading ./verbs.
+artifacts:
+  - id: binary
+    type: binary
+    output: dist/personal-knowledge-inbox-hello-web-server
+    sources:
+      - inbox-verbs

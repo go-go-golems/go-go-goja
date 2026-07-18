@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -82,13 +83,14 @@ type TransactionStore interface {
 
 // Handlers owns OIDC login/callback/logout HTTP handlers.
 type Handlers struct {
-	oauth2Config   oauth2.Config
-	verifier       *oidc.IDTokenVerifier
-	sessionManager *sessionauth.Manager
-	normalizer     UserNormalizer
-	transactions   TransactionStore
-	afterLoginURL  string
-	afterLogoutURL string
+	oauth2Config       oauth2.Config
+	verifier           *oidc.IDTokenVerifier
+	sessionManager     *sessionauth.Manager
+	normalizer         UserNormalizer
+	transactions       TransactionStore
+	afterLoginURL      string
+	afterLogoutURL     string
+	endSessionEndpoint string
 }
 
 // New discovers the OIDC provider and returns login/callback/logout handlers.
@@ -115,6 +117,12 @@ func New(ctx context.Context, cfg Config) (*Handlers, error) {
 	if err != nil {
 		return nil, fmt.Errorf("keycloakauth: discover provider: %w", err)
 	}
+	var discovery struct {
+		EndSessionEndpoint string `json:"end_session_endpoint"`
+	}
+	if err := provider.Claims(&discovery); err != nil {
+		return nil, fmt.Errorf("keycloakauth: read provider metadata: %w", err)
+	}
 	scopes := ensureOpenIDScope(cfg.Scopes)
 	oauth2Config := oauth2.Config{
 		ClientID:     cfg.ClientID,
@@ -124,13 +132,14 @@ func New(ctx context.Context, cfg Config) (*Handlers, error) {
 		Scopes:       scopes,
 	}
 	return &Handlers{
-		oauth2Config:   oauth2Config,
-		verifier:       provider.Verifier(&oidc.Config{ClientID: cfg.ClientID}),
-		sessionManager: cfg.SessionManager,
-		normalizer:     cfg.UserNormalizer,
-		transactions:   cfg.TransactionStore,
-		afterLoginURL:  defaultIfEmpty(cfg.AfterLoginURL, "/"),
-		afterLogoutURL: defaultIfEmpty(cfg.AfterLogoutURL, "/"),
+		oauth2Config:       oauth2Config,
+		verifier:           provider.Verifier(&oidc.Config{ClientID: cfg.ClientID}),
+		sessionManager:     cfg.SessionManager,
+		normalizer:         cfg.UserNormalizer,
+		transactions:       cfg.TransactionStore,
+		afterLoginURL:      defaultIfEmpty(cfg.AfterLoginURL, "/"),
+		afterLogoutURL:     defaultIfEmpty(cfg.AfterLogoutURL, "/"),
+		endSessionEndpoint: strings.TrimSpace(discovery.EndSessionEndpoint),
 	}, nil
 }
 
@@ -244,10 +253,66 @@ func (h *Handlers) handleLogout(w http.ResponseWriter, r *http.Request) {
 	_ = h.sessionManager.RevokeRequestSession(r.Context(), r)
 	h.sessionManager.ClearCookie(w)
 	if r.Method == http.MethodGet {
-		http.Redirect(w, r, h.afterLogoutURL, http.StatusFound)
+		http.Redirect(w, r, h.logoutRedirectURL(r), http.StatusFound)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handlers) logoutRedirectURL(r *http.Request) string {
+	fallback := h.afterLogoutURL
+	if fallback == "" {
+		fallback = "/"
+	}
+	if h.endSessionEndpoint == "" {
+		return fallback
+	}
+	logoutURL, err := url.Parse(h.endSessionEndpoint)
+	if err != nil {
+		return fallback
+	}
+	postLogout := absoluteRedirectURL(r, h.oauth2Config.RedirectURL, fallback)
+	q := logoutURL.Query()
+	q.Set("client_id", h.oauth2Config.ClientID)
+	q.Set("post_logout_redirect_uri", postLogout)
+	logoutURL.RawQuery = q.Encode()
+	return logoutURL.String()
+}
+
+func absoluteRedirectURL(r *http.Request, redirectURL, target string) string {
+	target = localRedirectPath(target)
+	base, err := url.Parse(redirectURL)
+	if err != nil || !base.IsAbs() {
+		scheme := "http"
+		if r != nil && r.TLS != nil {
+			scheme = "https"
+		}
+		host := "localhost"
+		if r != nil && r.Host != "" {
+			host = r.Host
+		}
+		base = &url.URL{Scheme: scheme, Host: host}
+	}
+	base.Path = target
+	base.RawQuery = ""
+	base.Fragment = ""
+	return base.String()
+}
+
+// localRedirectPath normalizes configured post-login/logout destinations to a
+// same-origin path. The generated host configuration documents these values as
+// relative URLs, so accepting an absolute URL or an authority-style // or /\
+// prefix would turn a configuration mistake into an open redirect.
+func localRedirectPath(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" || !strings.HasPrefix(value, "/") || strings.HasPrefix(value, "//") || strings.HasPrefix(value, "/\\") {
+		return "/"
+	}
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.IsAbs() || parsed.Host != "" {
+		return "/"
+	}
+	return value
 }
 
 func claimsFromIDToken(idToken *oidc.IDToken) (OIDCClaims, error) {
