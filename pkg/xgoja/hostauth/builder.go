@@ -148,7 +148,9 @@ func BuildNativeHandlers(ctx context.Context, cfg ResolvedConfig, sessionManager
 			NativeHandler{Method: "POST", Path: "/auth/device/token", Handler: deviceHandlers.TokenHandler()},
 			NativeHandler{Method: "POST", Path: "/auth/device/refresh", Handler: deviceHandlers.RefreshHandler()},
 			NativeHandler{Method: "POST", Path: "/auth/device/revoke", Handler: deviceHandlers.RevokeHandler()},
+			NativeHandler{Method: "POST", Path: "/auth/device/request", Handler: deviceHandlers.RequestHandler()},
 			NativeHandler{Method: "POST", Path: "/auth/device/approve", Handler: deviceHandlers.ApproveHandler()},
+			NativeHandler{Method: "POST", Path: "/auth/device/deny", Handler: deviceHandlers.DenyHandler()},
 		)
 	}
 	if cfg.Mode != ModeOIDC {
