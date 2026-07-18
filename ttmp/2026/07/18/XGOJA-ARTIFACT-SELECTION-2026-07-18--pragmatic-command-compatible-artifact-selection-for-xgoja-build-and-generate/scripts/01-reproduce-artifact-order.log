@@ -1,0 +1,41 @@
+=== binary first: build succeeds ===
+validated xgoja/v2 plan for /tmp/tmp.5pZ9jAAEdc/binary-first.yaml
+generated build workspace: /tmp/tmp.5pZ9jAAEdc/build-binary-first
+generated module: xgoja.generated/artifact-order-reproduction
+xgoja builds from the generated module root: cd /tmp/tmp.5pZ9jAAEdc/build-binary-first && go mod tidy && go build -buildvcs=false .
+release note: if you check this generated host into a repository as a nested Go module, configure GoReleaser with dir: <generated-module-dir> and main: .
+xgoja dry run ok: name=artifact-order-reproduction target=xgoja output=/tmp/tmp.5pZ9jAAEdc/binary modules=0 packages=0
+exit=0
+
+=== binary first: generate fails ===
+validated xgoja/v2 plan for /tmp/tmp.5pZ9jAAEdc/binary-first.yaml
+Error: xgoja generate supports target.kind package, source, or template; got "xgoja"
+exit status 1
+exit=1
+
+=== runtime-package first: build fails ===
+validated xgoja/v2 plan for /tmp/tmp.5pZ9jAAEdc/package-first.yaml
+Error: target.kind package is source generation only; use xgoja generate -f /tmp/tmp.5pZ9jAAEdc/package-first.yaml
+exit status 1
+exit=1
+
+=== runtime-package first: generate succeeds ===
+validated xgoja/v2 plan for /tmp/tmp.5pZ9jAAEdc/package-first.yaml
+xgoja generate dry run ok: name=artifact-order-reproduction target=package output=/tmp/tmp.5pZ9jAAEdc/runtime-package package=xgojaruntime template= clean=false modules=0 packages=0
+exit=0
+
+=== support artifact first: build command selects binary ===
+validated xgoja/v2 plan for /tmp/tmp.5pZ9jAAEdc/support-first.yaml
+generated build workspace: /tmp/tmp.5pZ9jAAEdc/build-support-first
+generated module: xgoja.generated/artifact-order-reproduction
+xgoja builds from the generated module root: cd /tmp/tmp.5pZ9jAAEdc/build-support-first && go mod tidy && go build -buildvcs=false .
+release note: if you check this generated host into a repository as a nested Go module, configure GoReleaser with dir: <generated-module-dir> and main: .
+xgoja dry run ok: name=artifact-order-reproduction target=xgoja output=/tmp/tmp.5pZ9jAAEdc/binary modules=0 packages=0
+exit=0
+
+=== support artifact first: generated runtime metadata still uses support artifact ===
+  "target": {
+    "kind": "embedded-assets",
+    "output": "/tmp/tmp.5pZ9jAAEdc/binary"
+  },
+

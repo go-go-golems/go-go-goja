@@ -26,6 +26,7 @@ var _ cmds.BareCommand = (*buildCommand)(nil)
 
 type buildSettings struct {
 	File         string `glazed:"file"`
+	Artifact     string `glazed:"artifact"`
 	Output       string `glazed:"output"`
 	WorkDir      string `glazed:"work-dir"`
 	KeepWork     bool   `glazed:"keep-work"`
@@ -48,6 +49,7 @@ to point generated builds at that checkout.
 
 Examples:
   xgoja build -f xgoja.yaml
+  xgoja build -f xgoja.yaml --artifact release-binary
   xgoja build -f examples/xgoja/08-provider-shipped-jsverbs/xgoja.yaml --output ./dist/provider
   xgoja build -f xgoja.yaml --xgoja-replace /path/to/go-go-goja --keep-work
   xgoja build -f xgoja.yaml --dry-run --keep-work
@@ -57,6 +59,8 @@ Examples:
 					fields.WithDefault("xgoja.yaml"),
 					fields.WithShortFlag("f"),
 					fields.WithHelp("Path to the xgoja build specification")),
+				fields.New("artifact", fields.TypeString,
+					fields.WithHelp("Select a build-compatible artifact ID when the spec has multiple build targets")),
 				fields.New("output", fields.TypeString,
 					fields.WithHelp("Override the output binary path from the build spec")),
 				fields.New("work-dir", fields.TypeString,
@@ -87,11 +91,12 @@ func (c *buildCommand) Run(ctx context.Context, vals *values.Values) error {
 	if err != nil {
 		return err
 	}
-	target := targetFromPlan(compiledPlan)
-	_, _ = fmt.Fprintf(c.out, "validated xgoja/v2 plan for %s\n", settings.File)
-	if kind := strings.TrimSpace(target.Kind); kind == "package" || kind == "source" || kind == "template" {
-		return fmt.Errorf("target.kind %s is source generation only; use xgoja generate -f %s", kind, settings.File)
+	target, scopedPlan, err := selectPlanTarget(compiledPlan, artifactCommandBuild, settings.Artifact)
+	if err != nil {
+		return err
 	}
+	compiledPlan = scopedPlan
+	_, _ = fmt.Fprintf(c.out, "validated xgoja/v2 plan for %s\n", settings.File)
 	output := settings.Output
 	if output == "" {
 		output = target.Output

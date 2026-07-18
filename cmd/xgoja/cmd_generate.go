@@ -23,6 +23,7 @@ var _ cmds.BareCommand = (*generateCommand)(nil)
 
 type generateSettings struct {
 	File         string `glazed:"file"`
+	Artifact     string `glazed:"artifact"`
 	Output       string `glazed:"output"`
 	Package      string `glazed:"package"`
 	Template     string `glazed:"template"`
@@ -38,15 +39,16 @@ func newGenerateCommand(out io.Writer) *generateCommand {
 			cmds.WithLong(`
 Generate reads xgoja.yaml and writes source files into an existing Go module.
 
-Generation supports target.kind: package, source, and template. Package mode
-writes one reusable runtime package file. Source-fragment mode splits the same
+Generation supports runtime-package, source, and template artifacts. Use
+--artifact <id> when the specification has more than one generate-compatible
+artifact. Package mode writes one reusable runtime package file. Source-fragment mode splits the same
 API across spec/providers/embed/bundle files. Template mode renders a caller
 provided Go template with the same data contract. Generate does not create
 go.mod, run go mod tidy, or compile a binary.
 
 Examples:
   xgoja generate -f xgoja.yaml
-  xgoja generate -f xgoja.yaml --output ./internal/xgojaruntime --package xgojaruntime
+  xgoja generate -f xgoja.yaml --artifact runtime-package --output ./internal/xgojaruntime --package xgojaruntime
   xgoja generate -f xgoja.yaml --template ./runtime.go.tmpl --output ./internal/runtime/custom.gen.go
   xgoja generate -f xgoja.yaml --template-data
   xgoja generate -f xgoja.yaml --clean
@@ -57,6 +59,8 @@ Examples:
 					fields.WithDefault("xgoja.yaml"),
 					fields.WithShortFlag("f"),
 					fields.WithHelp("Path to the xgoja build specification")),
+				fields.New("artifact", fields.TypeString,
+					fields.WithHelp("Select a generate-compatible artifact ID when the spec has multiple generation targets")),
 				fields.New("output", fields.TypeString,
 					fields.WithShortFlag("o"),
 					fields.WithHelp("Override the generated package output directory from target.output")),
@@ -89,15 +93,13 @@ func (c *generateCommand) Run(ctx context.Context, vals *values.Values) error {
 	if err != nil {
 		return err
 	}
-	target := targetFromPlan(compiledPlan)
+	target, scopedPlan, err := selectPlanTarget(compiledPlan, artifactCommandGenerate, settings.Artifact)
+	if err != nil {
+		return err
+	}
+	compiledPlan = scopedPlan
 	_, _ = fmt.Fprintf(c.out, "validated xgoja/v2 plan for %s\n", settings.File)
 	kind := strings.TrimSpace(target.Kind)
-	if kind == "" {
-		kind = "xgoja"
-	}
-	if kind != "package" && kind != "source" && kind != "template" {
-		return fmt.Errorf("xgoja generate supports target.kind package, source, or template; got %q", kind)
-	}
 	output := strings.TrimSpace(settings.Output)
 	if output == "" {
 		output = target.Output

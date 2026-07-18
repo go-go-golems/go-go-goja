@@ -81,6 +81,82 @@ func TestBuildCommandWired(t *testing.T) {
 	}
 }
 
+func TestBuildAndGenerateSelectCompatibleArtifactsRegardlessOfOrder(t *testing.T) {
+	for _, packageFirst := range []bool{false, true} {
+		t.Run(map[bool]string{false: "binary-first", true: "package-first"}[packageFirst], func(t *testing.T) {
+			specPath := writeBinaryAndPackageSpec(t, packageFirst)
+
+			buildOut := &bytes.Buffer{}
+			buildRoot, err := newRootCommand(buildOut)
+			if err != nil {
+				t.Fatalf("new build root command: %v", err)
+			}
+			workDir := filepath.Join(t.TempDir(), "build")
+			buildRoot.SetArgs([]string{"build", "-f", specPath, "--artifact", "binary", "--work-dir", workDir, "--dry-run"})
+			if err := buildRoot.Execute(); err != nil {
+				t.Fatalf("execute build: %v\n%s", err, buildOut.String())
+			}
+			buildPlan, err := os.ReadFile(filepath.Join(workDir, "xgoja.runtime.json"))
+			if err != nil {
+				t.Fatalf("read generated build runtime plan: %v", err)
+			}
+			if !strings.Contains(string(buildPlan), `"kind": "xgoja"`) || strings.Contains(string(buildPlan), `"kind": "package"`) {
+				t.Fatalf("build runtime target did not select binary:\n%s", buildPlan)
+			}
+
+			generateOut := &bytes.Buffer{}
+			generateRoot, err := newRootCommand(generateOut)
+			if err != nil {
+				t.Fatalf("new generate root command: %v", err)
+			}
+			packageDir := filepath.Join(t.TempDir(), "runtime")
+			generateRoot.SetArgs([]string{"generate", "-f", specPath, "--artifact", "runtime", "--output", packageDir})
+			if err := generateRoot.Execute(); err != nil {
+				t.Fatalf("execute generate: %v\n%s", err, generateOut.String())
+			}
+			generatedPackage, err := os.ReadFile(filepath.Join(packageDir, "xgoja_runtime.gen.go"))
+			if err != nil {
+				t.Fatalf("read generated package: %v", err)
+			}
+			if !strings.Contains(string(generatedPackage), `"kind": "package"`) || strings.Contains(string(generatedPackage), `"kind": "xgoja"`) {
+				t.Fatalf("generated runtime target did not select package:\n%s", generatedPackage)
+			}
+		})
+	}
+}
+
+func TestBuildAndGenerateScopeEmbeddedSourcesToSelectedPrimary(t *testing.T) {
+	specPath, binaryVerbs, packageVerbs, assets := writeScopedArtifactSourcesSpec(t)
+
+	buildOut := &bytes.Buffer{}
+	buildRoot, err := newRootCommand(buildOut)
+	if err != nil {
+		t.Fatalf("new build root command: %v", err)
+	}
+	workDir := filepath.Join(t.TempDir(), "build")
+	buildRoot.SetArgs([]string{"build", "-f", specPath, "--work-dir", workDir, "--dry-run"})
+	if err := buildRoot.Execute(); err != nil {
+		t.Fatalf("execute build: %v\n%s", err, buildOut.String())
+	}
+	assertExists(t, filepath.Join(workDir, "xgoja_embed", "jsverbs", "binary_verbs", filepath.Base(binaryVerbs)))
+	assertNotExists(t, filepath.Join(workDir, "xgoja_embed", "jsverbs", "package_verbs", filepath.Base(packageVerbs)))
+	assertExists(t, filepath.Join(workDir, "xgoja_embed", "assets", "webapp", filepath.Base(assets)))
+
+	generateOut := &bytes.Buffer{}
+	generateRoot, err := newRootCommand(generateOut)
+	if err != nil {
+		t.Fatalf("new generate root command: %v", err)
+	}
+	packageDir := filepath.Join(t.TempDir(), "runtime")
+	generateRoot.SetArgs([]string{"generate", "-f", specPath, "--output", packageDir})
+	if err := generateRoot.Execute(); err != nil {
+		t.Fatalf("execute generate: %v\n%s", err, generateOut.String())
+	}
+	assertExists(t, filepath.Join(packageDir, "xgoja_embed", "jsverbs", "package_verbs", filepath.Base(packageVerbs)))
+	assertNotExists(t, filepath.Join(packageDir, "xgoja_embed", "jsverbs", "binary_verbs", filepath.Base(binaryVerbs)))
+	assertExists(t, filepath.Join(packageDir, "xgoja_embed", "assets", "webapp", filepath.Base(assets)))
+}
+
 func TestGenerateCommandWired(t *testing.T) {
 	out := &bytes.Buffer{}
 	root, err := newRootCommand(out)
@@ -540,6 +616,116 @@ func TestListModulesCommandWired(t *testing.T) {
 	root.SetArgs([]string{"list-modules", "-f", specPath, "--output", "json"})
 	if err := root.Execute(); err != nil {
 		t.Fatalf("execute list-modules: %v", err)
+	}
+}
+
+func writeBinaryAndPackageSpec(t *testing.T, packageFirst bool) string {
+	t.Helper()
+	binary := `
+  - id: binary
+    type: binary
+    output: dist/fixture
+`
+	runtimePackage := `
+  - id: runtime
+    type: runtime-package
+    output: internal/xgojaruntime
+    package: xgojaruntime
+`
+	artifacts := binary + runtimePackage
+	if packageFirst {
+		artifacts = runtimePackage + binary
+	}
+	return writeFile(t, "xgoja.yaml", `
+schema: xgoja/v2
+name: binary-and-package
+go:
+  module: xgoja.generated/binary-and-package
+  version: "1.26"
+workspace:
+  mode: off
+providers:
+  - id: fixture
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/testprovider
+    register: Register
+runtime:
+  modules:
+    - provider: fixture
+      name: hello
+      as: hello
+artifacts:`+artifacts)
+}
+
+func writeScopedArtifactSourcesSpec(t *testing.T) (string, string, string, string) {
+	t.Helper()
+	dir := t.TempDir()
+	binaryDir := filepath.Join(dir, "binary-verbs")
+	packageDir := filepath.Join(dir, "package-verbs")
+	assetsDir := filepath.Join(dir, "assets")
+	binaryVerbs := filepath.Join(binaryDir, "binary.js")
+	packageVerbs := filepath.Join(packageDir, "package.js")
+	assets := filepath.Join(assetsDir, "app.css")
+	for path, content := range map[string]string{
+		binaryVerbs:  "export const binary = true;\n",
+		packageVerbs: "export const runtimePackage = true;\n",
+		assets:       "body { color: black; }\n",
+	} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", path, err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatalf("write %s: %v", path, err)
+		}
+	}
+	specPath := writeFile(t, "xgoja.yaml", `
+schema: xgoja/v2
+name: scoped-artifact-sources
+go:
+  module: xgoja.generated/scoped-artifact-sources
+  version: "1.26"
+workspace:
+  mode: off
+sources:
+  - id: binary-verbs
+    kind: jsverbs
+    from:
+      dir: `+filepath.ToSlash(binaryDir)+`
+  - id: package-verbs
+    kind: jsverbs
+    from:
+      dir: `+filepath.ToSlash(packageDir)+`
+  - id: webapp
+    kind: assets
+    from:
+      dir: `+filepath.ToSlash(assetsDir)+`
+artifacts:
+  - id: runtime
+    type: runtime-package
+    output: internal/xgojaruntime
+    package: xgojaruntime
+    sources: [package-verbs]
+  - id: assets
+    type: embedded-assets
+    sources: [webapp]
+  - id: binary
+    type: binary
+    output: dist/fixture
+    sources: [binary-verbs]
+`)
+	return specPath, binaryVerbs, packageVerbs, assets
+}
+
+func assertExists(t *testing.T, path string) {
+	t.Helper()
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("expected %s: %v", path, err)
+	}
+}
+
+func assertNotExists(t *testing.T, path string) {
+	t.Helper()
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("expected %s to be absent, err=%v", path, err)
 	}
 }
 
