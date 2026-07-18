@@ -35,6 +35,21 @@ type ProgramAuthStores struct {
 }
 
 // StoreBundle contains the concrete stores built from ResolvedStoresConfig.
+// DependencyHealth is an infrastructure probe kept outside domain-store
+// interfaces so readiness can check shared SQL handles once.
+type DependencyHealth interface {
+	Name() string
+	CheckHealth(context.Context) error
+}
+
+type sqlHealth struct {
+	name string
+	db   *sql.DB
+}
+
+func (h sqlHealth) Name() string                          { return h.name }
+func (h sqlHealth) CheckHealth(ctx context.Context) error { return h.db.PingContext(ctx) }
+
 type StoreBundle struct {
 	Session         sessionauth.Store
 	Audit           audit.Store
@@ -44,6 +59,7 @@ type StoreBundle struct {
 	OIDCTransaction keycloakauth.TransactionStore
 
 	Closers []func(context.Context) error
+	Health  []DependencyHealth
 }
 
 // Close closes all resources owned by the bundle.
@@ -69,6 +85,7 @@ func BuildStores(ctx context.Context, cfg ResolvedStoresConfig) (*StoreBundle, e
 type storeBuilder struct {
 	dbs     map[sqlDBKey]*sql.DB
 	closers []func(context.Context) error
+	health  []DependencyHealth
 }
 
 type sqlDBKey struct {
@@ -101,7 +118,7 @@ func (b *storeBuilder) build(ctx context.Context, cfg ResolvedStoresConfig) (*St
 	if err != nil {
 		return nil, err
 	}
-	return &StoreBundle{Session: sessionStore, Audit: auditStore, AppAuth: appAuthStores, Capability: capabilityStore, ProgramAuth: programAuthStores, OIDCTransaction: oidcTransactionStore, Closers: append([]func(context.Context) error(nil), b.closers...)}, nil
+	return &StoreBundle{Session: sessionStore, Audit: auditStore, AppAuth: appAuthStores, Capability: capabilityStore, ProgramAuth: programAuthStores, OIDCTransaction: oidcTransactionStore, Closers: append([]func(context.Context) error(nil), b.closers...), Health: append([]DependencyHealth(nil), b.health...)}, nil
 }
 
 func (b *storeBuilder) buildSessionStore(ctx context.Context, cfg ResolvedStoreConfig) (sessionauth.Store, error) {
@@ -270,6 +287,7 @@ func (b *storeBuilder) openDB(cfg ResolvedStoreConfig) (*sql.DB, error) {
 	}
 	b.dbs[key] = db
 	b.closers = append(b.closers, func(context.Context) error { return db.Close() })
+	b.health = append(b.health, sqlHealth{name: string(cfg.Driver), db: db})
 	return db, nil
 }
 
