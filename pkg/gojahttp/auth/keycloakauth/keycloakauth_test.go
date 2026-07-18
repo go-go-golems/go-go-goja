@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math/big"
 	"net/http"
@@ -270,6 +271,40 @@ func TestCallbackRejectsNormalizerFailureAndLogoutClearsCookie(t *testing.T) {
 		t.Fatalf("GET logout did not return through provider logout, final URL=%s", resp.Request.URL.String())
 	}
 }
+
+func TestLogoutReportsSessionStoreFailure(t *testing.T) {
+	provider := newFakeProvider(t)
+	defer provider.Close()
+	storeError := errors.New("database unavailable")
+	manager, err := sessionauth.New(sessionauth.Config{Store: revokeErrorStore{Store: sessionauth.NewMemoryStore(), err: storeError}, AllowInsecureHTTP: true})
+	if err != nil {
+		t.Fatalf("session manager: %v", err)
+	}
+	handlers, err := New(context.Background(), Config{
+		IssuerURL:      provider.URL(),
+		ClientID:       "goja-app",
+		RedirectURL:    "http://app.example.test/auth/callback",
+		SessionManager: manager,
+		UserNormalizer: passthroughNormalizer(),
+	})
+	if err != nil {
+		t.Fatalf("handlers: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "http://app.example.test/auth/logout", nil)
+	req.AddCookie(&http.Cookie{Name: sessionauth.InsecureCookieName, Value: "valid-session-id-1234567890"})
+	res := httptest.NewRecorder()
+	handlers.LogoutHandler().ServeHTTP(res, req)
+	if res.Code != http.StatusInternalServerError {
+		t.Fatalf("logout status=%d, want %d", res.Code, http.StatusInternalServerError)
+	}
+}
+
+type revokeErrorStore struct {
+	sessionauth.Store
+	err error
+}
+
+func (s revokeErrorStore) Revoke(context.Context, string) error { return s.err }
 
 func passthroughNormalizer() UserNormalizer {
 	return UserNormalizerFunc(func(_ context.Context, claims OIDCClaims) (UserSession, error) {

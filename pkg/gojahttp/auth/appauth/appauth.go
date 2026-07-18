@@ -62,7 +62,10 @@ type Resource struct {
 type UserStore interface {
 	ByID(ctx context.Context, id string) (*User, error)
 	ByKeycloakSub(ctx context.Context, sub string) (*User, error)
+	ByExternalIdentity(ctx context.Context, issuer, subject string) (*User, error)
+	BindExternalIdentity(ctx context.Context, userID, issuer, subject string) error
 	UpsertFromOIDC(ctx context.Context, sub, email string, emailVerified bool) (*User, error)
+	DisableUser(ctx context.Context, id string, disabledAt time.Time) error
 }
 
 // MembershipStore answers tenant membership/role questions.
@@ -191,15 +194,16 @@ func deny(reason string) gojahttp.AuthorizationDecision {
 
 // MemoryStore is a small in-memory store for tests and examples.
 type MemoryStore struct {
-	mu          sync.Mutex
-	users       map[string]User
-	usersBySub  map[string]string
-	memberships []Membership
-	resources   map[string]Resource
+	mu                      sync.Mutex
+	users                   map[string]User
+	usersBySub              map[string]string
+	usersByExternalIdentity map[string]string
+	memberships             []Membership
+	resources               map[string]Resource
 }
 
 func NewMemoryStore() *MemoryStore {
-	return &MemoryStore{users: map[string]User{}, usersBySub: map[string]string{}, resources: map[string]Resource{}}
+	return &MemoryStore{users: map[string]User{}, usersBySub: map[string]string{}, usersByExternalIdentity: map[string]string{}, resources: map[string]Resource{}}
 }
 
 func (s *MemoryStore) AddUser(user User) {
@@ -236,6 +240,28 @@ func (s *MemoryStore) ByID(_ context.Context, id string) (*User, error) {
 	return &user, nil
 }
 
+func externalIdentityKey(issuer, subject string) string { return issuer + "\x00" + subject }
+
+// BindExternalIdentity binds an existing local user to an issuer-scoped subject.
+func (s *MemoryStore) BindExternalIdentity(_ context.Context, userID, issuer, subject string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.users[userID]; !ok {
+		return gojahttp.ErrNotFound
+	}
+	s.usersByExternalIdentity[externalIdentityKey(issuer, subject)] = userID
+	return nil
+}
+func (s *MemoryStore) ByExternalIdentity(ctx context.Context, issuer, subject string) (*User, error) {
+	s.mu.Lock()
+	id, ok := s.usersByExternalIdentity[externalIdentityKey(issuer, subject)]
+	s.mu.Unlock()
+	if !ok {
+		return nil, gojahttp.ErrNotFound
+	}
+	return s.ByID(ctx, id)
+}
+
 func (s *MemoryStore) ByKeycloakSub(ctx context.Context, sub string) (*User, error) {
 	s.mu.Lock()
 	id, ok := s.usersBySub[sub]
@@ -244,6 +270,19 @@ func (s *MemoryStore) ByKeycloakSub(ctx context.Context, sub string) (*User, err
 		return nil, gojahttp.ErrNotFound
 	}
 	return s.ByID(ctx, id)
+}
+
+func (s *MemoryStore) DisableUser(_ context.Context, id string, disabledAt time.Time) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	user, ok := s.users[id]
+	if !ok {
+		return gojahttp.ErrNotFound
+	}
+	disabledAt = disabledAt.UTC()
+	user.DisabledAt = &disabledAt
+	s.users[id] = user
+	return nil
 }
 
 func (s *MemoryStore) UpsertFromOIDC(_ context.Context, sub, email string, emailVerified bool) (*User, error) {

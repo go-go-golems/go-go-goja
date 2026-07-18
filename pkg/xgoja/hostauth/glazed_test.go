@@ -26,12 +26,16 @@ func TestGlazedConfigSectionDefaultsFromBaseConfig(t *testing.T) {
 		t.Fatalf("slug = %q", section.GetSlug())
 	}
 	assertDefault(t, section, "auth-mode", string(ModeDev))
+	assertDefault(t, section, "auth-deployment-profile", string(DeploymentProfileDevelopment))
+	assertDefault(t, section, "auth-proxy-mode", "direct")
+	assertDefault(t, section, "auth-rate-limiter-driver", string(RateLimiterDriverMemory))
 	assertDefault(t, section, "auth-session-cookie-allow-insecure-http", true)
 	assertDefault(t, section, "auth-session-cookie-name", "demo_session")
 	assertDefault(t, section, "auth-default-store-driver", "sqlite")
 	assertDefault(t, section, "auth-default-store-dsn", "file:auth.db")
 	assertDefault(t, section, "auth-session-store-apply-schema", false)
 	assertDefault(t, section, "auth-programauth-store-apply-schema", false)
+	assertDefault(t, section, "auth-oidc-transaction-store-apply-schema", false)
 	assertDefault(t, section, "auth-oidc-issuer-url", "https://auth.example.test/realms/demo")
 	assertDefault(t, section, "auth-oidc-client-id", "goja-app")
 	assertDefault(t, section, "auth-oidc-public-base-url", "https://app.example.test")
@@ -43,27 +47,34 @@ func TestConfigFromValuesMapsAuthSectionToNestedConfig(t *testing.T) {
 		t.Fatalf("GlazedConfigSection: %v", err)
 	}
 	sectionValues := sectionValuesWithDefaults(t, section, map[string]any{
-		"auth-mode": string(ModeDev),
-		"auth-session-cookie-allow-insecure-http": true,
-		"auth-session-cookie-name":                "app_session",
-		"auth-session-cookie-same-site":           "strict",
-		"auth-session-cookie-path":                "/app",
-		"auth-session-idle-timeout":               "15m",
-		"auth-session-absolute-timeout":           "8h",
-		"auth-default-store-driver":               "sqlite",
-		"auth-default-store-dsn":                  "file:auth.db?mode=memory&cache=shared",
-		"auth-default-store-apply-schema":         true,
-		"auth-audit-store-driver":                 "memory",
-		"auth-audit-store-dsn":                    "",
-		"auth-audit-store-apply-schema":           false,
-		"auth-programauth-store-driver":           "sqlite",
-		"auth-programauth-store-dsn":              "file:programauth.db?mode=memory&cache=shared",
-		"auth-programauth-store-apply-schema":     true,
-		"auth-oidc-issuer-url":                    "https://auth.example.test/realms/demo",
-		"auth-oidc-client-id":                     "goja-app",
-		"auth-oidc-client-secret":                 "secret",
-		"auth-oidc-public-base-url":               "https://app.example.test",
-		"auth-oidc-scopes":                        []string{"profile", "email"},
+		"auth-mode":                                string(ModeDev),
+		"auth-deployment-profile":                  string(DeploymentProfileSingleNode),
+		"auth-proxy-mode":                          "trusted-forwarded",
+		"auth-proxy-trusted-cidrs":                 []string{"10.42.0.0/16"},
+		"auth-rate-limiter-driver":                 string(RateLimiterDriverMemory),
+		"auth-session-cookie-allow-insecure-http":  true,
+		"auth-session-cookie-name":                 "app_session",
+		"auth-session-cookie-same-site":            "strict",
+		"auth-session-cookie-path":                 "/app",
+		"auth-session-idle-timeout":                "15m",
+		"auth-session-absolute-timeout":            "8h",
+		"auth-default-store-driver":                "sqlite",
+		"auth-default-store-dsn":                   "file:auth.db?mode=memory&cache=shared",
+		"auth-default-store-apply-schema":          true,
+		"auth-audit-store-driver":                  "memory",
+		"auth-audit-store-dsn":                     "",
+		"auth-audit-store-apply-schema":            false,
+		"auth-programauth-store-driver":            "sqlite",
+		"auth-programauth-store-dsn":               "file:programauth.db?mode=memory&cache=shared",
+		"auth-programauth-store-apply-schema":      true,
+		"auth-oidc-transaction-store-driver":       "sqlite",
+		"auth-oidc-transaction-store-dsn":          "file:transactions.db?mode=memory&cache=shared",
+		"auth-oidc-transaction-store-apply-schema": true,
+		"auth-oidc-issuer-url":                     "https://auth.example.test/realms/demo",
+		"auth-oidc-client-id":                      "goja-app",
+		"auth-oidc-client-secret":                  "secret",
+		"auth-oidc-public-base-url":                "https://app.example.test",
+		"auth-oidc-scopes":                         []string{"profile", "email"},
 	})
 	cfg, err := ConfigFromValues(values.New(values.WithSectionValues(SectionSlug, sectionValues)), Config{Mode: ModeNone})
 	if err != nil {
@@ -71,6 +82,12 @@ func TestConfigFromValuesMapsAuthSectionToNestedConfig(t *testing.T) {
 	}
 	if cfg.Mode != ModeDev {
 		t.Fatalf("mode = %q", cfg.Mode)
+	}
+	if cfg.Deployment.Profile != DeploymentProfileSingleNode || cfg.RateLimiter.Driver != RateLimiterDriverMemory {
+		t.Fatalf("deployment/rate limiter = %#v %#v", cfg.Deployment, cfg.RateLimiter)
+	}
+	if cfg.Proxy.Mode != "trusted-forwarded" || len(cfg.Proxy.TrustedCIDRs) != 1 || cfg.Proxy.TrustedCIDRs[0] != "10.42.0.0/16" {
+		t.Fatalf("proxy = %#v", cfg.Proxy)
 	}
 	if !cfg.Session.Cookie.AllowInsecureHTTP || cfg.Session.Cookie.Name != "app_session" || cfg.Session.Cookie.SameSite != "strict" || cfg.Session.Cookie.Path != "/app" {
 		t.Fatalf("session = %#v", cfg.Session)
@@ -86,6 +103,9 @@ func TestConfigFromValuesMapsAuthSectionToNestedConfig(t *testing.T) {
 	}
 	if cfg.Stores.ProgramAuth.Driver != "sqlite" || cfg.Stores.ProgramAuth.DSN != "file:programauth.db?mode=memory&cache=shared" || cfg.Stores.ProgramAuth.ApplySchema == nil || !*cfg.Stores.ProgramAuth.ApplySchema {
 		t.Fatalf("programauth store = %#v", cfg.Stores.ProgramAuth)
+	}
+	if cfg.Stores.OIDCTransaction.Driver != "sqlite" || cfg.Stores.OIDCTransaction.DSN != "file:transactions.db?mode=memory&cache=shared" || cfg.Stores.OIDCTransaction.ApplySchema == nil || !*cfg.Stores.OIDCTransaction.ApplySchema {
+		t.Fatalf("oidc transaction store = %#v", cfg.Stores.OIDCTransaction)
 	}
 	if cfg.OIDC.IssuerURL != "https://auth.example.test/realms/demo" || cfg.OIDC.ClientID != "goja-app" || cfg.OIDC.ClientSecret != "secret" || cfg.OIDC.PublicBaseURL != "https://app.example.test" {
 		t.Fatalf("oidc = %#v", cfg.OIDC)

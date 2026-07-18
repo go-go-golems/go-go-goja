@@ -54,6 +54,22 @@ func (s *MemoryAccessTokenStore) DeleteAccessToken(_ context.Context, id string)
 	return nil
 }
 
+func (s *MemoryAccessTokenStore) PurgeExpiredAccessTokens(_ context.Context, before time.Time) (int, error) {
+	if s == nil {
+		return 0, fmt.Errorf("programauth memory access token store is nil")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	n := 0
+	for id, t := range s.tokens {
+		if !t.ExpiresAt.After(before) || (t.RevokedAt != nil && !t.RevokedAt.After(before)) {
+			delete(s.tokens, id)
+			n++
+		}
+	}
+	return n, nil
+}
+
 func (s *MemoryAccessTokenStore) FindAccessTokenByPrefix(_ context.Context, prefix string) ([]AccessToken, error) {
 	if s == nil {
 		return nil, fmt.Errorf("programauth memory access token store is nil")
@@ -121,6 +137,37 @@ func (s *MemoryRefreshTokenStore) CreateRefreshToken(_ context.Context, token Re
 	}
 	s.tokens[token.ID] = token
 	return cloneRefreshToken(token), nil
+}
+
+func (s *MemoryRefreshTokenStore) ListRefreshTokens(_ context.Context, query RefreshTokenQuery) ([]RefreshToken, error) {
+	if s == nil {
+		return nil, fmt.Errorf("programauth memory refresh token store is nil")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := []RefreshToken{}
+	for _, token := range s.tokens {
+		if (query.SubjectUserID == "" || token.SubjectUserID == query.SubjectUserID) && (query.FamilyID == "" || token.FamilyID == query.FamilyID) {
+			out = append(out, cloneRefreshToken(token))
+		}
+	}
+	return out, nil
+}
+
+func (s *MemoryRefreshTokenStore) PurgeExpiredRefreshTokens(_ context.Context, before time.Time) (int, error) {
+	if s == nil {
+		return 0, fmt.Errorf("programauth memory refresh token store is nil")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	n := 0
+	for id, t := range s.tokens {
+		if !t.ExpiresAt.After(before) || (t.RevokedAt != nil && !t.RevokedAt.After(before)) {
+			delete(s.tokens, id)
+			n++
+		}
+	}
+	return n, nil
 }
 
 func (s *MemoryRefreshTokenStore) FindRefreshTokenByPrefix(_ context.Context, prefix string) ([]RefreshToken, error) {

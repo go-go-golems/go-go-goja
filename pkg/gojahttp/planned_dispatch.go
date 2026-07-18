@@ -107,6 +107,8 @@ func statusForAuthError(err error) int {
 	switch {
 	case errors.Is(err, ErrUnauthenticated):
 		return http.StatusUnauthorized
+	case errors.Is(err, ErrAuthUnavailable):
+		return http.StatusServiceUnavailable
 	case errors.Is(err, ErrForbidden):
 		return http.StatusForbidden
 	case errors.Is(err, ErrNotFound):
@@ -212,7 +214,7 @@ func (e *secureEnvelope) JSObject(vm *goja.Runtime) *goja.Object {
 }
 
 func authJSMap(auth AuthResult) map[string]any {
-	return map[string]any{
+	out := map[string]any{
 		"method":         string(auth.Method),
 		"principalKind":  string(auth.PrincipalKind),
 		"principalId":    auth.PrincipalID,
@@ -220,6 +222,10 @@ func authJSMap(auth AuthResult) map[string]any {
 		"credentialHint": auth.CredentialHint,
 		"scopes":         append([]string(nil), auth.Scopes...),
 	}
+	if auth.OAuth != nil {
+		out["oauth"] = map[string]any{"issuer": auth.OAuth.Issuer, "subject": auth.OAuth.Subject, "clientId": auth.OAuth.ClientID, "resources": append([]string(nil), auth.OAuth.Resources...), "scopes": append([]string(nil), auth.OAuth.Scopes...), "expiresAt": auth.OAuth.ExpiresAt, "tokenType": auth.OAuth.TokenType}
+	}
+	return out
 }
 
 func authAuditAttributes(auth AuthResult) map[string]any {
@@ -241,6 +247,13 @@ func authAuditAttributes(auth AuthResult) map[string]any {
 	}
 	if len(auth.Scopes) > 0 {
 		out["scopes"] = append([]string(nil), auth.Scopes...)
+	}
+	if auth.OAuth != nil {
+		out["oauthIssuer"] = auth.OAuth.Issuer
+		out["oauthSubject"] = auth.OAuth.Subject
+		out["oauthClientId"] = auth.OAuth.ClientID
+		out["oauthResources"] = append([]string(nil), auth.OAuth.Resources...)
+		out["oauthScopes"] = append([]string(nil), auth.OAuth.Scopes...)
 	}
 	return out
 }

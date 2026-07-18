@@ -116,6 +116,7 @@ func TestSQLStoreOAuthTokenServiceIssueRefreshAndReuse(t *testing.T) {
 	oauth := programauth.OAuthTokenService{
 		AccessTokens:  store,
 		RefreshTokens: store,
+		PairStore:     store,
 		Agents:        agents,
 		Now:           func() time.Time { return current },
 		NewID: func(prefix string) (string, error) {
@@ -147,6 +148,29 @@ func TestSQLStoreOAuthTokenServiceIssueRefreshAndReuse(t *testing.T) {
 	}
 	if _, err := oauth.RefreshTokenPair(ctx, refreshed.RefreshValue, time.Minute, time.Hour); !errors.Is(err, gojahttp.ErrUnauthenticated) {
 		t.Fatalf("family revocation should reject replacement refresh token, err=%v", err)
+	}
+}
+
+func TestSQLStoreOAuthTokenPairRollbackLeavesNoAccessToken(t *testing.T) {
+	ctx := context.Background()
+	store := newTestStore(t)
+	now := time.Date(2026, 7, 15, 12, 0, 0, 0, time.UTC)
+	grants := mustGrantSet(t, gojahttp.Grant{Action: "report.read", TenantID: "o1"})
+	refresh := programauth.RefreshToken{ID: "ref_duplicate", AgentID: "agt_1", FamilyID: "fam_1", TokenPrefix: "refresh", TokenHash: []byte("refresh-hash"), CreatedAt: now, UpdatedAt: now, ExpiresAt: now.Add(time.Hour), Grants: grants}
+	if _, err := store.CreateRefreshToken(ctx, refresh); err != nil {
+		t.Fatalf("CreateRefreshToken: %v", err)
+	}
+	access := programauth.AccessToken{ID: "acc_must_rollback", AgentID: "agt_1", FamilyID: "fam_1", TokenPrefix: "atomic-rollback", TokenHash: []byte("access-hash"), CreatedAt: now, UpdatedAt: now, ExpiresAt: now.Add(time.Minute), Grants: grants}
+	_, _, err := store.CreateOAuthTokenPair(ctx, access, refresh)
+	if err == nil {
+		t.Fatal("CreateOAuthTokenPair unexpectedly succeeded with duplicate refresh token")
+	}
+	rows, err := store.FindAccessTokenByPrefix(ctx, "atomic-rollback")
+	if err != nil {
+		t.Fatalf("FindAccessTokenByPrefix: %v", err)
+	}
+	if len(rows) != 0 {
+		t.Fatalf("atomic pair failure leaked access token: %#v", rows)
 	}
 }
 

@@ -75,6 +75,48 @@ func TestDeviceHandlersStartApproveAndToken(t *testing.T) {
 	if token["access_token"] == "" || token["refresh_token"] == "" || token["token_type"] != "Bearer" {
 		t.Fatalf("token response = %#v", token)
 	}
+	refreshValue, _ := token["refresh_token"].(string)
+	refreshRecorder := httptest.NewRecorder()
+	handlers.RefreshHandler().ServeHTTP(refreshRecorder, formRequest("/auth/device/refresh", "grant_type=refresh_token&refresh_token="+refreshValue))
+	if refreshRecorder.Code != http.StatusOK {
+		t.Fatalf("refresh status=%d body=%s", refreshRecorder.Code, refreshRecorder.Body.String())
+	}
+	var refreshed map[string]any
+	decodeRecorderJSON(t, refreshRecorder, &refreshed)
+	rotatedRefresh, _ := refreshed["refresh_token"].(string)
+	if refreshed["access_token"] == "" || rotatedRefresh == "" || rotatedRefresh == refreshValue {
+		t.Fatalf("refresh response = %#v", refreshed)
+	}
+
+	revokeRecorder := httptest.NewRecorder()
+	handlers.RevokeHandler().ServeHTTP(revokeRecorder, jsonRequest(t, "/auth/device/revoke", map[string]any{"refresh_token": rotatedRefresh}))
+	if revokeRecorder.Code != http.StatusOK {
+		t.Fatalf("revoke status=%d body=%s", revokeRecorder.Code, revokeRecorder.Body.String())
+	}
+
+	rejectedRefreshRecorder := httptest.NewRecorder()
+	handlers.RefreshHandler().ServeHTTP(rejectedRefreshRecorder, jsonRequest(t, "/auth/device/refresh", map[string]any{"grant_type": "refresh_token", "refresh_token": rotatedRefresh}))
+	if rejectedRefreshRecorder.Code != http.StatusBadRequest || !bytes.Contains(rejectedRefreshRecorder.Body.Bytes(), []byte("invalid_grant")) {
+		t.Fatalf("revoked refresh status=%d body=%s", rejectedRefreshRecorder.Code, rejectedRefreshRecorder.Body.String())
+	}
+}
+
+func TestDeviceTokenHandlerDoesNotRevealCodeEnumerationDetails(t *testing.T) {
+	service := newDeviceTestService(time.Now)
+	handlers, err := programauth.NewDeviceHandlers(programauth.DeviceHandlersConfig{Service: service})
+	if err != nil {
+		t.Fatalf("NewDeviceHandlers: %v", err)
+	}
+	for _, code := range []string{"not-a-device-code", "ggdc_deadbeef_deadbeef"} {
+		recorder := httptest.NewRecorder()
+		handlers.TokenHandler().ServeHTTP(recorder, jsonRequest(t, "/auth/device/token", map[string]any{"grant_type": "urn:ietf:params:oauth:grant-type:device_code", "device_code": code}))
+		if recorder.Code != http.StatusBadRequest || !bytes.Contains(recorder.Body.Bytes(), []byte("invalid_grant")) {
+			t.Fatalf("code %q status=%d body=%s", code, recorder.Code, recorder.Body.String())
+		}
+		if bytes.Contains(recorder.Body.Bytes(), []byte(code)) {
+			t.Fatalf("response leaked supplied device code %q: %s", code, recorder.Body.String())
+		}
+	}
 }
 
 func jsonRequest(t *testing.T, path string, value any) *http.Request {

@@ -141,20 +141,39 @@ type IssuedOAuthTokenPair struct {
 type AccessTokenStore interface {
 	CreateAccessToken(ctx context.Context, token AccessToken) (AccessToken, error)
 	DeleteAccessToken(ctx context.Context, id string) error
+	PurgeExpiredAccessTokens(ctx context.Context, before time.Time) (int, error)
 	FindAccessTokenByPrefix(ctx context.Context, prefix string) ([]AccessToken, error)
 	TouchAccessToken(ctx context.Context, id string, usedAt time.Time) error
 }
 
+type RefreshTokenQuery struct {
+	SubjectUserID string
+	FamilyID      string
+}
+
 type RefreshTokenStore interface {
 	CreateRefreshToken(ctx context.Context, token RefreshToken) (RefreshToken, error)
+	ListRefreshTokens(ctx context.Context, query RefreshTokenQuery) ([]RefreshToken, error)
 	FindRefreshTokenByPrefix(ctx context.Context, prefix string) ([]RefreshToken, error)
 	RotateRefreshToken(ctx context.Context, currentID string, next RefreshToken, usedAt time.Time) (RefreshToken, RefreshToken, error)
 	RevokeRefreshTokenFamily(ctx context.Context, familyID string, revokedAt time.Time) error
+	PurgeExpiredRefreshTokens(ctx context.Context, before time.Time) (int, error)
+}
+
+// OAuthTokenPairStore is an optional capability for stores which can persist
+// both members of an OAuth token pair in one transaction. Hosts wire it only
+// when the access- and refresh-token stores share the same transactional
+// database. The separate store interfaces remain useful for lightweight and
+// in-memory deployments.
+type OAuthTokenPairStore interface {
+	CreateOAuthTokenPair(ctx context.Context, access AccessToken, refresh RefreshToken) (AccessToken, RefreshToken, error)
+	RotateOAuthTokenPair(ctx context.Context, currentRefreshID string, access AccessToken, nextRefresh RefreshToken, usedAt time.Time) (AccessToken, RefreshToken, error)
 }
 
 type OAuthTokenService struct {
 	AccessTokens  AccessTokenStore
 	RefreshTokens RefreshTokenStore
+	PairStore     OAuthTokenPairStore
 	Agents        AgentService
 	Hasher        TokenHasher
 	Now           func() time.Time
@@ -191,11 +210,23 @@ func (s OAuthTokenService) IssueTokenPair(ctx context.Context, spec OAuthTokenIs
 	if err != nil {
 		return IssuedOAuthTokenPair{}, err
 	}
-	createdAccess, err := s.AccessTokens.CreateAccessToken(ctx, access)
-	if err != nil {
-		return IssuedOAuthTokenPair{}, err
+	var createdAccess AccessToken
+	var createdRefresh RefreshToken
+	if s.PairStore != nil {
+		createdAccess, createdRefresh, err = s.PairStore.CreateOAuthTokenPair(ctx, access, refresh)
+	} else {
+		createdAccess, err = s.AccessTokens.CreateAccessToken(ctx, access)
+		if err == nil {
+			createdRefresh, err = s.RefreshTokens.CreateRefreshToken(ctx, refresh)
+		}
+		if err != nil {
+			// A non-transactional pair store must not leave an unreturned access
+			// token behind when refresh-token persistence fails.
+			if createdAccess.ID != "" {
+				_ = s.AccessTokens.DeleteAccessToken(ctx, createdAccess.ID)
+			}
+		}
 	}
-	createdRefresh, err := s.RefreshTokens.CreateRefreshToken(ctx, refresh)
 	if err != nil {
 		return IssuedOAuthTokenPair{}, err
 	}
@@ -247,18 +278,25 @@ func (s OAuthTokenService) RefreshTokenPair(ctx context.Context, rawRefreshToken
 	if err != nil {
 		return IssuedOAuthTokenPair{}, err
 	}
-	// Persist the new access token before consuming the current refresh token.
-	// If that insert fails, callers can retry with the original refresh token.
-	createdAccess, err := s.AccessTokens.CreateAccessToken(ctx, access)
-	if err != nil {
-		return IssuedOAuthTokenPair{}, err
+	var createdAccess AccessToken
+	var rotatedRefresh RefreshToken
+	if s.PairStore != nil {
+		createdAccess, rotatedRefresh, err = s.PairStore.RotateOAuthTokenPair(ctx, current.ID, access, nextRefresh, now)
+	} else {
+		// Persist the new access token before consuming the current refresh token.
+		// If that insert fails, callers can retry with the original refresh token.
+		createdAccess, err = s.AccessTokens.CreateAccessToken(ctx, access)
+		if err == nil {
+			_, rotatedRefresh, err = s.RefreshTokens.RotateRefreshToken(ctx, current.ID, nextRefresh, now)
+		}
 	}
-	_, rotatedRefresh, err := s.RefreshTokens.RotateRefreshToken(ctx, current.ID, nextRefresh, now)
 	if err != nil {
-		// The access token was never returned, so remove it before reporting the
-		// failed rotation. This compensating rollback prevents orphaned tokens.
-		if deleteErr := s.AccessTokens.DeleteAccessToken(ctx, createdAccess.ID); deleteErr != nil {
-			return IssuedOAuthTokenPair{}, fmt.Errorf("rotate refresh token: %w (also failed to roll back access token %q: %v)", err, createdAccess.ID, deleteErr)
+		// A transactional PairStore has already rolled back. Separate stores use
+		// best-effort compensation because no cross-store transaction exists.
+		if s.PairStore == nil && createdAccess.ID != "" {
+			if deleteErr := s.AccessTokens.DeleteAccessToken(ctx, createdAccess.ID); deleteErr != nil {
+				return IssuedOAuthTokenPair{}, fmt.Errorf("rotate refresh token: %w (access-token cleanup failed: %v)", err, deleteErr)
+			}
 		}
 		if errors.Is(err, ErrRefreshTokenUsed) {
 			_ = s.RefreshTokens.RevokeRefreshTokenFamily(ctx, current.FamilyID, now)
@@ -267,6 +305,67 @@ func (s OAuthTokenService) RefreshTokenPair(ctx context.Context, rawRefreshToken
 		return IssuedOAuthTokenPair{}, err
 	}
 	return IssuedOAuthTokenPair{AccessToken: AccessTokenToView(createdAccess), AccessValue: accessValue, RefreshToken: RefreshTokenToView(rotatedRefresh), RefreshValue: refreshValue}, nil
+}
+
+// RevokeRefreshToken revokes every refresh credential in the family identified
+// by rawRefreshToken. It deliberately does not claim immediate access-token
+// revocation: already-issued access tokens remain bounded by their short TTL.
+func (s OAuthTokenService) RevokeRefreshToken(ctx context.Context, rawRefreshToken string) error {
+	if s.RefreshTokens == nil {
+		return fmt.Errorf("programauth refresh token store is required")
+	}
+	current, err := s.lookupRefreshToken(ctx, rawRefreshToken)
+	if err != nil {
+		return err
+	}
+	return s.RefreshTokens.RevokeRefreshTokenFamily(ctx, current.FamilyID, s.now())
+}
+
+// ListOwnedRefreshTokens returns only redacted metadata for one local user.
+// PurgeExpiredCredentials removes expired/revoked credential rows older than before.
+func (s OAuthTokenService) PurgeExpiredCredentials(ctx context.Context, before time.Time) (int, error) {
+	if s.AccessTokens == nil || s.RefreshTokens == nil {
+		return 0, fmt.Errorf("programauth token stores are required")
+	}
+	a, err := s.AccessTokens.PurgeExpiredAccessTokens(ctx, before)
+	if err != nil {
+		return 0, err
+	}
+	r, err := s.RefreshTokens.PurgeExpiredRefreshTokens(ctx, before)
+	return a + r, err
+}
+
+func (s OAuthTokenService) ListOwnedRefreshTokens(ctx context.Context, userID string) ([]RefreshTokenView, error) {
+	if s.RefreshTokens == nil {
+		return nil, fmt.Errorf("programauth refresh token store is required")
+	}
+	if strings.TrimSpace(userID) == "" {
+		return nil, fmt.Errorf("subject user id is required")
+	}
+	tokens, err := s.RefreshTokens.ListRefreshTokens(ctx, RefreshTokenQuery{SubjectUserID: userID})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]RefreshTokenView, 0, len(tokens))
+	for _, token := range tokens {
+		out = append(out, RefreshTokenToView(token))
+	}
+	return out, nil
+}
+
+// RevokeOwnedRefreshTokenFamily revokes a family only after confirming ownership.
+func (s OAuthTokenService) RevokeOwnedRefreshTokenFamily(ctx context.Context, userID, familyID string) error {
+	if s.RefreshTokens == nil {
+		return fmt.Errorf("programauth refresh token store is required")
+	}
+	tokens, err := s.RefreshTokens.ListRefreshTokens(ctx, RefreshTokenQuery{SubjectUserID: userID, FamilyID: familyID})
+	if err != nil {
+		return err
+	}
+	if len(tokens) == 0 {
+		return ErrRefreshTokenNotFound
+	}
+	return s.RefreshTokens.RevokeRefreshTokenFamily(ctx, familyID, s.now())
 }
 
 func (s OAuthTokenService) AuthenticateBearer(ctx context.Context, raw string, _ gojahttp.SecuritySpec) (gojahttp.AuthResult, error) {

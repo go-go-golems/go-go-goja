@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/dop251/goja"
 	"github.com/go-go-golems/go-go-goja/modules/uidsl"
@@ -288,6 +289,31 @@ func TestExpressVerbHelperRejectsLegacyHandlerOverload(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "public().handle") {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestExpressOAuthBuilderRunsWithVerifiedContext(t *testing.T) {
+	issuer := "https://tinyidp.example"
+	host := gojahttp.NewHost(gojahttp.HostOptions{Dev: true, Auth: gojahttp.AuthOptions{
+		Authenticator: expressResultAuthenticatorFunc(func(context.Context, *http.Request, *gojahttp.SessionDTO, gojahttp.SecuritySpec) (gojahttp.AuthResult, error) {
+			return gojahttp.AuthResult{Actor: &gojahttp.Actor{ID: "u1", Kind: "user"}, Method: gojahttp.AuthMethodAccessToken, PrincipalKind: gojahttp.PrincipalKindUser, PrincipalID: "u1", OAuth: &gojahttp.OAuthAuthContext{Issuer: issuer, Subject: "sub-1", ClientID: "cli-1", Resources: []string{"inbox"}, Scopes: []string{"inbox.read"}, TokenType: "Bearer", ExpiresAt: time.Now().Add(time.Hour)}}, nil
+		}),
+		Authorizer: expressAuthorizerFunc(func(context.Context, gojahttp.AuthorizationRequest) (gojahttp.AuthorizationDecision, error) {
+			return gojahttp.AuthorizationDecision{Allowed: true}, nil
+		}),
+	}})
+	rt := newExpressAuthRuntime(t, host)
+	runExpressAuthScript(t, rt, `
+		const express = require("express"); const app = express.app();
+		app.get("/oauth/inbox").auth(express.oauth().issuer("`+issuer+`").resource("inbox").scopes("inbox.read"))
+		  .audit("oauth.inbox").allow("inbox.read").handle((ctx, res) => res.json({subject: ctx.auth.oauth.subject}));
+	`)
+	req := httptest.NewRequest(http.MethodGet, "/oauth/inbox", nil)
+	req.Header.Set("Authorization", "Bearer redacted-at-verifier")
+	res := httptest.NewRecorder()
+	host.ServeHTTP(res, req)
+	if res.Code != http.StatusOK || !strings.Contains(res.Body.String(), `"subject":"sub-1"`) {
+		t.Fatalf("status=%d body=%s", res.Code, res.Body.String())
 	}
 }
 

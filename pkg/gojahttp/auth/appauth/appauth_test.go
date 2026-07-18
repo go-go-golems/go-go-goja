@@ -98,6 +98,37 @@ func TestUpsertFromOIDCRejectsDisabledExistingUser(t *testing.T) {
 	}
 }
 
+func TestDisableUserRevokesFutureLookups(t *testing.T) {
+	store := NewMemoryStore()
+	store.AddUser(User{ID: "u1"})
+	if err := store.DisableUser(context.Background(), "u1", time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.ByID(context.Background(), "u1"); !errors.Is(err, gojahttp.ErrNotFound) {
+		t.Fatalf("lookup err=%v", err)
+	}
+}
+
+func TestExternalIdentityIsIssuerScopedAndRejectsDisabledUser(t *testing.T) {
+	ctx := context.Background()
+	store := NewMemoryStore()
+	store.AddUser(User{ID: "u1"})
+	if err := store.BindExternalIdentity(ctx, "u1", "https://issuer-a", "same-subject"); err != nil {
+		t.Fatal(err)
+	}
+	if user, err := store.ByExternalIdentity(ctx, "https://issuer-a", "same-subject"); err != nil || user.ID != "u1" {
+		t.Fatalf("user=%#v err=%v", user, err)
+	}
+	if _, err := store.ByExternalIdentity(ctx, "https://issuer-b", "same-subject"); !errors.Is(err, gojahttp.ErrNotFound) {
+		t.Fatalf("wrong issuer err=%v", err)
+	}
+	now := time.Now()
+	store.AddUser(User{ID: "u1", DisabledAt: &now})
+	if _, err := store.ByExternalIdentity(ctx, "https://issuer-a", "same-subject"); !errors.Is(err, gojahttp.ErrNotFound) {
+		t.Fatalf("disabled err=%v", err)
+	}
+}
+
 func TestUserAndMembershipStore(t *testing.T) {
 	ctx := context.Background()
 	store := seededStore()

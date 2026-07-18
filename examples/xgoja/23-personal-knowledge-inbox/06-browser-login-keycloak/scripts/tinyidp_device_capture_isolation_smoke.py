@@ -12,6 +12,7 @@ import argparse
 import http.cookiejar
 import html.parser
 import json
+import ssl
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -83,11 +84,12 @@ def request_json(
         return exc.code, parsed
 
 
-def login(base_url: str, username: str, password: str, expected_email: str, expected_user_id: str) -> BrowserSession:
+def login(base_url: str, username: str, password: str, expected_email: str, expected_user_id: str | None, ssl_context: ssl.SSLContext | None) -> BrowserSession:
     jar = http.cookiejar.CookieJar()
     opener = urllib.request.build_opener(
         urllib.request.HTTPCookieProcessor(jar),
         urllib.request.HTTPRedirectHandler(),
+        urllib.request.HTTPSHandler(context=ssl_context) if ssl_context else urllib.request.HTTPSHandler(),
     )
     opener.addheaders = [("User-Agent", "go-go-goja-tinyidp-device-isolation-smoke/1.0")]
 
@@ -101,6 +103,10 @@ def login(base_url: str, username: str, password: str, expected_email: str, expe
     form = dict(form_parser.inputs)
     form["login"] = username
     form["password"] = password
+    # tiny-idp exposes approve and deny as submit buttons. HTML form submission
+    # includes the selected button; urllib builds the payload itself, so state
+    # the approved action explicitly rather than relying on browser behavior.
+    form["action"] = "approve"
     request = urllib.request.Request(
         urllib.parse.urljoin(response.geturl(), form_parser.action),
         data=urllib.parse.urlencode(form).encode(),
@@ -113,7 +119,7 @@ def login(base_url: str, username: str, password: str, expected_email: str, expe
     _, session = request_json(opener, base_url + "/auth/session", expected=200)
     if session.get("email") != expected_email:
         raise RuntimeError(f"unexpected {username} email: {session!r}")
-    if session.get("userId") != expected_user_id:
+    if expected_user_id and session.get("userId") != expected_user_id:
         raise RuntimeError(f"unexpected {username} userId: {session!r}")
     if not session.get("csrfToken"):
         raise RuntimeError(f"session for {username} did not include csrfToken: {session!r}")
@@ -121,7 +127,7 @@ def login(base_url: str, username: str, password: str, expected_email: str, expe
     return BrowserSession(
         login=username,
         expected_email=expected_email,
-        expected_user_id=expected_user_id,
+        expected_user_id=str(session["userId"]),
         opener=opener,
         csrf_token=session["csrfToken"],
         user_id=session["userId"],
@@ -155,7 +161,7 @@ def approve_device(base_url: str, session: BrowserSession, user_code: str) -> No
     )
 
 
-def poll_token(base_url: str, device_code: str) -> str:
+def poll_token(base_url: str, device_code: str) -> dict:
     opener = urllib.request.build_opener()
     _, body = request_json(
         opener,
@@ -169,7 +175,34 @@ def poll_token(base_url: str, device_code: str) -> str:
         raise RuntimeError(f"token response did not include access token: {body!r}")
     if not body.get("refresh_token"):
         raise RuntimeError(f"token response did not include refresh token: {body!r}")
-    return str(access_token)
+    return body
+
+
+def refresh_token(base_url: str, refresh_value: str) -> dict:
+    opener = urllib.request.build_opener()
+    _, body = request_json(
+        opener,
+        base_url + "/auth/device/refresh",
+        method="POST",
+        data={"grant_type": "refresh_token", "refresh_token": refresh_value},
+        expected=200,
+    )
+    if not str(body.get("access_token", "")).startswith("ggat_") or not str(body.get("refresh_token", "")).startswith("ggrt_"):
+        raise RuntimeError(f"refresh response did not contain a rotated token pair: {body!r}")
+    return body
+
+
+def revoke_refresh_token(base_url: str, refresh_value: str) -> None:
+    opener = urllib.request.build_opener()
+    _, body = request_json(
+        opener,
+        base_url + "/auth/device/revoke",
+        method="POST",
+        data={"refresh_token": refresh_value},
+        expected=200,
+    )
+    if body.get("ok") is not True:
+        raise RuntimeError(f"refresh-token revocation returned unexpected body: {body!r}")
 
 
 def token_capture(base_url: str, access_token: str, title: str, login: str) -> dict:
@@ -190,8 +223,22 @@ def token_capture(base_url: str, access_token: str, title: str, login: str) -> d
 def approve_and_capture(base_url: str, session: BrowserSession, title: str) -> None:
     started = start_device(base_url, f"{session.login}-device-cli")
     approve_device(base_url, session, str(started["user_code"]))
-    access_token = poll_token(base_url, str(started["device_code"]))
-    token_capture(base_url, access_token, title, session.login)
+    issued = poll_token(base_url, str(started["device_code"]))
+    token_capture(base_url, str(issued["access_token"]), title, session.login)
+    refreshed = refresh_token(base_url, str(issued["refresh_token"]))
+    if refreshed["refresh_token"] == issued["refresh_token"]:
+        raise RuntimeError("refresh endpoint did not rotate the refresh credential")
+    revoke_refresh_token(base_url, str(refreshed["refresh_token"]))
+    opener = urllib.request.build_opener()
+    status, body = request_json(
+        opener,
+        base_url + "/auth/device/refresh",
+        method="POST",
+        data={"grant_type": "refresh_token", "refresh_token": refreshed["refresh_token"]},
+        expected=400,
+    )
+    if status != 400 or body.get("error") != "invalid_grant":
+        raise RuntimeError(f"revoked refresh token was accepted: {body!r}")
 
 
 def list_titles(base_url: str, session: BrowserSession) -> list[str]:
@@ -211,15 +258,21 @@ def assert_titles(label: str, titles: list[str], *, present: str, absent: str) -
 def main() -> None:
     parser = argparse.ArgumentParser(description="Assert tinyidp-backed device capture isolation")
     parser.add_argument("--base-url", required=True, help="Generated app base URL")
+    parser.add_argument("--alice-login", default="alice")
+    parser.add_argument("--alice-password", default="alice-password")
     parser.add_argument("--alice-email", default="alice@example.test")
+    parser.add_argument("--bob-login", default="bob")
+    parser.add_argument("--bob-password", default="bob-password")
     parser.add_argument("--bob-email", default="bob@example.test")
-    parser.add_argument("--alice-user-id", default="user:user-alice-fixed")
-    parser.add_argument("--bob-user-id", default="user:user-bob-fixed")
+    parser.add_argument("--alice-user-id", default="")
+    parser.add_argument("--bob-user-id", default="")
+    parser.add_argument("--ca-file", default="", help="PEM CA file for a self-signed strict tinyidp issuer")
     args = parser.parse_args()
 
     base_url = args.base_url.rstrip("/")
-    alice = login(base_url, "alice", "alice-password", args.alice_email, args.alice_user_id)
-    bob = login(base_url, "bob", "bob-password", args.bob_email, args.bob_user_id)
+    ssl_context = ssl.create_default_context(cafile=args.ca_file) if args.ca_file else None
+    alice = login(base_url, args.alice_login, args.alice_password, args.alice_email, args.alice_user_id or None, ssl_context)
+    bob = login(base_url, args.bob_login, args.bob_password, args.bob_email, args.bob_user_id or None, ssl_context)
 
     alice_title = "Alice device token item"
     bob_title = "Bob device token item"

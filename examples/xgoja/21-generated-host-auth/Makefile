@@ -49,8 +49,7 @@ oidc-smoke: build
 		if ! kill -0 $$pid >/dev/null 2>&1; then cat $$log; exit 1; fi; \
 		sleep 0.1; \
 	done; \
-	grep -q '"ok":true' /tmp/xgoja-generated-oidc-health.json; \
-	grep -q '"auth":"generated-oidc"' /tmp/xgoja-generated-oidc-health.json; \
+	grep -q '"live":true' /tmp/xgoja-generated-oidc-health.json; \
 	curl -fsS http://$$addr/ >/tmp/xgoja-generated-oidc-root.txt; \
 	grep -q '<title>go-go-goja generated OIDC auth host</title>' /tmp/xgoja-generated-oidc-root.txt; \
 	grep -q '<script src="/static/app.js"></script>' /tmp/xgoja-generated-oidc-root.txt; \

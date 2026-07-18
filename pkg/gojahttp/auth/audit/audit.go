@@ -8,7 +8,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	stdlog "log"
-	"net"
 	"net/http"
 	"sort"
 	"strings"
@@ -347,7 +346,7 @@ func secretKey(key string) bool {
 	if key == "capability" {
 		return true
 	}
-	for _, fragment := range []string{"token", "secret", "password", "cookie", "session", "authorization", "credential", "code"} {
+	for _, fragment := range []string{"token", "secret", "password", "cookie", "session", "authorization", "credential", "code", "state", "nonce", "verifier", "proof"} {
 		if strings.Contains(key, fragment) {
 			return true
 		}
@@ -356,14 +355,7 @@ func secretKey(key string) bool {
 }
 
 func clientIP(r *http.Request) string {
-	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
-		return strings.TrimSpace(strings.Split(forwarded, ",")[0])
-	}
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err == nil {
-		return host
-	}
-	return r.RemoteAddr
+	return gojahttp.RequestClientIP(r)
 }
 
 func hashIP(ip string) string {
