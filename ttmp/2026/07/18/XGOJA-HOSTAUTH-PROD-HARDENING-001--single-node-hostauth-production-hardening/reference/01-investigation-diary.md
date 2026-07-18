@@ -13,8 +13,16 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: repo://modules/express/auth_builders.go
+      Note: Express OAuth builder
     - Path: repo://pkg/gojahttp/auth/programauth/device_handlers.go
       Note: Phase 2 native policy, budgets, lifecycle and management handlers
+    - Path: repo://pkg/gojahttp/auth/programauth/oauth.go
+      Note: Exclusive OAuth bearer verifier boundary
+    - Path: repo://pkg/gojahttp/auth_plan.go
+      Note: OAuth route requirement and strict validation
+    - Path: repo://pkg/gojahttp/enforcer.go
+      Note: Exact verified OAuth route enforcement
     - Path: repo://pkg/gojahttp/request_identity.go
       Note: Canonical request identity resolver implemented in Phase 1 commit 3b3b448
     - Path: repo://pkg/gojahttp/request_identity_test.go
@@ -37,6 +45,7 @@ LastUpdated: 2026-07-18T20:56:00-04:00
 WhatFor: Preserve the reasoning, commands, boundaries, and validation approach behind the companion implementation guide.
 WhenToUse: Read before resuming ticket implementation or reviewing a change against the intended single-node scope.
 ---
+
 
 
 
@@ -796,3 +805,54 @@ run `go test ./pkg/xgoja/hostauth -count=1` and the full repository suite.
 
 `/auth/readyz` returns 503 if any required SQL dependency fails and 200 after
 recovery without process restart. `/healthz` returns `{ "live": true }`.
+
+## Step 8: OAuth planned-route contract and exclusive bearer path
+
+Implemented the Phase 4 OAuth vertical slice: typed route requirements, the Express builder, strict plan validation, and route-directed bearer dispatch. OAuth plans now fail closed unless they name issuer, resource, scopes, action, and audit event.
+
+The composite authenticator uses an external OAuth verifier only for an OAuth-declared route. Session, API-token, and app access-token fallback is deliberately unavailable on that path; verifier output is reduced to safe identity metadata before it can reach JavaScript or audit records.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Do all tasks in phase 4"
+
+**Assistant interpretation:** Complete the planned Express OAuth route API and enforcement work rather than stopping after individual commits.
+
+**Inferred user intent:** Deliver a usable, fail-closed external OAuth route integration boundary with tests and documentation.
+
+**Commit (code):** 60c75d7, 8cfe1b8, 2a2b955, 6ab1576 — "OAuth route planning, builder, enforcement, and exclusive bearer dispatch"
+
+### What I did
+- Added `OAuthRequirement` and redacted `OAuthAuthContext` to planned auth types.
+- Exported `express.oauth().issuer().resource().scopes()` and TypeScript declarations.
+- Required issuer/resource/non-empty scopes, an action, and an audit event; prohibited OAuth in `anyOf`.
+- Added exact issuer/resource/scope matching plus an `OAuthBearerAuthenticator` boundary selected only by OAuth routes.
+- Added fake-verifier regression tests for accepted OAuth bearer and rejected session/app-token paths.
+
+### Why
+- A route declaration must control credential domain selection; accepting a local credential on an external OAuth route is a confused-deputy risk.
+
+### What worked
+- Focused `go test ./pkg/gojahttp ./pkg/gojahttp/auth/programauth ./modules/express -count=1` and repository pre-commit lint/generation/vet/test workflows passed.
+
+### What didn't work
+- The first focused OAuth rejection test omitted `PrincipalID`, causing its generic denied-context assertion to fail; adding the normal normalized ID fixed it.
+
+### What I learned
+- Existing `ResultAuthenticator` is the correct host boundary: no new security mode or token parsing mechanism was required.
+
+### What was tricky to build
+- `AuthRequirement` was formerly comparable and used as a map key. OAuth scopes introduce a slice, so normalization now deduplicates by a stable string key rather than relying on struct comparability.
+
+### What warrants a second pair of eyes
+- Verify each host supplies an OAuth verifier that validates introspection/JWT claims before returning `OAuthAuthContext`; this phase intentionally provides the strict interface and dispatch, not a provider-specific verifier.
+
+### What should be done in the future
+- Wire a concrete tiny-idp RFC 7662 verifier and `(issuer, subject)` actor mapping when that host integration is selected.
+
+### Code review instructions
+- Start at `pkg/gojahttp/auth_plan.go`, `pkg/gojahttp/enforcer.go`, and `pkg/gojahttp/auth/programauth/oauth.go`; then inspect the Express builder.
+- Validate with `go test ./pkg/gojahttp ./pkg/gojahttp/auth/programauth ./modules/express -count=1` and `make lint`.
+
+### Technical details
+- OAuth routes require `AuthMethodAccessToken` plus matching verified OAuth issuer, resource, and every requested scope. Raw bearer strings and arbitrary claims never enter `AuthResult`, JavaScript context, or audit attributes.
