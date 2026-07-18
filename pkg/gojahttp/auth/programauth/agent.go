@@ -133,6 +133,28 @@ func (s AgentService) DisableAgent(ctx context.Context, id string) (Agent, error
 	return s.Store.DisableAgent(ctx, strings.TrimSpace(id), s.now())
 }
 
+// ListOwnedAgents and DisableOwnedAgent keep the owner predicate at the
+// service boundary; a UI must not become the only cross-user protection.
+func (s AgentService) ListOwnedAgents(ctx context.Context, ownerUserID string) ([]Agent, error) {
+	ownerUserID = strings.TrimSpace(ownerUserID)
+	if ownerUserID == "" {
+		return nil, fmt.Errorf("agent owner user id is required")
+	}
+	return s.ListAgents(ctx, AgentQuery{OwnerUserID: ownerUserID, IncludeDisabled: true})
+}
+
+func (s AgentService) DisableOwnedAgent(ctx context.Context, ownerUserID, id string) (Agent, error) {
+	if s.Store == nil {
+		return Agent{}, fmt.Errorf("programauth agent store is required")
+	}
+	ownerUserID = strings.TrimSpace(ownerUserID)
+	agent, err := s.Store.GetAgent(ctx, strings.TrimSpace(id))
+	if err != nil || ownerUserID == "" || agent.OwnerUserID != ownerUserID {
+		return Agent{}, ErrAgentNotFound
+	}
+	return s.Store.DisableAgent(ctx, agent.ID, s.now())
+}
+
 func normalizeAgentCreateSpec(spec AgentCreateSpec, now time.Time) (Agent, error) {
 	agent := Agent{
 		ID:          strings.TrimSpace(spec.ID),
