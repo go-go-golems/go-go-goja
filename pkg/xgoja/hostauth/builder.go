@@ -83,7 +83,11 @@ func (b *Builder) BuildHostAuthServices(ctx context.Context, vals *values.Values
 		}
 	}()
 
-	sessionManager, err := BuildSessionManager(resolved.Session, stores.Session, b.options.ActorLoader, b.options.Now)
+	actorLoader := b.options.ActorLoader
+	if actorLoader == nil && resolved.Mode == ModeOIDC && stores.AppAuth.Users != nil {
+		actorLoader = enabledUserActorLoader{users: stores.AppAuth.Users}
+	}
+	sessionManager, err := BuildSessionManager(resolved.Session, stores.Session, actorLoader, b.options.Now)
 	if err != nil {
 		return nil, err
 	}
@@ -113,6 +117,10 @@ func (b *Builder) BuildHostAuthServices(ctx context.Context, vals *values.Values
 	if err != nil {
 		return nil, err
 	}
+	var oidcTransactionCleanup keycloakauth.TransactionCleanup
+	if cleanup, ok := stores.OIDCTransaction.(keycloakauth.TransactionCleanup); ok {
+		oidcTransactionCleanup = cleanup
+	}
 	services := &Services{
 		Config:               resolved,
 		AuthOptions:          authOptions,
@@ -135,7 +143,7 @@ func (b *Builder) BuildHostAuthServices(ctx context.Context, vals *values.Values
 		APITokens:            apiTokenService,
 		OAuthTokens:          oauthTokenService,
 		Devices:              deviceService,
-		Maintenance:          programauth.MaintenanceService{Tokens: oauthTokenService},
+		Maintenance:          programauth.MaintenanceService{Tokens: oauthTokenService, Transactions: oidcTransactionCleanup},
 		NativeHandlers:       nativeHandlers,
 		Closers:              stores.Closers,
 	}
@@ -151,7 +159,7 @@ func BuildNativeHandlers(ctx context.Context, cfg ResolvedConfig, sessionManager
 		{Method: "GET", Path: "/auth/readyz", Handler: readinessHandler(BuildReadinessReport(cfg), stores.Health)},
 	}
 	if deviceService.Store != nil {
-		deviceHandlers, err := programauth.NewDeviceHandlers(programauth.DeviceHandlersConfig{Service: deviceService, SessionManager: sessionManager, Audit: auditSink, SecurityEvents: securityEvents, RateLimiter: rateLimiter, Policy: programauth.DeviceEndpointPolicy{AllowedActions: cfg.Device.AllowedActions, MaxActions: cfg.Device.MaxActions, VerificationURI: cfg.Device.VerificationURI}, Users: stores.AppAuth.Users})
+		deviceHandlers, err := programauth.NewDeviceHandlers(programauth.DeviceHandlersConfig{Service: deviceService, SessionManager: sessionManager, Audit: auditSink, SecurityEvents: securityEvents, RateLimiter: rateLimiter, Policy: programauth.DeviceEndpointPolicy{AllowedActions: cfg.Device.AllowedActions, MaxActions: cfg.Device.MaxActions, VerificationURI: cfg.Device.VerificationURI}, Users: stores.AppAuth.Users, RequireEnabledUser: cfg.Mode == ModeOIDC})
 		if err != nil {
 			return nil, err
 		}

@@ -8,9 +8,43 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/appauth"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/programauth"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth"
 )
+
+func TestDisabledUserCannotUseNativeDeviceManagement(t *testing.T) {
+	now := time.Date(2026, 7, 18, 0, 0, 0, 0, time.UTC)
+	service := newDeviceTestService(func() time.Time { return now })
+	manager, err := sessionauth.New(sessionauth.Config{Store: sessionauth.NewMemoryStore(), AllowInsecureHTTP: true, Now: func() time.Time { return now }})
+	if err != nil {
+		t.Fatalf("sessionauth.New: %v", err)
+	}
+	users := appauth.NewMemoryStore()
+	users.AddUser(appauth.User{ID: "u1", Email: "u1@example.test"})
+	handlers, err := programauth.NewDeviceHandlers(programauth.DeviceHandlersConfig{Service: service, SessionManager: manager, Users: users, RequireEnabledUser: true})
+	if err != nil {
+		t.Fatalf("NewDeviceHandlers: %v", err)
+	}
+	session, err := manager.NewSession(context.Background(), "u1")
+	if err != nil {
+		t.Fatalf("NewSession: %v", err)
+	}
+	req := httptest.NewRequest(http.MethodGet, "/auth/agents", nil)
+	cookieWriter := httptest.NewRecorder()
+	manager.SetCookie(cookieWriter, session.ID)
+	for _, cookie := range cookieWriter.Result().Cookies() {
+		req.AddCookie(cookie)
+	}
+	if err := users.DisableUser(context.Background(), "u1", now); err != nil {
+		t.Fatalf("DisableUser: %v", err)
+	}
+	res := httptest.NewRecorder()
+	handlers.ListAgentsHandler().ServeHTTP(res, req)
+	if res.Code != http.StatusUnauthorized {
+		t.Fatalf("disabled native session status=%d body=%s", res.Code, res.Body.String())
+	}
+}
 
 func TestDeviceHandlersInspectAndDeny(t *testing.T) {
 	now := time.Date(2026, 7, 18, 0, 0, 0, 0, time.UTC)

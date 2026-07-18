@@ -6,6 +6,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/fields"
 	"github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp"
 )
 
 const SectionSlug = "auth"
@@ -16,6 +17,8 @@ const SectionSlug = "auth"
 type GlazedSettings struct {
 	Mode                  string   `glazed:"auth-mode"`
 	DeploymentProfile     string   `glazed:"auth-deployment-profile"`
+	ProxyMode             string   `glazed:"auth-proxy-mode"`
+	ProxyTrustedCIDRs     []string `glazed:"auth-proxy-trusted-cidrs"`
 	RateLimiterDriver     string   `glazed:"auth-rate-limiter-driver"`
 	DeviceAllowedActions  []string `glazed:"auth-device-allowed-actions"`
 	DeviceMaxActions      int      `glazed:"auth-device-max-actions"`
@@ -81,7 +84,10 @@ func GlazedConfigSection(base Config, opts ...schema.SectionOption) (schema.Sect
 	fieldDefs := []schema.SectionOption{schema.WithFields(
 		fields.New("auth-mode", fields.TypeChoice, fields.WithChoices(string(ModeNone), string(ModeDev), string(ModeOIDC)), fields.WithDefault(defaults.Mode), fields.WithHelp("Generated-host auth mode")),
 		fields.New("auth-deployment-profile", fields.TypeChoice, fields.WithChoices(string(DeploymentProfileDevelopment), string(DeploymentProfileSingleNode)), fields.WithDefault(defaults.DeploymentProfile), fields.WithHelp("Operational contract: development or one durable production process")),
+		fields.New("auth-proxy-mode", fields.TypeChoice, fields.WithChoices(string(gojahttp.ProxyModeDirect), string(gojahttp.ProxyModeTrustedForwarded)), fields.WithDefault(defaults.ProxyMode), fields.WithHelp("Forwarded-header trust mode")),
+		fields.New("auth-proxy-trusted-cidrs", fields.TypeStringList, fields.WithDefault(defaults.ProxyTrustedCIDRs), fields.WithHelp("Direct reverse-proxy CIDRs allowed to supply forwarded client identity")),
 		fields.New("auth-rate-limiter-driver", fields.TypeChoice, fields.WithChoices(string(RateLimiterDriverMemory)), fields.WithDefault(defaults.RateLimiterDriver), fields.WithHelp("Host-wide rate limiter; memory requires exactly one serving process")),
+
 		fields.New("auth-device-allowed-actions", fields.TypeStringList, fields.WithDefault(defaults.DeviceAllowedActions), fields.WithHelp("Application actions device authorization may request")),
 		fields.New("auth-device-max-actions", fields.TypeInteger, fields.WithDefault(defaults.DeviceMaxActions), fields.WithHelp("Maximum actions allowed in one device request; zero uses no additional cap")),
 		fields.New("auth-device-verification-uri", fields.TypeString, fields.WithDefault(defaults.DeviceVerificationURI), fields.WithHelp("Server-owned browser verification URI for device authorization")),
@@ -138,6 +144,8 @@ func FlattenConfig(cfg Config) GlazedSettings {
 	return GlazedSettings{
 		Mode:                  cfgModeDefault(cfg.Mode),
 		DeploymentProfile:     deploymentProfileDefault(cfg.Deployment.Profile),
+		ProxyMode:             proxyModeDefault(cfg.Proxy.Mode),
+		ProxyTrustedCIDRs:     append([]string(nil), cfg.Proxy.TrustedCIDRs...),
 		RateLimiterDriver:     rateLimiterDriverDefault(cfg.RateLimiter.Driver),
 		DeviceAllowedActions:  append([]string(nil), cfg.Device.AllowedActions...),
 		DeviceMaxActions:      cfg.Device.MaxActions,
@@ -216,8 +224,12 @@ func valuesContainAuthSection(vals *values.Values) bool {
 
 func (s GlazedSettings) ToConfig() Config {
 	return Config{
-		Mode:           Mode(strings.TrimSpace(s.Mode)),
-		Deployment:     DeploymentConfig{Profile: DeploymentProfile(strings.TrimSpace(s.DeploymentProfile))},
+		Mode:       Mode(strings.TrimSpace(s.Mode)),
+		Deployment: DeploymentConfig{Profile: DeploymentProfile(strings.TrimSpace(s.DeploymentProfile))},
+		Proxy: ProxyConfig{
+			Mode:         gojahttp.ProxyMode(strings.TrimSpace(s.ProxyMode)),
+			TrustedCIDRs: trimStringSlice(s.ProxyTrustedCIDRs),
+		},
 		RateLimiter:    RateLimiterConfig{Driver: RateLimiterDriver(strings.TrimSpace(s.RateLimiterDriver))},
 		Device:         DeviceConfig{AllowedActions: trimStringSlice(s.DeviceAllowedActions), MaxActions: s.DeviceMaxActions, VerificationURI: strings.TrimSpace(s.DeviceVerificationURI)},
 		OAuthResources: oauthResourcesFromGlazed(s.OAuthIssuerURL, s.OAuthClientID, s.OAuthClientSecret),
@@ -312,6 +324,14 @@ func deploymentProfileDefault(profile DeploymentProfile) string {
 		return string(DeploymentProfileDevelopment)
 	}
 	return string(profile)
+}
+
+func proxyModeDefault(mode gojahttp.ProxyMode) string {
+	mode = gojahttp.ProxyMode(strings.TrimSpace(string(mode)))
+	if mode == "" {
+		return string(gojahttp.ProxyModeDirect)
+	}
+	return string(mode)
 }
 
 func rateLimiterDriverDefault(driver RateLimiterDriver) string {

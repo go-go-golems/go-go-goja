@@ -221,9 +221,11 @@ it as an explicit reviewed value:
 
 ```yaml
 args:
-  - --auth-profile
+  - --auth-deployment-profile
   - single-node
-  - --auth-trusted-proxy-cidrs
+  - --auth-proxy-mode
+  - trusted-forwarded
+  - --auth-proxy-trusted-cidrs
   - 10.42.0.0/16 # replace with the observed Traefik source range
 ```
 

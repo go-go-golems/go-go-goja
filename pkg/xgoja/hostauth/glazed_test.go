@@ -27,6 +27,7 @@ func TestGlazedConfigSectionDefaultsFromBaseConfig(t *testing.T) {
 	}
 	assertDefault(t, section, "auth-mode", string(ModeDev))
 	assertDefault(t, section, "auth-deployment-profile", string(DeploymentProfileDevelopment))
+	assertDefault(t, section, "auth-proxy-mode", "direct")
 	assertDefault(t, section, "auth-rate-limiter-driver", string(RateLimiterDriverMemory))
 	assertDefault(t, section, "auth-session-cookie-allow-insecure-http", true)
 	assertDefault(t, section, "auth-session-cookie-name", "demo_session")
@@ -48,6 +49,8 @@ func TestConfigFromValuesMapsAuthSectionToNestedConfig(t *testing.T) {
 	sectionValues := sectionValuesWithDefaults(t, section, map[string]any{
 		"auth-mode":                                string(ModeDev),
 		"auth-deployment-profile":                  string(DeploymentProfileSingleNode),
+		"auth-proxy-mode":                          "trusted-forwarded",
+		"auth-proxy-trusted-cidrs":                 []string{"10.42.0.0/16"},
 		"auth-rate-limiter-driver":                 string(RateLimiterDriverMemory),
 		"auth-session-cookie-allow-insecure-http":  true,
 		"auth-session-cookie-name":                 "app_session",
@@ -82,6 +85,9 @@ func TestConfigFromValuesMapsAuthSectionToNestedConfig(t *testing.T) {
 	}
 	if cfg.Deployment.Profile != DeploymentProfileSingleNode || cfg.RateLimiter.Driver != RateLimiterDriverMemory {
 		t.Fatalf("deployment/rate limiter = %#v %#v", cfg.Deployment, cfg.RateLimiter)
+	}
+	if cfg.Proxy.Mode != "trusted-forwarded" || len(cfg.Proxy.TrustedCIDRs) != 1 || cfg.Proxy.TrustedCIDRs[0] != "10.42.0.0/16" {
+		t.Fatalf("proxy = %#v", cfg.Proxy)
 	}
 	if !cfg.Session.Cookie.AllowInsecureHTTP || cfg.Session.Cookie.Name != "app_session" || cfg.Session.Cookie.SameSite != "strict" || cfg.Session.Cookie.Path != "/app" {
 		t.Fatalf("session = %#v", cfg.Session)

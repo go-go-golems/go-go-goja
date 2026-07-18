@@ -91,6 +91,13 @@ type TransactionStore interface {
 	Take(ctx context.Context, state string) (Transaction, error)
 }
 
+// TransactionCleanup removes expired persisted login transactions. It is kept
+// separate from TransactionStore so lightweight stores need not expose a
+// maintenance operation to request handlers.
+type TransactionCleanup interface {
+	Cleanup(ctx context.Context) (int64, error)
+}
+
 // Handlers owns OIDC login/callback/logout HTTP handlers.
 type Handlers struct {
 	oauth2Config       oauth2.Config
@@ -284,7 +291,13 @@ func (h *Handlers) handleLogout(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	_ = h.sessionManager.RevokeRequestSession(r.Context(), r)
+	err := h.sessionManager.RevokeRequestSession(r.Context(), r)
+	if err != nil && !errors.Is(err, gojahttp.ErrUnauthenticated) {
+		h.observe(r.Context(), "oidc.logout", "failed", "session_revoke")
+		h.sessionManager.ClearCookie(w)
+		http.Error(w, "logout unavailable", http.StatusInternalServerError)
+		return
+	}
 	h.observe(r.Context(), "oidc.logout", "accepted", "")
 	h.sessionManager.ClearCookie(w)
 	if r.Method == http.MethodGet {
@@ -448,6 +461,22 @@ func (s *MemoryTransactionStore) Take(_ context.Context, state string) (Transact
 		return Transaction{}, fmt.Errorf("%w", ErrTransactionUnavailable)
 	}
 	return tx, nil
+}
+
+// Cleanup removes expired transactions from the in-memory store. It mirrors
+// the SQL store's maintenance contract for tests and simple deployments.
+func (s *MemoryTransactionStore) Cleanup(_ context.Context) (int64, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	now := time.Now()
+	var removed int64
+	for state, tx := range s.data {
+		if !tx.CreatedAt.IsZero() && !now.Before(tx.CreatedAt.Add(s.ttl)) {
+			delete(s.data, state)
+			removed++
+		}
+	}
+	return removed, nil
 }
 
 // DebugTransactions writes the current transaction count for tests/debugging.

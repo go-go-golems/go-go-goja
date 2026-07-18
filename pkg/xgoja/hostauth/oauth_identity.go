@@ -2,14 +2,31 @@ package hostauth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/appauth"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth"
 )
 
 // externalIdentityResolver adapts the application user store to OAuth verifier
 // identity resolution. It deliberately resolves only existing enabled users.
+type enabledUserActorLoader struct{ users appauth.UserStore }
+
+func (l enabledUserActorLoader) ActorForSession(ctx context.Context, session *sessionauth.Session) (*gojahttp.Actor, error) {
+	if l.users == nil {
+		return nil, gojahttp.ErrUnauthenticated
+	}
+	if _, err := l.users.ByID(ctx, session.UserID); err != nil {
+		if errors.Is(err, gojahttp.ErrNotFound) {
+			return nil, gojahttp.ErrUnauthenticated
+		}
+		return nil, err
+	}
+	return sessionauth.DefaultActorForSession(ctx, session)
+}
+
 type externalIdentityResolver struct {
 	users       appauth.UserStore
 	memberships appauth.MembershipStore

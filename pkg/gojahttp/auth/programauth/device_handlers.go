@@ -21,23 +21,25 @@ type DeviceEndpointPolicy struct {
 }
 
 type DeviceHandlersConfig struct {
-	Service        DeviceService
-	SessionManager *sessionauth.Manager
-	Audit          gojahttp.AuditSink
-	SecurityEvents gojahttp.SecurityEventObserver
-	RateLimiter    gojahttp.RateLimiter
-	Policy         DeviceEndpointPolicy
-	Users          appauth.UserStore
+	Service            DeviceService
+	SessionManager     *sessionauth.Manager
+	Audit              gojahttp.AuditSink
+	SecurityEvents     gojahttp.SecurityEventObserver
+	RateLimiter        gojahttp.RateLimiter
+	Policy             DeviceEndpointPolicy
+	Users              appauth.UserStore
+	RequireEnabledUser bool
 }
 
 type DeviceHandlers struct {
-	service        DeviceService
-	sessionManager *sessionauth.Manager
-	audit          gojahttp.AuditSink
-	securityEvents gojahttp.SecurityEventObserver
-	policy         DeviceEndpointPolicy
-	rateLimiter    gojahttp.RateLimiter
-	users          appauth.UserStore
+	service            DeviceService
+	sessionManager     *sessionauth.Manager
+	audit              gojahttp.AuditSink
+	securityEvents     gojahttp.SecurityEventObserver
+	policy             DeviceEndpointPolicy
+	rateLimiter        gojahttp.RateLimiter
+	users              appauth.UserStore
+	requireEnabledUser bool
 }
 
 func NewDeviceHandlers(cfg DeviceHandlersConfig) (*DeviceHandlers, error) {
@@ -47,7 +49,7 @@ func NewDeviceHandlers(cfg DeviceHandlersConfig) (*DeviceHandlers, error) {
 	if cfg.Service.OAuthTokens.AccessTokens == nil || cfg.Service.OAuthTokens.RefreshTokens == nil {
 		return nil, fmt.Errorf("device handlers require oauth token service")
 	}
-	return &DeviceHandlers{service: cfg.Service, sessionManager: cfg.SessionManager, audit: cfg.Audit, securityEvents: cfg.SecurityEvents, policy: cfg.Policy, rateLimiter: cfg.RateLimiter, users: cfg.Users}, nil
+	return &DeviceHandlers{service: cfg.Service, sessionManager: cfg.SessionManager, audit: cfg.Audit, securityEvents: cfg.SecurityEvents, policy: cfg.Policy, rateLimiter: cfg.RateLimiter, users: cfg.Users, requireEnabledUser: cfg.RequireEnabledUser}, nil
 }
 
 func (h *DeviceHandlers) StartHandler() http.Handler {
@@ -201,7 +203,7 @@ func (h *DeviceHandlers) ApproveHandler() http.Handler {
 			writeOAuthError(w, http.StatusUnauthorized, "unauthorized", "session manager is not configured", 0)
 			return
 		}
-		session, err := h.sessionManager.SessionFromRequest(r.Context(), r)
+		session, err := h.authenticatedSession(r)
 		if err != nil {
 			h.observe(r, "programauth.device.approve", "rejected", "unauthenticated")
 			writeOAuthError(w, http.StatusUnauthorized, "unauthorized", "unauthenticated", 0)
@@ -297,12 +299,7 @@ func (h *DeviceHandlers) DenyHandler() http.Handler {
 }
 
 func (h *DeviceHandlers) requireSessionCSRF(w http.ResponseWriter, r *http.Request, event string) bool {
-	if h.sessionManager == nil {
-		h.observe(r, event, "rejected", "session_unavailable")
-		writeOAuthError(w, http.StatusUnauthorized, "unauthorized", "session manager is not configured", 0)
-		return false
-	}
-	session, err := h.sessionManager.SessionFromRequest(r.Context(), r)
+	session, err := h.authenticatedSession(r)
 	if err != nil {
 		h.observe(r, event, "rejected", "unauthenticated")
 		writeOAuthError(w, http.StatusUnauthorized, "unauthorized", "unauthenticated", 0)
@@ -314,6 +311,26 @@ func (h *DeviceHandlers) requireSessionCSRF(w http.ResponseWriter, r *http.Reque
 		return false
 	}
 	return true
+}
+
+func (h *DeviceHandlers) authenticatedSession(r *http.Request) (*sessionauth.Session, error) {
+	if h.sessionManager == nil {
+		return nil, gojahttp.ErrUnauthenticated
+	}
+	session, err := h.sessionManager.SessionFromRequest(r.Context(), r)
+	if err != nil {
+		return nil, err
+	}
+	if !h.requireEnabledUser {
+		return session, nil
+	}
+	if h.users == nil {
+		return nil, gojahttp.ErrUnauthenticated
+	}
+	if _, err := h.users.ByID(r.Context(), session.UserID); err != nil {
+		return nil, err
+	}
+	return session, nil
 }
 
 func (h *DeviceHandlers) allowRequest(w http.ResponseWriter, r *http.Request, policy string, limit int) bool {
@@ -364,7 +381,7 @@ func (h *DeviceHandlers) ListAgentsHandler() http.Handler {
 			writeOAuthError(w, http.StatusUnauthorized, "unauthorized", "session manager is not configured", 0)
 			return
 		}
-		session, err := h.sessionManager.SessionFromRequest(r.Context(), r)
+		session, err := h.authenticatedSession(r)
 		if err != nil {
 			writeOAuthError(w, http.StatusUnauthorized, "unauthorized", "unauthenticated", 0)
 			return
@@ -392,7 +409,7 @@ func (h *DeviceHandlers) DisableUserHandler() http.Handler {
 			writeOAuthError(w, http.StatusInternalServerError, "server_error", "user store is not configured", 0)
 			return
 		}
-		session, err := h.sessionManager.SessionFromRequest(r.Context(), r)
+		session, err := h.authenticatedSession(r)
 		if err != nil {
 			writeOAuthError(w, http.StatusUnauthorized, "unauthorized", "unauthenticated", 0)
 			return
@@ -424,7 +441,7 @@ func (h *DeviceHandlers) DisableAgentHandler() http.Handler {
 			writeOAuthError(w, http.StatusBadRequest, "invalid_request", err.Error(), 0)
 			return
 		}
-		session, err := h.sessionManager.SessionFromRequest(r.Context(), r)
+		session, err := h.authenticatedSession(r)
 		if err != nil {
 			writeOAuthError(w, http.StatusUnauthorized, "unauthorized", "unauthenticated", 0)
 			return
@@ -449,7 +466,7 @@ func (h *DeviceHandlers) ListRefreshFamiliesHandler() http.Handler {
 			writeOAuthError(w, http.StatusUnauthorized, "unauthorized", "session manager is not configured", 0)
 			return
 		}
-		session, err := h.sessionManager.SessionFromRequest(r.Context(), r)
+		session, err := h.authenticatedSession(r)
 		if err != nil {
 			writeOAuthError(w, http.StatusUnauthorized, "unauthorized", "unauthenticated", 0)
 			return
@@ -480,7 +497,7 @@ func (h *DeviceHandlers) RevokeRefreshFamilyHandler() http.Handler {
 			writeOAuthError(w, http.StatusBadRequest, "invalid_request", err.Error(), 0)
 			return
 		}
-		session, err := h.sessionManager.SessionFromRequest(r.Context(), r)
+		session, err := h.authenticatedSession(r)
 		if err != nil {
 			writeOAuthError(w, http.StatusUnauthorized, "unauthorized", "unauthenticated", 0)
 			return
