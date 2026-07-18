@@ -190,6 +190,9 @@ func (h *DeviceHandlers) ApproveHandler() http.Handler {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
+		if !h.allowRequest(w, r, "auth.device.approval", 30) {
+			return
+		}
 		if h.sessionManager == nil {
 			h.observe(r, "programauth.device.approve", "rejected", "session_unavailable")
 			writeOAuthError(w, http.StatusUnauthorized, "unauthorized", "session manager is not configured", 0)
