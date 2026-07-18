@@ -43,7 +43,7 @@ func (m *MemorySecurityMetrics) ObserveSecurityEvent(_ context.Context, event Se
 	if m.counts == nil {
 		m.counts = map[SecurityMetricKey]uint64{}
 	}
-	m.counts[SecurityMetricKey{Name: event.Name, Outcome: event.Outcome, Reason: event.Reason}]++
+	m.counts[SecurityMetricKey(event)]++
 }
 
 func (m *MemorySecurityMetrics) Count(event SecurityEvent) uint64 {
@@ -52,5 +52,5 @@ func (m *MemorySecurityMetrics) Count(event SecurityEvent) uint64 {
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return m.counts[SecurityMetricKey{Name: event.Name, Outcome: event.Outcome, Reason: event.Reason}]
+	return m.counts[SecurityMetricKey(event)]
 }
