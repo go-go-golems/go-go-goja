@@ -19,6 +19,24 @@ func resolveDeploymentProfile(cfg DeploymentConfig) (ResolvedDeploymentConfig, e
 	}
 }
 
+func resolveDeviceConfig(cfg DeviceConfig) (ResolvedDeviceConfig, error) {
+	if cfg.MaxActions < 0 {
+		return ResolvedDeviceConfig{}, fmt.Errorf("max-actions must not be negative")
+	}
+	actions := map[string]struct{}{}
+	for _, raw := range cfg.AllowedActions {
+		action := strings.TrimSpace(raw)
+		if action == "" {
+			return ResolvedDeviceConfig{}, fmt.Errorf("allowed-actions contains an empty action")
+		}
+		if _, ok := actions[action]; ok {
+			return ResolvedDeviceConfig{}, fmt.Errorf("duplicate allowed action %q", action)
+		}
+		actions[action] = struct{}{}
+	}
+	return ResolvedDeviceConfig{AllowedActions: actions, MaxActions: cfg.MaxActions, VerificationURI: strings.TrimSpace(cfg.VerificationURI)}, nil
+}
+
 func resolveProxyConfig(cfg ProxyConfig) (ResolvedProxyConfig, error) {
 	mode := gojahttp.ProxyMode(strings.ToLower(strings.TrimSpace(string(cfg.Mode))))
 	switch mode {
@@ -82,6 +100,12 @@ func validateDeploymentPreflight(cfg ResolvedConfig) error {
 		if store.ApplySchema {
 			return configError(path+".apply-schema", fmt.Errorf("must be false for deployment.profile=single-node; run migrations before startup"))
 		}
+	}
+	if len(cfg.Device.AllowedActions) == 0 {
+		return configError("auth.device.allowed-actions", fmt.Errorf("must be non-empty for deployment.profile=single-node"))
+	}
+	if cfg.Device.VerificationURI == "" {
+		return configError("auth.device.verification-uri", fmt.Errorf("must be configured for deployment.profile=single-node"))
 	}
 	if cfg.RateLimiter.Driver != RateLimiterDriverMemory {
 		return configError("auth.rate-limiter.driver", fmt.Errorf("unsupported driver %q", cfg.RateLimiter.Driver))
