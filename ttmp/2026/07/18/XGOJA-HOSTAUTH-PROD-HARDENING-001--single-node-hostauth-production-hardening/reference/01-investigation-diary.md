@@ -537,3 +537,81 @@ to every branch.
 `trusted-forwarded` requires at least one CIDR; `direct` rejects CIDRs. A
 trusted peer with a malformed XFF chain receives a 400 rather than a guessed
 identity, while an untrusted peer's XFF is ignored.
+
+## Step 5: Start Phase 2 with inspectable, denyable device requests
+
+Phase 2 began by exposing the existing durable denial state transition through
+session- and CSRF-protected native endpoints. A browser can now inspect a
+redacted pending device request and deny it; later polling reports
+`access_denied` without exposing either code.
+
+### Prompt Context
+
+**User prompt (verbatim):** "do it, phase 2"
+
+**Assistant interpretation:** Begin the complete application-owned device lifecycle hardening phase.
+
+**Inferred user intent:** Make the coding-agent authorization flow safe and understandable for a browser user, beginning with informed approval and refusal.
+
+**Commit (code):** 831887c3aa81d7596744028e7bad34cfcad1a3a6 — "hostauth: add device request inspection and denial"
+
+### What I did
+
+- Added a redacted `PendingDeviceRequestView` and `InspectDeviceAuthorization`.
+- Added `POST /auth/device/request` and `POST /auth/device/deny`, both guarded
+  by local session authentication and CSRF.
+- Mounted both routes in hostauth and added a lifecycle test proving inspection
+  leaks neither device nor user code and denial makes polling return
+  `access_denied`.
+- Ran focused package tests; the commit hook passed lint, generation, and the
+  complete test suite.
+
+### Why
+
+- A user cannot make an informed authorization decision without seeing the
+  stored client name/actions, and must be able to refuse a request terminally.
+- User codes belong in POST bodies, not URLs, to avoid query/history leakage.
+
+### What worked
+
+`go test ./pkg/gojahttp/auth/programauth ./pkg/xgoja/hostauth -count=1` and
+the full pre-commit test/lint workflow passed.
+
+### What didn't work
+
+No code failure occurred. Action allowlists, server-owned verification URIs,
+native endpoint budgets, and owner-scoped agent management are still Phase 2
+work; this commit deliberately does not claim the phase complete.
+
+### What I learned
+
+The service already had correct denial persistence and poll semantics; the
+missing boundary was redacted, session-protected HTTP exposure.
+
+### What was tricky to build
+
+Inspection needs the entered user code to locate a record but must not echo it
+or expose the device credential/token state. A distinct pending view prevents
+accidentally serializing `DeviceAuthorizationView` fields meant for internal
+workflow responses.
+
+### What warrants a second pair of eyes
+
+Review that new handler errors are generic and that session/CSRF validation is
+identical to existing approval semantics.
+
+### What should be done in the future
+
+Continue Phase 2 with configured action policy, trusted verification URI,
+native budgets, and owner-scoped agent operations.
+
+### Code review instructions
+
+Review `device.go` pending projection, `device_handlers.go` session/CSRF helper,
+and the lifecycle regression test; run the focused command above.
+
+### Technical details
+
+The inspection response contains client name, stored requested actions, expiry,
+and terminal/pending status only. It contains no user code, device code, token
+hash, token family, or subject identity.
