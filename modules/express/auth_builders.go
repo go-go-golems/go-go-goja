@@ -50,15 +50,12 @@ func (s *builderStore) newOAuthBuilder(vm *goja.Runtime) goja.Value {
 		state.Resource = strings.TrimSpace(value)
 		return obj, nil
 	})
-	_ = obj.Set("scopes", func(call goja.FunctionCall) (goja.Value, error) {
+	_ = obj.Set("scopes", func(values ...string) (goja.Value, error) {
 		if scopesSet {
 			return nil, fmt.Errorf("express.oauth().scopes() may only be called once")
 		}
 		scopesSet = true
-		state.Scopes = make([]string, len(call.Arguments))
-		for i, value := range call.Arguments {
-			state.Scopes[i] = value.String()
-		}
+		state.Scopes = append([]string(nil), values...)
 		return obj, nil
 	})
 	return obj

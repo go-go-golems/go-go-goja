@@ -141,6 +141,7 @@ type IssuedOAuthTokenPair struct {
 type AccessTokenStore interface {
 	CreateAccessToken(ctx context.Context, token AccessToken) (AccessToken, error)
 	DeleteAccessToken(ctx context.Context, id string) error
+	PurgeExpiredAccessTokens(ctx context.Context, before time.Time) (int, error)
 	FindAccessTokenByPrefix(ctx context.Context, prefix string) ([]AccessToken, error)
 	TouchAccessToken(ctx context.Context, id string, usedAt time.Time) error
 }
@@ -156,6 +157,7 @@ type RefreshTokenStore interface {
 	FindRefreshTokenByPrefix(ctx context.Context, prefix string) ([]RefreshToken, error)
 	RotateRefreshToken(ctx context.Context, currentID string, next RefreshToken, usedAt time.Time) (RefreshToken, RefreshToken, error)
 	RevokeRefreshTokenFamily(ctx context.Context, familyID string, revokedAt time.Time) error
+	PurgeExpiredRefreshTokens(ctx context.Context, before time.Time) (int, error)
 }
 
 // OAuthTokenPairStore is an optional capability for stores which can persist
@@ -320,6 +322,19 @@ func (s OAuthTokenService) RevokeRefreshToken(ctx context.Context, rawRefreshTok
 }
 
 // ListOwnedRefreshTokens returns only redacted metadata for one local user.
+// PurgeExpiredCredentials removes expired/revoked credential rows older than before.
+func (s OAuthTokenService) PurgeExpiredCredentials(ctx context.Context, before time.Time) (int, error) {
+	if s.AccessTokens == nil || s.RefreshTokens == nil {
+		return 0, fmt.Errorf("programauth token stores are required")
+	}
+	a, err := s.AccessTokens.PurgeExpiredAccessTokens(ctx, before)
+	if err != nil {
+		return 0, err
+	}
+	r, err := s.RefreshTokens.PurgeExpiredRefreshTokens(ctx, before)
+	return a + r, err
+}
+
 func (s OAuthTokenService) ListOwnedRefreshTokens(ctx context.Context, userID string) ([]RefreshTokenView, error) {
 	if s.RefreshTokens == nil {
 		return nil, fmt.Errorf("programauth refresh token store is required")

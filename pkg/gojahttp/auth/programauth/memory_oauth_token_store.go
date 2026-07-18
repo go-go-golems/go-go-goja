@@ -54,6 +54,22 @@ func (s *MemoryAccessTokenStore) DeleteAccessToken(_ context.Context, id string)
 	return nil
 }
 
+func (s *MemoryAccessTokenStore) PurgeExpiredAccessTokens(_ context.Context, before time.Time) (int, error) {
+	if s == nil {
+		return 0, fmt.Errorf("programauth memory access token store is nil")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	n := 0
+	for id, t := range s.tokens {
+		if !t.ExpiresAt.After(before) || (t.RevokedAt != nil && !t.RevokedAt.After(before)) {
+			delete(s.tokens, id)
+			n++
+		}
+	}
+	return n, nil
+}
+
 func (s *MemoryAccessTokenStore) FindAccessTokenByPrefix(_ context.Context, prefix string) ([]AccessToken, error) {
 	if s == nil {
 		return nil, fmt.Errorf("programauth memory access token store is nil")
@@ -136,6 +152,22 @@ func (s *MemoryRefreshTokenStore) ListRefreshTokens(_ context.Context, query Ref
 		}
 	}
 	return out, nil
+}
+
+func (s *MemoryRefreshTokenStore) PurgeExpiredRefreshTokens(_ context.Context, before time.Time) (int, error) {
+	if s == nil {
+		return 0, fmt.Errorf("programauth memory refresh token store is nil")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	n := 0
+	for id, t := range s.tokens {
+		if !t.ExpiresAt.After(before) || (t.RevokedAt != nil && !t.RevokedAt.After(before)) {
+			delete(s.tokens, id)
+			n++
+		}
+	}
+	return n, nil
 }
 
 func (s *MemoryRefreshTokenStore) FindRefreshTokenByPrefix(_ context.Context, prefix string) ([]RefreshToken, error) {

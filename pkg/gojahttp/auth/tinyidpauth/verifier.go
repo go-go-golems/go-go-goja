@@ -22,12 +22,14 @@ type Config struct {
 	HTTPClient                     *http.Client
 	Timeout                        time.Duration
 	Resolver                       IdentityResolver
+	SecurityEvents                 gojahttp.SecurityEventObserver
 }
 type Verifier struct {
 	issuer, endpoint, clientID, clientSecret string
 	client                                   *http.Client
 	timeout                                  time.Duration
 	resolver                                 IdentityResolver
+	securityEvents                           gojahttp.SecurityEventObserver
 }
 type discovery struct {
 	Issuer                string   `json:"issuer"`
@@ -94,8 +96,14 @@ func New(ctx context.Context, cfg Config) (*Verifier, error) {
 	if !basic {
 		return nil, fmt.Errorf("tinyidp discovery does not support client_secret_basic")
 	}
-	return &Verifier{cfg.Issuer, d.IntrospectionEndpoint, cfg.ClientID, cfg.ClientSecret, cfg.HTTPClient, cfg.Timeout, cfg.Resolver}, nil
+	return &Verifier{issuer: cfg.Issuer, endpoint: d.IntrospectionEndpoint, clientID: cfg.ClientID, clientSecret: cfg.ClientSecret, client: cfg.HTTPClient, timeout: cfg.Timeout, resolver: cfg.Resolver, securityEvents: cfg.SecurityEvents}, nil
 }
+func (v *Verifier) observe(ctx context.Context, outcome, reason string) {
+	if v != nil && v.securityEvents != nil {
+		v.securityEvents.ObserveSecurityEvent(ctx, gojahttp.SecurityEvent{Name: "oauth.introspection", Outcome: outcome, Reason: reason})
+	}
+}
+
 func (v *Verifier) AuthenticateOAuthBearer(ctx context.Context, raw string, need gojahttp.OAuthRequirement) (gojahttp.AuthResult, error) {
 	if v == nil || need.Issuer != v.issuer {
 		return gojahttp.AuthResult{}, gojahttp.ErrUnauthenticated
@@ -111,28 +119,35 @@ func (v *Verifier) AuthenticateOAuthBearer(ctx context.Context, raw string, need
 	req.SetBasicAuth(v.clientID, v.clientSecret)
 	res, err := v.client.Do(req)
 	if err != nil {
+		v.observe(ctx, "unavailable", "transport")
 		return gojahttp.AuthResult{}, fmt.Errorf("%w: introspection request", gojahttp.ErrAuthUnavailable)
 	}
 	defer res.Body.Close()
 	if res.StatusCode >= 500 {
+		v.observe(ctx, "unavailable", "provider_status")
 		return gojahttp.AuthResult{}, fmt.Errorf("%w: introspection status", gojahttp.ErrAuthUnavailable)
 	}
 	if res.StatusCode != http.StatusOK {
+		v.observe(ctx, "inactive", "provider_rejected")
 		return gojahttp.AuthResult{}, gojahttp.ErrUnauthenticated
 	}
 	var out response
 	if err = json.NewDecoder(io.LimitReader(res.Body, 1<<20)).Decode(&out); err != nil {
+		v.observe(ctx, "unavailable", "malformed_response")
 		return gojahttp.AuthResult{}, fmt.Errorf("%w: introspection response", gojahttp.ErrAuthUnavailable)
 	}
 	scopes := strings.Fields(out.Scope)
 	resources := audiences(out.Audience)
 	if !out.Active || out.Issuer != v.issuer || !strings.EqualFold(out.TokenType, "Bearer") || out.Subject == "" || time.Unix(out.ExpiresAt, 0).Before(time.Now()) || !contains(resources, need.Resource) || !all(scopes, need.Scopes) {
+		v.observe(ctx, "inactive", "assertion_failed")
 		return gojahttp.AuthResult{}, gojahttp.ErrUnauthenticated
 	}
 	actor, err := v.resolver.ByExternalIdentity(ctx, v.issuer, out.Subject)
 	if err != nil || actor == nil {
+		v.observe(ctx, "rejected", "identity_unmapped")
 		return gojahttp.AuthResult{}, gojahttp.ErrUnauthenticated
 	}
+	v.observe(ctx, "accepted", "")
 	return gojahttp.AuthResult{Actor: actor, Method: gojahttp.AuthMethodAccessToken, PrincipalKind: gojahttp.PrincipalKindUser, PrincipalID: actor.ID, OAuth: &gojahttp.OAuthAuthContext{Issuer: v.issuer, Subject: out.Subject, ClientID: out.ClientID, Resources: resources, Scopes: scopes, ExpiresAt: time.Unix(out.ExpiresAt, 0), TokenType: out.TokenType}}, nil
 }
 func audiences(a any) []string {

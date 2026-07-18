@@ -21,13 +21,13 @@ func (s oauthVerifierSet) AuthenticateOAuthBearer(ctx context.Context, raw strin
 
 var _ programauth.OAuthBearerAuthenticator = oauthVerifierSet{}
 
-func buildOAuthVerifierSet(ctx context.Context, cfg []ResolvedOAuthResourceConfig, resolver tinyidpauth.IdentityResolver) (programauth.OAuthBearerAuthenticator, error) {
+func buildOAuthVerifierSet(ctx context.Context, cfg []ResolvedOAuthResourceConfig, resolver tinyidpauth.IdentityResolver, events gojahttp.SecurityEventObserver) (programauth.OAuthBearerAuthenticator, error) {
 	if len(cfg) == 0 {
 		return nil, nil
 	}
 	out := oauthVerifierSet{}
 	for _, profile := range cfg {
-		verifier, err := tinyidpauth.New(ctx, tinyidpauth.Config{Issuer: profile.IssuerURL, ClientID: profile.ClientID, ClientSecret: profile.ClientSecret, Resolver: resolver})
+		verifier, err := tinyidpauth.New(ctx, tinyidpauth.Config{Issuer: profile.IssuerURL, ClientID: profile.ClientID, ClientSecret: profile.ClientSecret, Resolver: resolver, SecurityEvents: events})
 		if err != nil {
 			return nil, fmt.Errorf("oauth profile %s: %w", profile.IssuerURL, err)
 		}

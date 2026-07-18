@@ -75,6 +75,7 @@ type Services struct {
 	APITokens         programauth.APITokenService
 	OAuthTokens       programauth.OAuthTokenService
 	Devices           programauth.DeviceService
+	Maintenance       programauth.MaintenanceService
 
 	NativeHandlers []NativeHandler
 

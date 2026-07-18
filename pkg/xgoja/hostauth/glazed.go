@@ -20,6 +20,9 @@ type GlazedSettings struct {
 	DeviceAllowedActions  []string `glazed:"auth-device-allowed-actions"`
 	DeviceMaxActions      int      `glazed:"auth-device-max-actions"`
 	DeviceVerificationURI string   `glazed:"auth-device-verification-uri"`
+	OAuthIssuerURL        string   `glazed:"auth-oauth-issuer-url"`
+	OAuthClientID         string   `glazed:"auth-oauth-client-id"`
+	OAuthClientSecret     string   `glazed:"auth-oauth-client-secret"`
 
 	SessionCookieAllowInsecureHTTP bool   `glazed:"auth-session-cookie-allow-insecure-http"`
 	SessionCookieName              string `glazed:"auth-session-cookie-name"`
@@ -82,6 +85,9 @@ func GlazedConfigSection(base Config, opts ...schema.SectionOption) (schema.Sect
 		fields.New("auth-device-allowed-actions", fields.TypeStringList, fields.WithDefault(defaults.DeviceAllowedActions), fields.WithHelp("Application actions device authorization may request")),
 		fields.New("auth-device-max-actions", fields.TypeInteger, fields.WithDefault(defaults.DeviceMaxActions), fields.WithHelp("Maximum actions allowed in one device request; zero uses no additional cap")),
 		fields.New("auth-device-verification-uri", fields.TypeString, fields.WithDefault(defaults.DeviceVerificationURI), fields.WithHelp("Server-owned browser verification URI for device authorization")),
+		fields.New("auth-oauth-issuer-url", fields.TypeString, fields.WithHelp("External OAuth issuer URL; secret remains Go-owned")),
+		fields.New("auth-oauth-client-id", fields.TypeString, fields.WithHelp("Confidential OAuth introspection client ID")),
+		fields.New("auth-oauth-client-secret", fields.TypeString, fields.WithHelp("Confidential OAuth introspection client secret")),
 		fields.New("auth-session-cookie-allow-insecure-http", fields.TypeBool, fields.WithDefault(defaults.SessionCookieAllowInsecureHTTP), fields.WithHelp("Allow non-Secure auth session cookies for local HTTP demos")),
 		fields.New("auth-session-cookie-name", fields.TypeString, fields.WithDefault(defaults.SessionCookieName), fields.WithHelp("Auth session cookie name; empty uses the session manager default")),
 		fields.New("auth-session-cookie-same-site", fields.TypeChoice, fields.WithChoices("", "lax", "strict", "none", "default"), fields.WithDefault(defaults.SessionCookieSameSite), fields.WithHelp("Auth session cookie SameSite mode")),
@@ -136,6 +142,7 @@ func FlattenConfig(cfg Config) GlazedSettings {
 		DeviceAllowedActions:  append([]string(nil), cfg.Device.AllowedActions...),
 		DeviceMaxActions:      cfg.Device.MaxActions,
 		DeviceVerificationURI: strings.TrimSpace(cfg.Device.VerificationURI),
+		OAuthIssuerURL:        firstOAuthIssuer(cfg.OAuthResources), OAuthClientID: firstOAuthClientID(cfg.OAuthResources), OAuthClientSecret: firstOAuthSecret(cfg.OAuthResources),
 
 		SessionCookieAllowInsecureHTTP: cfg.Session.Cookie.AllowInsecureHTTP,
 		SessionCookieName:              strings.TrimSpace(cfg.Session.Cookie.Name),
@@ -209,10 +216,11 @@ func valuesContainAuthSection(vals *values.Values) bool {
 
 func (s GlazedSettings) ToConfig() Config {
 	return Config{
-		Mode:        Mode(strings.TrimSpace(s.Mode)),
-		Deployment:  DeploymentConfig{Profile: DeploymentProfile(strings.TrimSpace(s.DeploymentProfile))},
-		RateLimiter: RateLimiterConfig{Driver: RateLimiterDriver(strings.TrimSpace(s.RateLimiterDriver))},
-		Device:      DeviceConfig{AllowedActions: trimStringSlice(s.DeviceAllowedActions), MaxActions: s.DeviceMaxActions, VerificationURI: strings.TrimSpace(s.DeviceVerificationURI)},
+		Mode:           Mode(strings.TrimSpace(s.Mode)),
+		Deployment:     DeploymentConfig{Profile: DeploymentProfile(strings.TrimSpace(s.DeploymentProfile))},
+		RateLimiter:    RateLimiterConfig{Driver: RateLimiterDriver(strings.TrimSpace(s.RateLimiterDriver))},
+		Device:         DeviceConfig{AllowedActions: trimStringSlice(s.DeviceAllowedActions), MaxActions: s.DeviceMaxActions, VerificationURI: strings.TrimSpace(s.DeviceVerificationURI)},
+		OAuthResources: oauthResourcesFromGlazed(s.OAuthIssuerURL, s.OAuthClientID, s.OAuthClientSecret),
 		Session: SessionConfig{
 			Cookie: CookieConfig{
 				AllowInsecureHTTP: s.SessionCookieAllowInsecureHTTP,
@@ -243,6 +251,31 @@ func (s GlazedSettings) ToConfig() Config {
 			AfterLogoutURL: strings.TrimSpace(s.OIDCAfterLogoutURL),
 		},
 	}
+}
+
+func oauthResourcesFromGlazed(issuer, clientID, secret string) []OAuthResourceConfig {
+	if strings.TrimSpace(issuer) == "" && strings.TrimSpace(clientID) == "" && strings.TrimSpace(secret) == "" {
+		return nil
+	}
+	return []OAuthResourceConfig{{IssuerURL: issuer, ClientID: clientID, ClientSecret: secret}}
+}
+func firstOAuthIssuer(v []OAuthResourceConfig) string {
+	if len(v) > 0 {
+		return v[0].IssuerURL
+	}
+	return ""
+}
+func firstOAuthClientID(v []OAuthResourceConfig) string {
+	if len(v) > 0 {
+		return v[0].ClientID
+	}
+	return ""
+}
+func firstOAuthSecret(v []OAuthResourceConfig) string {
+	if len(v) > 0 {
+		return v[0].ClientSecret
+	}
+	return ""
 }
 
 func trimStringSlice(values []string) []string {

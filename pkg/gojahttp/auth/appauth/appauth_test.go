@@ -113,7 +113,9 @@ func TestExternalIdentityIsIssuerScopedAndRejectsDisabledUser(t *testing.T) {
 	ctx := context.Background()
 	store := NewMemoryStore()
 	store.AddUser(User{ID: "u1"})
-	store.BindExternalIdentity("u1", "https://issuer-a", "same-subject")
+	if err := store.BindExternalIdentity(ctx, "u1", "https://issuer-a", "same-subject"); err != nil {
+		t.Fatal(err)
+	}
 	if user, err := store.ByExternalIdentity(ctx, "https://issuer-a", "same-subject"); err != nil || user.ID != "u1" {
 		t.Fatalf("user=%#v err=%v", user, err)
 	}

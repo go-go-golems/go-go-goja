@@ -63,6 +63,7 @@ type UserStore interface {
 	ByID(ctx context.Context, id string) (*User, error)
 	ByKeycloakSub(ctx context.Context, sub string) (*User, error)
 	ByExternalIdentity(ctx context.Context, issuer, subject string) (*User, error)
+	BindExternalIdentity(ctx context.Context, userID, issuer, subject string) error
 	UpsertFromOIDC(ctx context.Context, sub, email string, emailVerified bool) (*User, error)
 	DisableUser(ctx context.Context, id string, disabledAt time.Time) error
 }
@@ -242,10 +243,14 @@ func (s *MemoryStore) ByID(_ context.Context, id string) (*User, error) {
 func externalIdentityKey(issuer, subject string) string { return issuer + "\x00" + subject }
 
 // BindExternalIdentity binds an existing local user to an issuer-scoped subject.
-func (s *MemoryStore) BindExternalIdentity(userID, issuer, subject string) {
+func (s *MemoryStore) BindExternalIdentity(_ context.Context, userID, issuer, subject string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if _, ok := s.users[userID]; !ok {
+		return gojahttp.ErrNotFound
+	}
 	s.usersByExternalIdentity[externalIdentityKey(issuer, subject)] = userID
+	return nil
 }
 func (s *MemoryStore) ByExternalIdentity(ctx context.Context, issuer, subject string) (*User, error) {
 	s.mu.Lock()

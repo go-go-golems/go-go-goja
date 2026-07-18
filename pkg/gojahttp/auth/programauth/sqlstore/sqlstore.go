@@ -241,6 +241,15 @@ func (s *Store) DeleteAccessToken(ctx context.Context, id string) error {
 	return requireAffected(res, programauth.ErrAccessTokenNotFound)
 }
 
+func (s *Store) PurgeExpiredAccessTokens(ctx context.Context, before time.Time) (int, error) {
+	result, err := s.db.ExecContext(ctx, s.rebind(`DELETE FROM auth_program_access_tokens WHERE expires_at <= ? OR revoked_at <= ?`), before, before)
+	if err != nil {
+		return 0, err
+	}
+	n, err := result.RowsAffected()
+	return int(n), err
+}
+
 func (s *Store) FindAccessTokenByPrefix(ctx context.Context, prefix string) ([]programauth.AccessToken, error) {
 	rows, err := s.db.QueryContext(ctx, s.accessTokensByPrefixQuery(), strings.TrimSpace(prefix))
 	if err != nil {
@@ -285,6 +294,15 @@ func (s *Store) ListRefreshTokens(ctx context.Context, query programauth.Refresh
 	}
 	defer func() { _ = rows.Close() }()
 	return scanRefreshTokenRows(rows)
+}
+
+func (s *Store) PurgeExpiredRefreshTokens(ctx context.Context, before time.Time) (int, error) {
+	result, err := s.db.ExecContext(ctx, s.rebind(`DELETE FROM auth_program_refresh_tokens WHERE expires_at <= ? OR revoked_at <= ?`), before, before)
+	if err != nil {
+		return 0, err
+	}
+	n, err := result.RowsAffected()
+	return int(n), err
 }
 
 func (s *Store) FindRefreshTokenByPrefix(ctx context.Context, prefix string) ([]programauth.RefreshToken, error) {

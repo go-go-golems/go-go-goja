@@ -102,7 +102,7 @@ func (b *Builder) BuildHostAuthServices(ctx context.Context, vals *values.Values
 	}
 	oauthBearer := b.options.OAuthBearerAuthenticator
 	if oauthBearer == nil && len(resolved.OAuthResources) > 0 {
-		oauthBearer, err = buildOAuthVerifierSet(ctx, resolved.OAuthResources, externalIdentityResolver{users: stores.AppAuth.Users, memberships: stores.AppAuth.Memberships})
+		oauthBearer, err = buildOAuthVerifierSet(ctx, resolved.OAuthResources, externalIdentityResolver{users: stores.AppAuth.Users, memberships: stores.AppAuth.Memberships}, securityEvents)
 		if err != nil {
 			return nil, err
 		}
@@ -135,6 +135,7 @@ func (b *Builder) BuildHostAuthServices(ctx context.Context, vals *values.Values
 		APITokens:            apiTokenService,
 		OAuthTokens:          oauthTokenService,
 		Devices:              deviceService,
+		Maintenance:          programauth.MaintenanceService{Tokens: oauthTokenService},
 		NativeHandlers:       nativeHandlers,
 		Closers:              stores.Closers,
 	}
@@ -150,7 +151,7 @@ func BuildNativeHandlers(ctx context.Context, cfg ResolvedConfig, sessionManager
 		{Method: "GET", Path: "/auth/readyz", Handler: readinessHandler(BuildReadinessReport(cfg), stores.Health)},
 	}
 	if deviceService.Store != nil {
-		deviceHandlers, err := programauth.NewDeviceHandlers(programauth.DeviceHandlersConfig{Service: deviceService, SessionManager: sessionManager, Audit: auditSink, SecurityEvents: securityEvents, RateLimiter: rateLimiter, Policy: programauth.DeviceEndpointPolicy{AllowedActions: cfg.Device.AllowedActions, MaxActions: cfg.Device.MaxActions, VerificationURI: cfg.Device.VerificationURI}})
+		deviceHandlers, err := programauth.NewDeviceHandlers(programauth.DeviceHandlersConfig{Service: deviceService, SessionManager: sessionManager, Audit: auditSink, SecurityEvents: securityEvents, RateLimiter: rateLimiter, Policy: programauth.DeviceEndpointPolicy{AllowedActions: cfg.Device.AllowedActions, MaxActions: cfg.Device.MaxActions, VerificationURI: cfg.Device.VerificationURI}, Users: stores.AppAuth.Users})
 		if err != nil {
 			return nil, err
 		}
@@ -164,6 +165,7 @@ func BuildNativeHandlers(ctx context.Context, cfg ResolvedConfig, sessionManager
 			NativeHandler{Method: "POST", Path: "/auth/device/deny", Handler: deviceHandlers.DenyHandler()},
 			NativeHandler{Method: "GET", Path: "/auth/agents", Handler: deviceHandlers.ListAgentsHandler()},
 			NativeHandler{Method: "POST", Path: "/auth/agents/disable", Handler: deviceHandlers.DisableAgentHandler()},
+			NativeHandler{Method: "POST", Path: "/auth/user/disable", Handler: deviceHandlers.DisableUserHandler()},
 			NativeHandler{Method: "GET", Path: "/auth/refresh-tokens", Handler: deviceHandlers.ListRefreshFamiliesHandler()},
 			NativeHandler{Method: "POST", Path: "/auth/refresh-tokens/revoke", Handler: deviceHandlers.RevokeRefreshFamilyHandler()},
 		)

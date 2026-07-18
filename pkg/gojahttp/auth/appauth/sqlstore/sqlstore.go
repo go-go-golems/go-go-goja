@@ -130,6 +130,14 @@ func (s *Store) ByID(ctx context.Context, id string) (*appauth.User, error) {
 	return user, nil
 }
 
+func (s *Store) BindExternalIdentity(ctx context.Context, userID, issuer, subject string) error {
+	_, err := s.db.ExecContext(ctx, `INSERT INTO auth_app_external_identities (issuer, subject, user_id) VALUES (`+s.placeholder(1)+`, `+s.placeholder(2)+`, `+s.placeholder(3)+`) ON CONFLICT(issuer, subject) DO UPDATE SET user_id = excluded.user_id`, issuer, subject, userID)
+	if err != nil {
+		return fmt.Errorf("bind appauth external identity: %w", err)
+	}
+	return nil
+}
+
 func (s *Store) ByExternalIdentity(ctx context.Context, issuer, subject string) (*appauth.User, error) {
 	query := `SELECT ` + userColumns + ` FROM auth_app_users u JOIN auth_app_external_identities e ON e.user_id = u.id WHERE e.issuer = ` + s.placeholder(1) + ` AND e.subject = ` + s.placeholder(2)
 	user, err := scanUser(s.db.QueryRowContext(ctx, query, issuer, subject))

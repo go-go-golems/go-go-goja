@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/appauth"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth"
 )
 
@@ -26,6 +27,7 @@ type DeviceHandlersConfig struct {
 	SecurityEvents gojahttp.SecurityEventObserver
 	RateLimiter    gojahttp.RateLimiter
 	Policy         DeviceEndpointPolicy
+	Users          appauth.UserStore
 }
 
 type DeviceHandlers struct {
@@ -35,6 +37,7 @@ type DeviceHandlers struct {
 	securityEvents gojahttp.SecurityEventObserver
 	policy         DeviceEndpointPolicy
 	rateLimiter    gojahttp.RateLimiter
+	users          appauth.UserStore
 }
 
 func NewDeviceHandlers(cfg DeviceHandlersConfig) (*DeviceHandlers, error) {
@@ -44,7 +47,7 @@ func NewDeviceHandlers(cfg DeviceHandlersConfig) (*DeviceHandlers, error) {
 	if cfg.Service.OAuthTokens.AccessTokens == nil || cfg.Service.OAuthTokens.RefreshTokens == nil {
 		return nil, fmt.Errorf("device handlers require oauth token service")
 	}
-	return &DeviceHandlers{service: cfg.Service, sessionManager: cfg.SessionManager, audit: cfg.Audit, securityEvents: cfg.SecurityEvents, policy: cfg.Policy, rateLimiter: cfg.RateLimiter}, nil
+	return &DeviceHandlers{service: cfg.Service, sessionManager: cfg.SessionManager, audit: cfg.Audit, securityEvents: cfg.SecurityEvents, policy: cfg.Policy, rateLimiter: cfg.RateLimiter, users: cfg.Users}, nil
 }
 
 func (h *DeviceHandlers) StartHandler() http.Handler {
@@ -372,6 +375,34 @@ func (h *DeviceHandlers) ListAgentsHandler() http.Handler {
 			return
 		}
 		writeJSONResponse(w, http.StatusOK, map[string]any{"agents": agents})
+	})
+}
+
+// DisableUserHandler disables the current local user and immediately blocks future lookups.
+func (h *DeviceHandlers) DisableUserHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		if !h.requireSessionCSRF(w, r, "programauth.user.disable") {
+			return
+		}
+		if h.users == nil {
+			writeOAuthError(w, http.StatusInternalServerError, "server_error", "user store is not configured", 0)
+			return
+		}
+		session, err := h.sessionManager.SessionFromRequest(r.Context(), r)
+		if err != nil {
+			writeOAuthError(w, http.StatusUnauthorized, "unauthorized", "unauthenticated", 0)
+			return
+		}
+		if err := h.users.DisableUser(r.Context(), session.UserID, time.Now()); err != nil {
+			writeOAuthError(w, http.StatusNotFound, "not_found", "user not found", 0)
+			return
+		}
+		writeJSONResponse(w, http.StatusOK, map[string]any{"ok": true})
+		h.observe(r, "programauth.user.disable", "accepted", "")
 	})
 }
 
