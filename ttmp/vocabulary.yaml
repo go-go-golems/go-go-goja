@@ -167,6 +167,8 @@ topics:
       description: JavaScript-facing API design and implementation
     - slug: rate-limiter
       description: Rate-limiting algorithms, deployment topology constraints, and enforcement behavior.
+    - slug: operations
+      description: Production operations, health checks, deployment readiness, and maintenance guidance.
 docTypes:
     - slug: index
       description: Index document for a ticket
