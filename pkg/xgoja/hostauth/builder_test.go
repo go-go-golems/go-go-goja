@@ -65,7 +65,7 @@ func TestBuildAuthOptionsWiresSessionAuditResourcesAndAuthorizer(t *testing.T) {
 		t.Fatalf("BuildSessionManager: %v", err)
 	}
 	limiter := gojahttp.NewMemoryRateLimiter()
-	options := BuildAuthOptions(manager, stores, nil, limiter, nil, nil)
+	options := BuildAuthOptions(manager, stores, nil, limiter, nil, nil, nil)
 	if options.Authenticator == nil || options.CSRF == nil || options.Resources == nil || options.Authorizer == nil || options.RateLimiter == nil {
 		t.Fatalf("auth options missing fields: %#v", options)
 	}

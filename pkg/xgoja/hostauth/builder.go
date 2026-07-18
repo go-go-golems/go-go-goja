@@ -22,6 +22,9 @@ type BuilderOptions struct {
 	ActorLoader    sessionauth.ActorLoader
 	Now            func() time.Time
 	SecurityEvents gojahttp.SecurityEventObserver
+	// OAuthBearerAuthenticator validates external OAuth routes. Hosts construct
+	// it from Go-owned configuration/secrets; it is never exposed to JavaScript.
+	OAuthBearerAuthenticator programauth.OAuthBearerAuthenticator
 }
 
 // Builder is the default hostauth ServiceFactory implementation.
@@ -97,7 +100,7 @@ func (b *Builder) BuildHostAuthServices(ctx context.Context, vals *values.Values
 	if securityEvents == nil {
 		securityEvents = &gojahttp.MemorySecurityMetrics{}
 	}
-	authOptions := BuildAuthOptions(sessionManager, stores, auditSink, rateLimiter, apiTokenService, oauthTokenService)
+	authOptions := BuildAuthOptions(sessionManager, stores, auditSink, rateLimiter, apiTokenService, oauthTokenService, b.options.OAuthBearerAuthenticator)
 	authOptions.SecurityEvents = securityEvents
 	nativeHandlers, err := BuildNativeHandlers(ctx, resolved, sessionManager, stores, deviceService, auditSink, securityEvents, rateLimiter)
 	if err != nil {
@@ -300,14 +303,14 @@ func BuildSessionManager(cfg ResolvedSessionConfig, store sessionauth.Store, act
 
 // BuildAuthOptions wires a session manager and built auth stores into
 // gojahttp's host-owned auth interfaces.
-func BuildAuthOptions(sessionManager *sessionauth.Manager, stores *StoreBundle, auditSink gojahttp.AuditSink, rateLimiter gojahttp.RateLimiter, apiTokens programauth.BearerAuthenticator, accessTokens programauth.BearerAuthenticator) gojahttp.AuthOptions {
+func BuildAuthOptions(sessionManager *sessionauth.Manager, stores *StoreBundle, auditSink gojahttp.AuditSink, rateLimiter gojahttp.RateLimiter, apiTokens programauth.BearerAuthenticator, accessTokens programauth.BearerAuthenticator, oauthTokens programauth.OAuthBearerAuthenticator) gojahttp.AuthOptions {
 	var options gojahttp.AuthOptions
 	if sessionManager != nil {
 		options.Authenticator = sessionManager
 		options.CSRF = sessionManager
 	}
-	if apiTokens != nil || accessTokens != nil {
-		options.Authenticator = programauth.CompositeAuthenticator{Session: sessionManager, APITokens: apiTokens, AccessTokens: accessTokens}
+	if apiTokens != nil || accessTokens != nil || oauthTokens != nil {
+		options.Authenticator = programauth.CompositeAuthenticator{Session: sessionManager, APITokens: apiTokens, AccessTokens: accessTokens, OAuthTokens: oauthTokens}
 	}
 	if auditSink != nil {
 		options.Audit = auditSink
