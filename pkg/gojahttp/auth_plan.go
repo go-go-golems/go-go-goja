@@ -52,6 +52,7 @@ const (
 
 var (
 	ErrUnauthenticated = errors.New("unauthenticated")
+	ErrAuthUnavailable = errors.New("authentication service unavailable")
 	ErrForbidden       = errors.New("forbidden")
 	ErrNotFound        = errors.New("not found")
 	ErrCSRF            = errors.New("csrf invalid")
