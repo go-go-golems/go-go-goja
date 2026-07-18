@@ -78,6 +78,30 @@ func TestResolveConfigSingleNodePreflightAcceptsDurableHTTPSConfig(t *testing.T)
 	}
 }
 
+func TestResolveConfigParsesTrustedProxyPolicy(t *testing.T) {
+	cfg := validSingleNodeConfig()
+	cfg.Proxy = ProxyConfig{Mode: "trusted-forwarded", TrustedCIDRs: []string{"10.42.0.0/16"}}
+	resolved, err := ResolveConfig(cfg, ResolveOptions{})
+	if err != nil {
+		t.Fatalf("ResolveConfig: %v", err)
+	}
+	if resolved.Proxy.Mode != "trusted-forwarded" || len(resolved.Proxy.TrustedPrefixes) != 1 {
+		t.Fatalf("proxy = %#v", resolved.Proxy)
+	}
+
+	for _, invalid := range []ProxyConfig{
+		{Mode: "trusted-forwarded"},
+		{Mode: "direct", TrustedCIDRs: []string{"10.42.0.0/16"}},
+		{Mode: "trusted-forwarded", TrustedCIDRs: []string{"not-a-cidr"}},
+	} {
+		cfg := validSingleNodeConfig()
+		cfg.Proxy = invalid
+		if _, err := ResolveConfig(cfg, ResolveOptions{}); err == nil {
+			t.Fatalf("ResolveConfig(%#v) unexpectedly succeeded", invalid)
+		}
+	}
+}
+
 func TestResolveConfigRejectsUnsupportedDeploymentAndRateLimiter(t *testing.T) {
 	for _, tt := range []struct {
 		cfg  Config

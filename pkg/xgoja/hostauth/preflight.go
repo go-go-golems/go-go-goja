@@ -2,7 +2,10 @@ package hostauth
 
 import (
 	"fmt"
+	"net/netip"
 	"strings"
+
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp"
 )
 
 func resolveDeploymentProfile(cfg DeploymentConfig) (ResolvedDeploymentConfig, error) {
@@ -13,6 +16,38 @@ func resolveDeploymentProfile(cfg DeploymentConfig) (ResolvedDeploymentConfig, e
 		return ResolvedDeploymentConfig{Profile: profile}, nil
 	default:
 		return ResolvedDeploymentConfig{}, fmt.Errorf("unsupported deployment profile %q", cfg.Profile)
+	}
+}
+
+func resolveProxyConfig(cfg ProxyConfig) (ResolvedProxyConfig, error) {
+	mode := gojahttp.ProxyMode(strings.ToLower(strings.TrimSpace(string(cfg.Mode))))
+	switch mode {
+	case "", gojahttp.ProxyModeDirect:
+		if len(cfg.TrustedCIDRs) != 0 {
+			return ResolvedProxyConfig{}, fmt.Errorf("trusted-cidrs requires mode=trusted-forwarded")
+		}
+		return ResolvedProxyConfig{Mode: gojahttp.ProxyModeDirect}, nil
+	case gojahttp.ProxyModeTrustedForwarded:
+		if len(cfg.TrustedCIDRs) == 0 {
+			return ResolvedProxyConfig{}, fmt.Errorf("trusted-forwarded requires at least one trusted CIDR")
+		}
+		prefixes := make([]netip.Prefix, 0, len(cfg.TrustedCIDRs))
+		seen := map[netip.Prefix]struct{}{}
+		for _, raw := range cfg.TrustedCIDRs {
+			prefix, err := netip.ParsePrefix(strings.TrimSpace(raw))
+			if err != nil {
+				return ResolvedProxyConfig{}, fmt.Errorf("invalid trusted CIDR %q: %w", raw, err)
+			}
+			prefix = prefix.Masked()
+			if _, ok := seen[prefix]; ok {
+				return ResolvedProxyConfig{}, fmt.Errorf("duplicate trusted CIDR %q", raw)
+			}
+			seen[prefix] = struct{}{}
+			prefixes = append(prefixes, prefix)
+		}
+		return ResolvedProxyConfig{Mode: mode, TrustedPrefixes: prefixes}, nil
+	default:
+		return ResolvedProxyConfig{}, fmt.Errorf("unsupported proxy mode %q", cfg.Mode)
 	}
 }
 
