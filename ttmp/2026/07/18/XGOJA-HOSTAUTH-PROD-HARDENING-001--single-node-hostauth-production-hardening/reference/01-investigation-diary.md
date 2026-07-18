@@ -13,6 +13,10 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: repo://pkg/gojahttp/request_identity.go
+      Note: Canonical request identity resolver implemented in Phase 1 commit 3b3b448
+    - Path: repo://pkg/gojahttp/request_identity_test.go
+      Note: Trusted proxy and context projection regression coverage
     - Path: repo://pkg/xgoja/hostauth/config.go
       Note: Hostauth configuration vocabulary investigated for this plan
     - Path: repo://pkg/xgoja/providers/http/serve.go
@@ -23,6 +27,7 @@ LastUpdated: 2026-07-18T20:56:00-04:00
 WhatFor: Preserve the reasoning, commands, boundaries, and validation approach behind the companion implementation guide.
 WhenToUse: Read before resuming ticket implementation or reviewing a change against the intended single-node scope.
 ---
+
 
 
 # Diary
@@ -307,3 +312,135 @@ remarquee upload bundle <design-doc> <diary> \
   --remote-dir "/ai/2026/07/18/XGOJA-HOSTAUTH-PROD-HARDENING-001" --toc-depth 2
 remarquee cloud ls /ai/2026/07/18/XGOJA-HOSTAUTH-PROD-HARDENING-001 --long --non-interactive
 ~~~
+
+## Step 3: Establish canonical request-identity primitives
+
+The plan was revised from a minimum-patch framing to a measured product-slice
+framing, then the first Phase 1 code invariant was implemented. Go HTTP code
+can now resolve a direct peer or a trusted `X-Forwarded-For` chain once,
+attach the result to request context, and make request DTOs, rate-limit keys,
+audit IP hashes, and access logs consume the same canonical client value.
+
+This commit intentionally establishes the generic primitive and migrates its
+consumers before generated-host configuration/wiring is added. The next Phase
+1 commit must expose validated hostauth proxy configuration and wrap the
+complete generated serve mux, including native handlers, in this middleware.
+Until then, callers that do not install the middleware retain conservative
+direct-peer behavior.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Update design, then implement, use a detailed list of phases and tasks, commit at appropriate intervals, keep a detailed diary as you work."
+
+**Assistant interpretation:** Revise the ticket to reflect the agreed measured product scope, then begin implementation in focused commits while documenting each step, command, and incomplete boundary.
+
+**Inferred user intent:** Produce reviewable, resumable engineering work rather than a broad uncommitted change set or speculative architecture.
+
+**Commit (code):** 3b3b448e0212fc8a7a6a4aad27b0332655d122cf — "gojahttp: add canonical request identity primitives"
+
+### What I did
+
+- Added `pkg/gojahttp/request_identity.go` with `RequestIdentity`, context
+  helpers, `TrustedProxyResolver`, bounded `X-Forwarded-For` parsing, and HTTP
+  middleware.
+- Added resolver tests for direct forged headers, trusted and multi-hop proxy
+  chains, untrusted peers, malformed trusted chains, and DTO context
+  projection.
+- Changed `NewRequestDTO`, planned-route IP rate-limit keys, audit IP hashing,
+  and access logging to use `RequestClientIP`.
+- Added the revised product-slice phase table and two additional ticket tasks;
+  committed the documentation plan as
+  `28346461f8e001799cc02f689ebf556aec6b8712`.
+- Ran:
+
+  ~~~bash
+  gofmt -w pkg/gojahttp/request_identity.go pkg/gojahttp/request_identity_test.go pkg/gojahttp/request_response.go pkg/gojahttp/ratelimit.go pkg/gojahttp/auth/audit/audit.go pkg/gojahttp/access_log.go
+  go test ./pkg/gojahttp ./pkg/gojahttp/auth/audit -count=1
+  git commit -m "gojahttp: add canonical request identity primitives"
+  ~~~
+
+### Why
+
+- Audit previously trusted leftmost XFF while planned rate limits used
+  `RemoteAddr`; one canonical value is required before either system can be
+  trusted behind Traefik.
+- Keeping proxy parsing in `gojahttp` avoids a hostauth-only implementation
+  that native or non-hostauth HTTP users could not share.
+- Separating primitive/consumer migration from host configuration keeps the
+  security invariant reviewable and makes the remaining deployment wiring
+  explicit.
+
+### What worked
+
+- Focused tests passed:
+
+  ~~~text
+  ok github.com/go-go-golems/go-go-goja/pkg/gojahttp
+  ok github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/audit
+  ~~~
+
+- The repository pre-commit hook completed lint and the full generated test
+  suite successfully. It ran `golangci-lint`, `go vet` with `glazed-lint`,
+  `go generate ./...`, and `go test ./...`.
+
+### What didn't work
+
+- There was no code failure. The pre-commit hook started Dagger to regenerate
+  Bun demo assets and printed registry transport retries, but it completed
+  successfully and the commit was created.
+- The generated host has not yet installed a `TrustedProxyResolver`; therefore
+  this commit alone does not cause a production Traefik request to use XFF.
+  That wiring is deliberately recorded as the immediate next change, not
+  treated as complete.
+
+### What I learned
+
+- `RequestDTO.IP` is the correct bridge from native `http.Request` identity to
+  planned-route limits because the limiter already prefers it.
+- Moving audit to `gojahttp.RequestClientIP` removes duplicate forwarding-header
+  parsing rather than merely making the two parsers behave similarly.
+- The pre-commit contract is stronger than the focused test command and is a
+  useful commit boundary for this repository.
+
+### What was tricky to build
+
+The right-to-left rule is essential. A trusted proxy appends its observation to
+an existing header chain, so selecting the leftmost value would still allow a
+caller-supplied address to dominate. The resolver parses a bounded chain,
+starts at the right, skips configured trusted proxy addresses, and chooses the
+first untrusted hop. Malformed data from a trusted proxy fails closed; data
+from an untrusted direct peer is ignored entirely.
+
+### What warrants a second pair of eyes
+
+- The resolver currently supports the deployed `X-Forwarded-For` contract,
+  not the standardized `Forwarded` header. Confirm Traefik configuration
+  before adding formats.
+- The final hostauth configuration must validate CIDRs and wrap the outer
+  ServeMux, rather than only the JavaScript host, so native auth handlers
+  receive the identity too.
+- Access-log privacy policy should decide whether recording canonical
+  `client_ip` in clear text is acceptable for the target deployment.
+
+### What should be done in the future
+
+- Complete Phase 1 hostauth proxy configuration and generated-server middleware
+  installation before checking its ticket task complete.
+- Continue Phase 2 device lifecycle only after the identity middleware covers
+  both native and planned routes.
+
+### Code review instructions
+
+- Start at `pkg/gojahttp/request_identity.go`; review direct mode, trusted peer
+  detection, chain bounds, and the right-to-left walk.
+- Confirm every migrated consumer calls `RequestClientIP` rather than parsing
+  XFF or `RemoteAddr` itself.
+- Validate with `go test ./pkg/gojahttp ./pkg/gojahttp/auth/audit -count=1`,
+  then use `make lint` and `go test ./...` from the repository root.
+
+### Technical details
+
+The canonical fallback deliberately returns `unknown` rather than a malformed
+`RemoteAddr` string. This avoids allowing malformed transport data into a
+rate-limit key or audit hash. `TrustedProxyResolver.Resolve` requires a valid
+peer IP; its middleware returns HTTP 400 for malformed trusted forwarded data.
