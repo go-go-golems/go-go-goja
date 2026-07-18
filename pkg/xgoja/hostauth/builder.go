@@ -136,7 +136,8 @@ func (b *Builder) BuildHostAuthServices(ctx context.Context, vals *values.Values
 // mounted by xgoja serve before the JavaScript app host fallback.
 func BuildNativeHandlers(ctx context.Context, cfg ResolvedConfig, sessionManager *sessionauth.Manager, stores *StoreBundle, deviceService programauth.DeviceService, auditSink gojahttp.AuditSink, securityEvents gojahttp.SecurityEventObserver, rateLimiter gojahttp.RateLimiter) ([]NativeHandler, error) {
 	nativeHandlers := []NativeHandler{
-		{Method: "GET", Path: "/auth/readyz", Handler: readinessHandler(BuildReadinessReport(cfg))},
+		{Method: "GET", Path: "/healthz", Handler: livenessHandler()},
+		{Method: "GET", Path: "/auth/readyz", Handler: readinessHandler(BuildReadinessReport(cfg), stores.Health)},
 	}
 	if deviceService.Store != nil {
 		deviceHandlers, err := programauth.NewDeviceHandlers(programauth.DeviceHandlersConfig{Service: deviceService, SessionManager: sessionManager, Audit: auditSink, SecurityEvents: securityEvents, RateLimiter: rateLimiter, Policy: programauth.DeviceEndpointPolicy{AllowedActions: cfg.Device.AllowedActions, MaxActions: cfg.Device.MaxActions, VerificationURI: cfg.Device.VerificationURI}})

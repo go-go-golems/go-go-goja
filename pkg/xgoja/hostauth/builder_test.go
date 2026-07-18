@@ -197,7 +197,7 @@ func TestReadinessHandlerDoesNotExposeStoreDSNOrOIDCSecret(t *testing.T) {
 		t.Fatalf("stores = %#v", report.Stores)
 	}
 	recorder := httptest.NewRecorder()
-	readinessHandler(report).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/auth/readyz", nil))
+	readinessHandler(report, nil).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/auth/readyz", nil))
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("status = %d", recorder.Code)
 	}
