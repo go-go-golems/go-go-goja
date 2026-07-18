@@ -244,7 +244,11 @@ func resolveStoresConfig(cfg StoresConfig) (ResolvedStoresConfig, error) {
 	if err != nil {
 		return ResolvedStoresConfig{}, err
 	}
-	return ResolvedStoresConfig{Session: session, Audit: audit, AppAuth: appauth, Capability: capability}, nil
+	programauth, err := resolveStoreConfig("programauth", cfg.ProgramAuth, defaults)
+	if err != nil {
+		return ResolvedStoresConfig{}, err
+	}
+	return ResolvedStoresConfig{Session: session, Audit: audit, AppAuth: appauth, Capability: capability, ProgramAuth: programauth}, nil
 }
 
 func resolveStoreConfig(name string, specific StoreConfig, defaults StoreConfig) (ResolvedStoreConfig, error) {

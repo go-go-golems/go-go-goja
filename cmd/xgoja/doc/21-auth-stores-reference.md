@@ -17,7 +17,7 @@ ShowPerDefault: true
 SectionType: GeneralTopic
 ---
 
-The auth host uses four store families. They are separate because they answer different questions: who has a session, what happened, which app resources exist, and which capability tokens are valid. They can share one physical PostgreSQL database, but they should remain separate concepts in code and documentation.
+The auth host uses five store families. They are separate because they answer different questions: who has a session, what happened, which app resources exist, which capability tokens are valid, and which automation credentials are valid. They can share one physical PostgreSQL database, but they should remain separate concepts in code and documentation.
 
 ## Store families
 
@@ -27,6 +27,7 @@ The auth host uses four store families. They are separate because they answer di
 | Audit | `pkg/gojahttp/auth/audit` | Security-relevant records for route execution and authorization decisions. |
 | AppAuth | `pkg/gojahttp/auth/appauth` | App users, tenants, memberships, and resources used by authorization. |
 | Capability | `pkg/gojahttp/auth/capability` | Bearer-like capability tokens for invite and delegated-action flows. |
+| ProgramAuth | `pkg/gojahttp/auth/programauth` | Automation agents, API tokens, OAuth-style access/refresh token families, and device authorization codes. |
 
 The JavaScript route plan does not choose these stores. The Go host chooses them before requests are served.
 
@@ -40,16 +41,17 @@ Generated hostauth supports three driver choices.
 | `sqlite` | Local persistent smoke tests. | File-backed or in-memory SQLite. | Useful for one-process development; not a shared cluster store. |
 | `postgres` | Kubernetes and shared runtime deployments. | Shared database. | Use for production-shaped auth hosts. |
 
-Example 19 uses PostgreSQL in the live yolo deployment. The same DSN is supplied to all four store families:
+Example 19 uses PostgreSQL in the live yolo deployment. Generated hosts can supply the same DSN to all five store families:
 
 ```text
 SESSION_DB_DSN      -> goja_auth_host_demo database
 AUDIT_DB_DSN        -> goja_auth_host_demo database
 APPAUTH_DB_DSN      -> goja_auth_host_demo database
 CAPABILITY_DB_DSN   -> goja_auth_host_demo database
+PROGRAMAUTH_DB_DSN  -> goja_auth_host_demo database
 ```
 
-That is a deployment simplification, not a type collapse. The Go process still constructs four store implementations.
+That is a deployment simplification, not a type collapse. The Go process still constructs separate store implementations and interfaces for each auth concern.
 
 ## Schema application
 
@@ -80,7 +82,8 @@ auth.stores.default.dsn    = postgres://...
 session    -> shared *sql.DB
 appauth    -> shared *sql.DB
 audit      -> shared *sql.DB
-capability -> shared *sql.DB
+capability  -> shared *sql.DB
+programauth -> shared *sql.DB
 ```
 
 This avoids unnecessary connection pools while preserving separate store interfaces.
@@ -120,6 +123,18 @@ The service exposes two read paths with different side effects:
 | Consume / redeem | Performs the same checks and then marks a single-use token as used. | Accept an invite or perform the delegated action exactly once. |
 
 Example 21 uses the capability store from JavaScript through `auth.capabilities.issue(...)` and `auth.capabilities.consume(...)`. Its compose smoke verifies capability behavior by issuing an invite, accepting it, and then confirming that reusing the same token returns `409 Conflict`.
+
+## ProgramAuth store
+
+The programauth store backs programmatic access. It persists automation principals separately from the credentials that authenticate those principals:
+
+- agent records and lifecycle metadata,
+- API-token hashes and lookup prefixes,
+- access-token hashes,
+- rotating refresh-token families,
+- device authorization user/device code state.
+
+Generated hosts expose this store through the `programauth` store config family. Use `auth.stores.programauth` when automation credentials need a different DSN or schema policy than browser sessions and audit records. Use durable SQL for multi-process deployments so token revocation, refresh reuse detection, and device-code consumption remain consistent across pods.
 
 ## PostgreSQL DSN examples
 

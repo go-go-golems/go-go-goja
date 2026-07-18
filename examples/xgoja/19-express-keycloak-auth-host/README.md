@@ -139,3 +139,13 @@ This is still an example, not a complete production deployment. For production:
 - review Keycloak realm/client settings,
 - add a shared transaction store for multi-instance callback handling,
 - keep application authorization in app-owned Go code or a chosen policy engine.
+
+## Run with tinyidp instead of Keycloak
+
+For a faster mock-OIDC smoke that keeps Postgres but replaces the Keycloak container with tinyidp, run:
+
+```bash
+make -C examples/xgoja/19-express-keycloak-auth-host tinyidp-smoke
+```
+
+This uses a root tinyidp issuer (`http://127.0.0.1:19092`) and drives the same app-session, CSRF, project update, invite, and logout assertions as the Keycloak smoke. Override the tinyidp checkout with `TINYIDP_ROOT=/path/to/tinyidp`.

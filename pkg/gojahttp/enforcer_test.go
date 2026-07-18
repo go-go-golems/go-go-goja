@@ -51,6 +51,63 @@ func TestEnforcerBuildsSecureContextWithoutHostRouter(t *testing.T) {
 	if sec.Actor.ID != "u1" || sec.Resource.ID != "p1" || sec.Resources["project"].ID != "p1" {
 		t.Fatalf("secure context = %#v", sec)
 	}
+	if sec.Auth.Method != gojahttp.AuthMethodSession || sec.Auth.PrincipalKind != gojahttp.PrincipalKindUser || sec.Auth.PrincipalID != "u1" || !sec.Auth.CSRFRequired {
+		t.Fatalf("legacy authenticator auth result = %#v", sec.Auth)
+	}
+}
+
+func TestEnforcerAppliesRouteAuthRequirements(t *testing.T) {
+	for _, tt := range []struct {
+		name     string
+		spec     gojahttp.SecuritySpec
+		auth     gojahttp.AuthResult
+		wantCode int
+	}{
+		{
+			name: "agent accepts api token agent",
+			spec: gojahttp.Agent(),
+			auth: gojahttp.AuthResult{Actor: &gojahttp.Actor{ID: "agt_1", Kind: "agent"}, Method: gojahttp.AuthMethodAPIToken, PrincipalKind: gojahttp.PrincipalKindAgent, PrincipalID: "agt_1", CSRFRequired: false},
+		},
+		{
+			name:     "agent rejects session user",
+			spec:     gojahttp.Agent(),
+			auth:     gojahttp.AuthResult{Actor: &gojahttp.Actor{ID: "u1", Kind: "user"}, Method: gojahttp.AuthMethodSession, PrincipalKind: gojahttp.PrincipalKindUser, PrincipalID: "u1", CSRFRequired: true},
+			wantCode: http.StatusForbidden,
+		},
+		{
+			name: "anyOf accepts session user",
+			spec: gojahttp.AnyOf(gojahttp.Agent(), gojahttp.SessionUser()),
+			auth: gojahttp.AuthResult{Actor: &gojahttp.Actor{ID: "u1", Kind: "user"}, Method: gojahttp.AuthMethodSession, PrincipalKind: gojahttp.PrincipalKindUser, PrincipalID: "u1", CSRFRequired: true},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			enforcer := gojahttp.NewEnforcer(gojahttp.EnforcerOptions{Auth: gojahttp.AuthOptions{
+				Authenticator: resultAuthenticatorFunc(func(context.Context, *http.Request, *gojahttp.SessionDTO, gojahttp.SecuritySpec) (gojahttp.AuthResult, error) {
+					return tt.auth, nil
+				}),
+				Authorizer: authorizerFunc(func(context.Context, gojahttp.AuthorizationRequest) (gojahttp.AuthorizationDecision, error) {
+					return gojahttp.AuthorizationDecision{Allowed: true}, nil
+				}),
+			}})
+			req, err := enforcer.Request(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/route", nil), nil)
+			if err != nil {
+				t.Fatalf("Request: %v", err)
+			}
+			sec, status, err := enforcer.Enforce(context.Background(), httptest.NewRequest(http.MethodGet, "/route", nil), req, &gojahttp.RoutePlan{Method: http.MethodGet, Pattern: "/route", Security: tt.spec, Action: "route.read"})
+			if tt.wantCode == 0 {
+				if err != nil || status != 0 {
+					t.Fatalf("Enforce status=%d err=%v", status, err)
+				}
+				return
+			}
+			if err == nil || status != tt.wantCode {
+				t.Fatalf("Enforce status=%d err=%v", status, err)
+			}
+			if sec.Auth.PrincipalID != tt.auth.PrincipalID {
+				t.Fatalf("expected denied context to retain auth result: %#v", sec.Auth)
+			}
+		})
+	}
 }
 
 func TestEnforcerReportsUnauthenticatedStatus(t *testing.T) {

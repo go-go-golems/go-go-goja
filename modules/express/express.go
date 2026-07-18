@@ -91,8 +91,20 @@ func (r *Registrar) loader(vm *goja.Runtime, moduleObj *goja.Object) {
 	builders := newBuilderStore()
 	_ = exports.Set("app", func() goja.Value { return r.appObject(vm, builders) })
 	_ = exports.Set("user", func() goja.Value { return builders.newUserBuilder(vm) })
+	_ = exports.Set("agent", func() goja.Value { return builders.newAgentBuilder(vm) })
+	_ = exports.Set("sessionUser", func() goja.Value { return builders.newSessionUserBuilder(vm) })
+	_ = exports.Set("anyOf", func(call goja.FunctionCall) goja.Value {
+		value, err := builders.newAnyOfBuilder(vm, call.Arguments...)
+		if err != nil {
+			panic(vm.NewGoError(err))
+		}
+		return value
+	})
 	_ = exports.Set("resource", func(resourceType string) (goja.Value, error) {
 		return builders.newResourceBuilder(vm, resourceType)
+	})
+	_ = exports.Set("rateLimit", func(policy string) (goja.Value, error) {
+		return builders.newRateLimitBuilder(vm, policy)
 	})
 }
 

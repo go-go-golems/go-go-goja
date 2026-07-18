@@ -243,7 +243,9 @@ Before deploying an auth host, confirm these conditions:
 ## See also
 
 - `xgoja help go-planned-auth-api`
+- `xgoja help express-route-auth-requirements`
 - `xgoja help generated-auth-javascript-apis`
+- `xgoja help programmatic-auth-javascript-apis`
 - `xgoja help hostauth-config-reference`
 - `xgoja help auth-stores-reference`
 - `xgoja help auth-host-production-runbook`

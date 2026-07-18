@@ -12,7 +12,7 @@ AUDIT_DB_DSN ?= $(SESSION_DB_DSN)
 APPAUTH_DB_DSN ?= $(SESSION_DB_DSN)
 CAPABILITY_DB_DSN ?= $(SESSION_DB_DSN)
 
-.PHONY: keycloak-up keycloak-down serve test smoke
+.PHONY: keycloak-up keycloak-down serve test smoke tinyidp-smoke
 
 keycloak-up:
 	KEYCLOAK_PORT=$(KEYCLOAK_PORT) POSTGRES_PORT=$(POSTGRES_PORT) docker compose -f $(EXAMPLE_DIR)/docker-compose.yml up -d
@@ -36,3 +36,7 @@ test:
 
 smoke:
 	KEYCLOAK_PORT=$(KEYCLOAK_PORT) POSTGRES_PORT=$(POSTGRES_PORT) ISSUER=$(ISSUER) CLIENT_ID=$(CLIENT_ID) LISTEN=$(LISTEN) SESSION_DB_DSN='$(SESSION_DB_DSN)' AUDIT_DB_DSN='$(AUDIT_DB_DSN)' APPAUTH_DB_DSN='$(APPAUTH_DB_DSN)' CAPABILITY_DB_DSN='$(CAPABILITY_DB_DSN)' $(EXAMPLE_DIR)/scripts/smoke.sh
+
+
+tinyidp-smoke:
+	$(EXAMPLE_DIR)/scripts/tinyidp_smoke.sh

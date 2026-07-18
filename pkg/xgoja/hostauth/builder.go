@@ -12,6 +12,7 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/appauth"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/audit"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/oidcauth"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/programauth"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth"
 )
 
@@ -87,22 +88,37 @@ func (b *Builder) BuildHostAuthServices(ctx context.Context, vals *values.Values
 		return nil, err
 	}
 	auditSink := audit.Sink{Store: stores.Audit}
-	authOptions := BuildAuthOptions(sessionManager, stores, auditSink)
-	nativeHandlers, err := BuildNativeHandlers(ctx, resolved, sessionManager, stores, b.options.OIDCHTTPClient)
+	rateLimiter := gojahttp.NewMemoryRateLimiter()
+	agentService := programauth.AgentService{Store: stores.ProgramAuth.Agents, Now: b.options.Now}
+	apiTokenService := programauth.APITokenService{Store: stores.ProgramAuth.APITokens, Agents: agentService, Now: b.options.Now}
+	oauthTokenService := programauth.OAuthTokenService{AccessTokens: stores.ProgramAuth.AccessTokens, RefreshTokens: stores.ProgramAuth.RefreshTokens, Agents: agentService, Now: b.options.Now}
+	deviceService := programauth.DeviceService{Store: stores.ProgramAuth.Devices, Agents: agentService, OAuthTokens: oauthTokenService, Now: b.options.Now, VerificationURI: "/auth/device"}
+	authOptions := BuildAuthOptions(sessionManager, stores, auditSink, rateLimiter, apiTokenService, oauthTokenService)
+	nativeHandlers, err := BuildNativeHandlers(ctx, resolved, sessionManager, stores, deviceService, b.options.OIDCHTTPClient)
 	if err != nil {
 		return nil, err
 	}
 	services := &Services{
-		Config:         resolved,
-		AuthOptions:    authOptions,
-		SessionManager: sessionManager,
-		SessionStore:   stores.Session,
-		AuditSink:      auditSink,
-		AuditStore:     stores.Audit,
-		AppAuth:        stores.AppAuth,
-		Capability:     stores.Capability,
-		NativeHandlers: nativeHandlers,
-		Closers:        stores.Closers,
+		Config:            resolved,
+		AuthOptions:       authOptions,
+		SessionManager:    sessionManager,
+		SessionStore:      stores.Session,
+		AuditSink:         auditSink,
+		AuditStore:        stores.Audit,
+		RateLimiter:       rateLimiter,
+		AppAuth:           stores.AppAuth,
+		Capability:        stores.Capability,
+		AgentStore:        stores.ProgramAuth.Agents,
+		APITokenStore:     stores.ProgramAuth.APITokens,
+		AccessTokenStore:  stores.ProgramAuth.AccessTokens,
+		RefreshTokenStore: stores.ProgramAuth.RefreshTokens,
+		DeviceStore:       stores.ProgramAuth.Devices,
+		Agents:            agentService,
+		APITokens:         apiTokenService,
+		OAuthTokens:       oauthTokenService,
+		Devices:           deviceService,
+		NativeHandlers:    nativeHandlers,
+		Closers:           stores.Closers,
 	}
 	success = true
 	return services, nil
@@ -110,9 +126,21 @@ func (b *Builder) BuildHostAuthServices(ctx context.Context, vals *values.Values
 
 // BuildNativeHandlers maps resolved auth config into Go-owned HTTP handlers
 // mounted by xgoja serve before the JavaScript app host fallback.
-func BuildNativeHandlers(ctx context.Context, cfg ResolvedConfig, sessionManager *sessionauth.Manager, stores *StoreBundle, oidcHTTPClient *http.Client) ([]NativeHandler, error) {
+func BuildNativeHandlers(ctx context.Context, cfg ResolvedConfig, sessionManager *sessionauth.Manager, stores *StoreBundle, deviceService programauth.DeviceService, oidcHTTPClient *http.Client) ([]NativeHandler, error) {
+	nativeHandlers := []NativeHandler{}
+	if deviceService.Store != nil {
+		deviceHandlers, err := programauth.NewDeviceHandlers(programauth.DeviceHandlersConfig{Service: deviceService, SessionManager: sessionManager})
+		if err != nil {
+			return nil, err
+		}
+		nativeHandlers = append(nativeHandlers,
+			NativeHandler{Method: "POST", Path: "/auth/device/start", Handler: deviceHandlers.StartHandler()},
+			NativeHandler{Method: "POST", Path: "/auth/device/token", Handler: deviceHandlers.TokenHandler()},
+			NativeHandler{Method: "POST", Path: "/auth/device/approve", Handler: deviceHandlers.ApproveHandler()},
+		)
+	}
 	if cfg.Mode != ModeOIDC {
-		return nil, nil
+		return nativeHandlers, nil
 	}
 	if sessionManager == nil {
 		return nil, configError("auth.session", errors.New("session manager is required for auth.mode=oidc"))
@@ -135,12 +163,13 @@ func BuildNativeHandlers(ctx context.Context, cfg ResolvedConfig, sessionManager
 	if err != nil {
 		return nil, err
 	}
-	return []NativeHandler{
-		{Method: "GET", Path: "/auth/login", Handler: handlers.LoginHandler()},
-		{Method: "GET", Path: "/auth/callback", Handler: handlers.CallbackHandler()},
-		{Method: "POST", Path: "/auth/logout", Handler: handlers.LogoutHandler()},
-		{Method: "GET", Path: "/auth/session", Handler: sessionInfoHandler(sessionManager)},
-	}, nil
+	nativeHandlers = append(nativeHandlers,
+		NativeHandler{Method: "GET", Path: "/auth/login", Handler: handlers.LoginHandler()},
+		NativeHandler{Method: "GET", Path: "/auth/callback", Handler: handlers.CallbackHandler()},
+		NativeHandler{Method: "POST", Path: "/auth/logout", Handler: handlers.LogoutHandler()},
+		NativeHandler{Method: "GET", Path: "/auth/session", Handler: sessionInfoHandler(sessionManager)},
+	)
+	return nativeHandlers, nil
 }
 
 func sessionInfoHandler(sessionManager *sessionauth.Manager) http.Handler {
@@ -226,14 +255,20 @@ func BuildSessionManager(cfg ResolvedSessionConfig, store sessionauth.Store, act
 
 // BuildAuthOptions wires a session manager and built auth stores into
 // gojahttp's host-owned auth interfaces.
-func BuildAuthOptions(sessionManager *sessionauth.Manager, stores *StoreBundle, auditSink gojahttp.AuditSink) gojahttp.AuthOptions {
+func BuildAuthOptions(sessionManager *sessionauth.Manager, stores *StoreBundle, auditSink gojahttp.AuditSink, rateLimiter gojahttp.RateLimiter, apiTokens programauth.BearerAuthenticator, accessTokens programauth.BearerAuthenticator) gojahttp.AuthOptions {
 	var options gojahttp.AuthOptions
 	if sessionManager != nil {
 		options.Authenticator = sessionManager
 		options.CSRF = sessionManager
 	}
+	if apiTokens != nil || accessTokens != nil {
+		options.Authenticator = programauth.CompositeAuthenticator{Session: sessionManager, APITokens: apiTokens, AccessTokens: accessTokens}
+	}
 	if auditSink != nil {
 		options.Audit = auditSink
+	}
+	if rateLimiter != nil {
+		options.RateLimiter = rateLimiter
 	}
 	if stores != nil {
 		if stores.AppAuth.Resources != nil {

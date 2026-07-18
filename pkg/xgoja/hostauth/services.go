@@ -9,6 +9,7 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/appauth"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/audit"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/capability"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/programauth"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth"
 )
 
@@ -53,8 +54,20 @@ type Services struct {
 	AuditSink  gojahttp.AuditSink
 	AuditStore audit.Store
 
+	RateLimiter gojahttp.RateLimiter
+
 	AppAuth    AppAuthStores
 	Capability capability.Store
+
+	AgentStore        programauth.AgentStore
+	APITokenStore     programauth.APITokenStore
+	AccessTokenStore  programauth.AccessTokenStore
+	RefreshTokenStore programauth.RefreshTokenStore
+	DeviceStore       programauth.DeviceAuthorizationStore
+	Agents            programauth.AgentService
+	APITokens         programauth.APITokenService
+	OAuthTokens       programauth.OAuthTokenService
+	Devices           programauth.DeviceService
 
 	NativeHandlers []NativeHandler
 

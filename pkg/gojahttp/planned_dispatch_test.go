@@ -20,6 +20,17 @@ func (f authenticatorFunc) Authenticate(ctx context.Context, req *http.Request, 
 	return f(ctx, req, session, spec)
 }
 
+type resultAuthenticatorFunc func(context.Context, *http.Request, *gojahttp.SessionDTO, gojahttp.SecuritySpec) (gojahttp.AuthResult, error)
+
+func (f resultAuthenticatorFunc) Authenticate(ctx context.Context, req *http.Request, session *gojahttp.SessionDTO, spec gojahttp.SecuritySpec) (*gojahttp.Actor, error) {
+	result, err := f(ctx, req, session, spec)
+	return result.Actor, err
+}
+
+func (f resultAuthenticatorFunc) AuthenticateResult(ctx context.Context, req *http.Request, session *gojahttp.SessionDTO, spec gojahttp.SecuritySpec) (gojahttp.AuthResult, error) {
+	return f(ctx, req, session, spec)
+}
+
 type resolverFunc func(context.Context, gojahttp.ResourceRequest) (*gojahttp.ResourceRef, error)
 
 func (f resolverFunc) ResolveResource(ctx context.Context, req gojahttp.ResourceRequest) (*gojahttp.ResourceRef, error) {
@@ -192,6 +203,78 @@ func TestPlannedUserRouteInstallsActorInOwnerContext(t *testing.T) {
 	}
 	if observedActorID != "context-user" {
 		t.Fatalf("owner context actor=%q, want context-user", observedActorID)
+	}
+}
+
+func TestPlannedUserRouteExposesRedactedAuthResult(t *testing.T) {
+	scopes := []string{"project.read"}
+	host := gojahttp.NewHost(gojahttp.HostOptions{Dev: true, Auth: gojahttp.AuthOptions{
+		Authenticator: resultAuthenticatorFunc(func(context.Context, *http.Request, *gojahttp.SessionDTO, gojahttp.SecuritySpec) (gojahttp.AuthResult, error) {
+			return gojahttp.AuthResult{
+				Actor:          &gojahttp.Actor{ID: "agt_1", Kind: "agent"},
+				Method:         gojahttp.AuthMethodAPIToken,
+				PrincipalKind:  gojahttp.PrincipalKindAgent,
+				PrincipalID:    "agt_1",
+				CredentialID:   "tok_1",
+				CredentialHint: "ggpat_abcd",
+				Scopes:         scopes,
+			}, nil
+		}),
+		Authorizer: authorizerFunc(func(_ context.Context, req gojahttp.AuthorizationRequest) (gojahttp.AuthorizationDecision, error) {
+			return gojahttp.AuthorizationDecision{Allowed: req.Actor != nil && req.Actor.ID == "agt_1"}, nil
+		}),
+	}})
+	handler := plannedTestRuntime(t, host, `(function(ctx, res) {
+  ctx.auth.scopes[0] = "mutated";
+  ctx.auth.credentialId = "raw-secret";
+  res.json({ method: ctx.auth.method, kind: ctx.auth.principalKind, principal: ctx.auth.principalId, credential: ctx.auth.credentialId, hint: ctx.auth.credentialHint, scope: ctx.auth.scopes[0], actor: ctx.actor.id });
+})`)
+	if err := host.RegisterPlanned(gojahttp.RoutePlan{Method: "GET", Pattern: "/agent", Security: gojahttp.SecuritySpec{Mode: gojahttp.SecurityModeUser}, Action: "project.read"}, handler); err != nil {
+		t.Fatalf("RegisterPlanned: %v", err)
+	}
+
+	rr := httptest.NewRecorder()
+	host.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/agent", nil))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
+	}
+	body := rr.Body.String()
+	for _, want := range []string{`"method":"apiToken"`, `"kind":"agent"`, `"principal":"agt_1"`, `"hint":"ggpat_abcd"`, `"actor":"agt_1"`} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("body missing %s: %s", want, body)
+		}
+	}
+	if scopes[0] != "project.read" {
+		t.Fatalf("auth scopes mutated: %#v", scopes)
+	}
+}
+
+func TestPlannedUserRouteSkipsCSRFForTokenAuthResult(t *testing.T) {
+	csrfCalled := false
+	host := gojahttp.NewHost(gojahttp.HostOptions{Dev: true, Auth: gojahttp.AuthOptions{
+		Authenticator: resultAuthenticatorFunc(func(context.Context, *http.Request, *gojahttp.SessionDTO, gojahttp.SecuritySpec) (gojahttp.AuthResult, error) {
+			return gojahttp.AuthResult{Actor: &gojahttp.Actor{ID: "agt_1", Kind: "agent"}, Method: gojahttp.AuthMethodAPIToken, PrincipalKind: gojahttp.PrincipalKindAgent, PrincipalID: "agt_1", CSRFRequired: false}, nil
+		}),
+		CSRF: csrfFunc(func(context.Context, gojahttp.CSRFRequest) error {
+			csrfCalled = true
+			return errors.New("csrf should not run")
+		}),
+		Authorizer: authorizerFunc(func(context.Context, gojahttp.AuthorizationRequest) (gojahttp.AuthorizationDecision, error) {
+			return gojahttp.AuthorizationDecision{Allowed: true}, nil
+		}),
+	}})
+	handler := plannedTestRuntime(t, host, `(function(_ctx, res) { res.status(204).end(); })`)
+	if err := host.RegisterPlanned(gojahttp.RoutePlan{Method: "POST", Pattern: "/agent", Security: gojahttp.SecuritySpec{Mode: gojahttp.SecurityModeUser}, CSRF: gojahttp.CSRFSpec{Required: true}, Action: "agent.write"}, handler); err != nil {
+		t.Fatalf("RegisterPlanned: %v", err)
+	}
+
+	rr := httptest.NewRecorder()
+	host.ServeHTTP(rr, httptest.NewRequest(http.MethodPost, "/agent", nil))
+	if rr.Code != http.StatusNoContent {
+		t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
+	}
+	if csrfCalled {
+		t.Fatal("csrf verifier should not run for csrf-free token auth result")
 	}
 }
 

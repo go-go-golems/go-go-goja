@@ -73,6 +73,21 @@ func newServeCommandSet(ctx providerapi.CommandSetContext) (*providerapi.Command
 	if err != nil {
 		return nil, err
 	}
+	commandHTTPDefaults, err := decodeSettingsConfig(ctx.Config)
+	if err != nil {
+		return nil, fmt.Errorf("decode http serve command config: %w", err)
+	}
+	for i, section := range sections {
+		if section.GetSlug() != "http" {
+			continue
+		}
+		section, err = httpConfigSectionWithDefaults(commandHTTPDefaults, schema.WithPrefix("http-"))
+		if err != nil {
+			return nil, fmt.Errorf("http serve command config section: %w", err)
+		}
+		sections[i] = section
+		break
+	}
 	if hasAuthFactory {
 		authSection, err := serveAuthSection(authFactory)
 		if err != nil {

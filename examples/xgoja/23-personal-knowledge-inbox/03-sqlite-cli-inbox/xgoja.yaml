@@ -1,0 +1,101 @@
+# Required schema selector. Step 03 still uses xgoja v2; this step adds the
+# host provider and database module while keeping the Step 02 HTTP shape.
+schema: xgoja/v2
+
+# Snapshot-specific name for the SQLite CLI stage.
+name: personal-knowledge-inbox-sqlite-cli
+
+# Application identity for generated command/config metadata. Minimal shape:
+#   app:
+#     name: string        # required
+#     envPrefix: string   # optional, useful once env-backed config appears
+app:
+  name: personal-knowledge-inbox-sqlite-cli
+
+# Generated Go module settings for this tutorial snapshot.
+go:
+  module: xgoja.generated/personal-knowledge-inbox-sqlite-cli
+  version: "1.26"
+
+# Workspace resolution strategy for local tutorial builds.
+workspace:
+  mode: auto
+
+# Providers make Go-backed capabilities available to the generated binary.
+# Step 03 has two providers:
+#   - host: guarded host capabilities such as database, fs, fetch, exec
+#   - http: Express runtime module and provider-backed serve command
+# Provider entry shape:
+#   - id: string
+#     import: string
+#     register: string
+providers:
+  - id: go-go-goja-host
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/host
+    register: Register
+  - id: go-go-goja-http
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http
+    register: Register
+
+# Runtime modules define what JavaScript can require(). Step 03 introduces the
+# guarded host `database` module for local SQLite inbox persistence and keeps the
+# HTTP `express` module from Step 02. Module entry shape:
+#   - provider: string
+#     name: string
+#     as: string        # optional require() alias
+#     config: object    # optional provider-specific policy/config
+runtime:
+  modules:
+    - provider: go-go-goja-host
+      name: database
+      as: database
+      config:
+        # Allows JavaScript to call database.configure(driver, dsn). This is
+        # acceptable for a local tutorial CLI; production apps should narrow
+        # host capabilities wherever possible.
+        allowConfigure: true
+    - provider: go-go-goja-http
+      name: express
+      config:
+        reject-raw-routes: true
+        dev-errors: false
+
+# Step 03 renames the JavaScript source file from hello.js to inbox.js because
+# it now contains several inbox commands. Source entry shape is the same as
+# previous steps: jsverbs loaded from ./verbs with an include allow-list.
+sources:
+  - id: inbox-verbs
+    kind: jsverbs
+    from:
+      dir: ./verbs
+    include:
+      - inbox.js
+    language: javascript
+
+# Commands keep both surfaces from Step 02:
+#   - `verbs ...` for CLI-oriented jsverbs such as capture/list/archive
+#   - `serve ...` for the hello-world web route-registration verb
+# Later steps may split server and CLI into separate generated binaries, but this
+# step intentionally keeps them together to teach database use first.
+commands:
+  - id: verbs
+    type: builtin.jsverbs
+    name: verbs
+    sources:
+      - inbox-verbs
+  - id: http-serve
+    type: provider.command-set
+    name: serve
+    mount: serve
+    provider: go-go-goja-http
+    sources:
+      - inbox-verbs
+
+# Binary artifact for the Step 03 snapshot. Embedding `inbox-verbs` means the
+# generated binary contains the CLI and server-registration JavaScript.
+artifacts:
+  - id: binary
+    type: binary
+    output: dist/personal-knowledge-inbox-sqlite-cli
+    sources:
+      - inbox-verbs

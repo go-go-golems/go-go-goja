@@ -1,7 +1,7 @@
 ---
 Title: Replace xgoja sourcegraph regex import scanning with parser-backed runtime alias resolution
 Ticket: GOJA-XGOJA-SOURCEGRAPH-PARSER-001
-Status: active
+Status: complete
 Topics:
     - xgoja
     - sourcegraph
@@ -13,10 +13,11 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-06-14T09:42:15.792235578-04:00
+LastUpdated: 2026-06-18T17:36:05.861900796-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 # Replace xgoja sourcegraph regex import scanning with parser-backed runtime alias resolution
 

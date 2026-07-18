@@ -1,7 +1,7 @@
 ---
 Title: Design generated host auth session and store configuration
 Ticket: XGOJA-GENERATED-HOST-AUTH-CONFIG
-Status: active
+Status: complete
 Topics:
     - xgoja
     - auth
@@ -12,10 +12,11 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-06-14T18:19:41.150262597-04:00
+LastUpdated: 2026-06-18T17:36:02.151996056-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 # Design generated host auth session and store configuration
 

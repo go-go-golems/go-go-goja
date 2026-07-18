@@ -1,0 +1,217 @@
+package sqlstore
+
+const SQLiteSchema = `
+CREATE TABLE IF NOT EXISTS auth_program_agents (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    owner_user_id TEXT NOT NULL DEFAULT '',
+    tenant_id TEXT NOT NULL DEFAULT '',
+    disabled_at TIMESTAMP NULL,
+    created_by TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
+    policy_json TEXT NOT NULL DEFAULT '[]'
+);
+
+CREATE TABLE IF NOT EXISTS auth_program_api_tokens (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    agent_id TEXT NOT NULL,
+    subject_user_id TEXT NOT NULL DEFAULT '',
+    token_hash BLOB NOT NULL,
+    token_prefix TEXT NOT NULL,
+    created_by TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
+    expires_at TIMESTAMP NULL,
+    last_used_at TIMESTAMP NULL,
+    revoked_at TIMESTAMP NULL,
+    grants_json TEXT NOT NULL DEFAULT '[]'
+);
+
+CREATE TABLE IF NOT EXISTS auth_program_access_tokens (
+    id TEXT PRIMARY KEY,
+    agent_id TEXT NOT NULL,
+    subject_user_id TEXT NOT NULL DEFAULT '',
+    family_id TEXT NOT NULL,
+    token_hash BLOB NOT NULL,
+    token_prefix TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    last_used_at TIMESTAMP NULL,
+    revoked_at TIMESTAMP NULL,
+    grants_json TEXT NOT NULL DEFAULT '[]'
+);
+
+CREATE TABLE IF NOT EXISTS auth_program_refresh_tokens (
+    id TEXT PRIMARY KEY,
+    agent_id TEXT NOT NULL,
+    subject_user_id TEXT NOT NULL DEFAULT '',
+    family_id TEXT NOT NULL,
+    generation INTEGER NOT NULL,
+    token_hash BLOB NOT NULL,
+    token_prefix TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    used_at TIMESTAMP NULL,
+    revoked_at TIMESTAMP NULL,
+    replaced_by_id TEXT NOT NULL DEFAULT '',
+    grants_json TEXT NOT NULL DEFAULT '[]'
+);
+
+CREATE TABLE IF NOT EXISTS auth_program_device_authorizations (
+    id TEXT PRIMARY KEY,
+    client_name TEXT NOT NULL,
+    device_code_hash BLOB NOT NULL,
+    device_code_prefix TEXT NOT NULL,
+    user_code_hash BLOB NOT NULL,
+    user_code TEXT NOT NULL,
+    verification_uri TEXT NOT NULL DEFAULT '',
+    verification_uri_complete TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    poll_interval_seconds INTEGER NOT NULL,
+    last_polled_at TIMESTAMP NULL,
+    approved_at TIMESTAMP NULL,
+    denied_at TIMESTAMP NULL,
+    consumed_at TIMESTAMP NULL,
+    agent_id TEXT NOT NULL DEFAULT '',
+    subject_user_id TEXT NOT NULL DEFAULT '',
+    tenant_id TEXT NOT NULL DEFAULT '',
+    grants_json TEXT NOT NULL DEFAULT '[]'
+);
+
+CREATE INDEX IF NOT EXISTS idx_auth_program_agents_owner ON auth_program_agents(owner_user_id);
+CREATE INDEX IF NOT EXISTS idx_auth_program_agents_tenant ON auth_program_agents(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_auth_program_agents_disabled_at ON auth_program_agents(disabled_at);
+CREATE INDEX IF NOT EXISTS idx_auth_program_agents_created_at ON auth_program_agents(created_at, id);
+CREATE INDEX IF NOT EXISTS idx_auth_program_api_tokens_prefix ON auth_program_api_tokens(token_prefix);
+CREATE INDEX IF NOT EXISTS idx_auth_program_api_tokens_agent ON auth_program_api_tokens(agent_id);
+CREATE INDEX IF NOT EXISTS idx_auth_program_api_tokens_subject ON auth_program_api_tokens(subject_user_id);
+CREATE INDEX IF NOT EXISTS idx_auth_program_api_tokens_revoked_at ON auth_program_api_tokens(revoked_at);
+CREATE INDEX IF NOT EXISTS idx_auth_program_api_tokens_created_at ON auth_program_api_tokens(created_at, id);
+CREATE INDEX IF NOT EXISTS idx_auth_program_access_tokens_prefix ON auth_program_access_tokens(token_prefix);
+CREATE INDEX IF NOT EXISTS idx_auth_program_access_tokens_family ON auth_program_access_tokens(family_id);
+CREATE INDEX IF NOT EXISTS idx_auth_program_access_tokens_agent ON auth_program_access_tokens(agent_id);
+CREATE INDEX IF NOT EXISTS idx_auth_program_access_tokens_expires_at ON auth_program_access_tokens(expires_at);
+CREATE INDEX IF NOT EXISTS idx_auth_program_refresh_tokens_prefix ON auth_program_refresh_tokens(token_prefix);
+CREATE INDEX IF NOT EXISTS idx_auth_program_refresh_tokens_family ON auth_program_refresh_tokens(family_id, generation);
+CREATE INDEX IF NOT EXISTS idx_auth_program_refresh_tokens_used_at ON auth_program_refresh_tokens(used_at);
+CREATE INDEX IF NOT EXISTS idx_auth_program_refresh_tokens_revoked_at ON auth_program_refresh_tokens(revoked_at);
+CREATE INDEX IF NOT EXISTS idx_auth_program_devices_device_prefix ON auth_program_device_authorizations(device_code_prefix);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_auth_program_devices_user_code_hash ON auth_program_device_authorizations(user_code_hash);
+CREATE INDEX IF NOT EXISTS idx_auth_program_devices_expires_at ON auth_program_device_authorizations(expires_at);
+CREATE INDEX IF NOT EXISTS idx_auth_program_devices_status ON auth_program_device_authorizations(approved_at, denied_at, consumed_at);
+`
+
+const PostgresSchema = `
+CREATE TABLE IF NOT EXISTS auth_program_agents (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    owner_user_id TEXT NOT NULL DEFAULT '',
+    tenant_id TEXT NOT NULL DEFAULT '',
+    disabled_at TIMESTAMPTZ NULL,
+    created_by TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL,
+    policy_json JSONB NOT NULL DEFAULT '[]'::jsonb
+);
+
+CREATE TABLE IF NOT EXISTS auth_program_api_tokens (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    agent_id TEXT NOT NULL,
+    subject_user_id TEXT NOT NULL DEFAULT '',
+    token_hash BYTEA NOT NULL,
+    token_prefix TEXT NOT NULL,
+    created_by TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL,
+    expires_at TIMESTAMPTZ NULL,
+    last_used_at TIMESTAMPTZ NULL,
+    revoked_at TIMESTAMPTZ NULL,
+    grants_json JSONB NOT NULL DEFAULT '[]'::jsonb
+);
+
+CREATE TABLE IF NOT EXISTS auth_program_access_tokens (
+    id TEXT PRIMARY KEY,
+    agent_id TEXT NOT NULL,
+    subject_user_id TEXT NOT NULL DEFAULT '',
+    family_id TEXT NOT NULL,
+    token_hash BYTEA NOT NULL,
+    token_prefix TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    last_used_at TIMESTAMPTZ NULL,
+    revoked_at TIMESTAMPTZ NULL,
+    grants_json JSONB NOT NULL DEFAULT '[]'::jsonb
+);
+
+CREATE TABLE IF NOT EXISTS auth_program_refresh_tokens (
+    id TEXT PRIMARY KEY,
+    agent_id TEXT NOT NULL,
+    subject_user_id TEXT NOT NULL DEFAULT '',
+    family_id TEXT NOT NULL,
+    generation INTEGER NOT NULL,
+    token_hash BYTEA NOT NULL,
+    token_prefix TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    used_at TIMESTAMPTZ NULL,
+    revoked_at TIMESTAMPTZ NULL,
+    replaced_by_id TEXT NOT NULL DEFAULT '',
+    grants_json JSONB NOT NULL DEFAULT '[]'::jsonb
+);
+
+CREATE TABLE IF NOT EXISTS auth_program_device_authorizations (
+    id TEXT PRIMARY KEY,
+    client_name TEXT NOT NULL,
+    device_code_hash BYTEA NOT NULL,
+    device_code_prefix TEXT NOT NULL,
+    user_code_hash BYTEA NOT NULL,
+    user_code TEXT NOT NULL,
+    verification_uri TEXT NOT NULL DEFAULT '',
+    verification_uri_complete TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    poll_interval_seconds INTEGER NOT NULL,
+    last_polled_at TIMESTAMPTZ NULL,
+    approved_at TIMESTAMPTZ NULL,
+    denied_at TIMESTAMPTZ NULL,
+    consumed_at TIMESTAMPTZ NULL,
+    agent_id TEXT NOT NULL DEFAULT '',
+    subject_user_id TEXT NOT NULL DEFAULT '',
+    tenant_id TEXT NOT NULL DEFAULT '',
+    grants_json JSONB NOT NULL DEFAULT '[]'::jsonb
+);
+
+CREATE INDEX IF NOT EXISTS idx_auth_program_agents_owner ON auth_program_agents(owner_user_id);
+CREATE INDEX IF NOT EXISTS idx_auth_program_agents_tenant ON auth_program_agents(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_auth_program_agents_disabled_at ON auth_program_agents(disabled_at);
+CREATE INDEX IF NOT EXISTS idx_auth_program_agents_created_at ON auth_program_agents(created_at, id);
+CREATE INDEX IF NOT EXISTS idx_auth_program_api_tokens_prefix ON auth_program_api_tokens(token_prefix);
+CREATE INDEX IF NOT EXISTS idx_auth_program_api_tokens_agent ON auth_program_api_tokens(agent_id);
+CREATE INDEX IF NOT EXISTS idx_auth_program_api_tokens_subject ON auth_program_api_tokens(subject_user_id);
+CREATE INDEX IF NOT EXISTS idx_auth_program_api_tokens_revoked_at ON auth_program_api_tokens(revoked_at);
+CREATE INDEX IF NOT EXISTS idx_auth_program_api_tokens_created_at ON auth_program_api_tokens(created_at, id);
+CREATE INDEX IF NOT EXISTS idx_auth_program_access_tokens_prefix ON auth_program_access_tokens(token_prefix);
+CREATE INDEX IF NOT EXISTS idx_auth_program_access_tokens_family ON auth_program_access_tokens(family_id);
+CREATE INDEX IF NOT EXISTS idx_auth_program_access_tokens_agent ON auth_program_access_tokens(agent_id);
+CREATE INDEX IF NOT EXISTS idx_auth_program_access_tokens_expires_at ON auth_program_access_tokens(expires_at);
+CREATE INDEX IF NOT EXISTS idx_auth_program_refresh_tokens_prefix ON auth_program_refresh_tokens(token_prefix);
+CREATE INDEX IF NOT EXISTS idx_auth_program_refresh_tokens_family ON auth_program_refresh_tokens(family_id, generation);
+CREATE INDEX IF NOT EXISTS idx_auth_program_refresh_tokens_used_at ON auth_program_refresh_tokens(used_at);
+CREATE INDEX IF NOT EXISTS idx_auth_program_refresh_tokens_revoked_at ON auth_program_refresh_tokens(revoked_at);
+CREATE INDEX IF NOT EXISTS idx_auth_program_devices_device_prefix ON auth_program_device_authorizations(device_code_prefix);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_auth_program_devices_user_code_hash ON auth_program_device_authorizations(user_code_hash);
+CREATE INDEX IF NOT EXISTS idx_auth_program_devices_expires_at ON auth_program_device_authorizations(expires_at);
+CREATE INDEX IF NOT EXISTS idx_auth_program_devices_status ON auth_program_device_authorizations(approved_at, denied_at, consumed_at);
+`

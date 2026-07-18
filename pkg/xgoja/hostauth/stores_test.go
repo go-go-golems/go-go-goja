@@ -25,6 +25,9 @@ func TestBuildStoresMemory(t *testing.T) {
 	if stores.Session == nil || stores.Audit == nil || stores.Capability == nil {
 		t.Fatalf("stores missing: %#v", stores)
 	}
+	if stores.ProgramAuth.Agents == nil || stores.ProgramAuth.APITokens == nil || stores.ProgramAuth.AccessTokens == nil || stores.ProgramAuth.RefreshTokens == nil || stores.ProgramAuth.Devices == nil {
+		t.Fatalf("programauth stores missing: %#v", stores.ProgramAuth)
+	}
 	if stores.AppAuth.Users == nil || stores.AppAuth.Memberships == nil || stores.AppAuth.Resources == nil {
 		t.Fatalf("appauth stores missing: %#v", stores.AppAuth)
 	}

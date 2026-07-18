@@ -7,12 +7,14 @@ import (
 	"os/exec"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/dop251/goja"
 	"github.com/dop251/goja_nodejs/require"
 	"github.com/go-go-golems/go-go-goja/modules"
 	dbm "github.com/go-go-golems/go-go-goja/modules/database"
 	_ "github.com/go-go-golems/go-go-goja/modules/exec"
+	fetchmod "github.com/go-go-golems/go-go-goja/modules/fetch"
 	fsmod "github.com/go-go-golems/go-go-goja/modules/fs"
 	"github.com/go-go-golems/go-go-goja/pkg/tsgen/spec"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
@@ -43,6 +45,20 @@ type AssetMount struct {
 	Root  string `json:"root,omitempty"`
 }
 
+type FetchConfig struct {
+	Allow            bool                   `json:"allow"`
+	AllowedOrigins   []string               `json:"allowedOrigins,omitempty"`
+	Timeout          string                 `json:"timeout,omitempty"`
+	MaxResponseBytes int64                  `json:"maxResponseBytes,omitempty"`
+	Credentials      FetchCredentialsConfig `json:"credentials,omitempty"`
+}
+
+type FetchCredentialsConfig struct {
+	AllowEnv     bool     `json:"allowEnv,omitempty"`
+	AllowFiles   bool     `json:"allowFiles,omitempty"`
+	AllowedFiles []string `json:"allowedFiles,omitempty"`
+}
+
 type ExecConfig struct {
 	Allow           bool     `json:"allow"`
 	AllowedCommands []string `json:"allowedCommands,omitempty"`
@@ -61,6 +77,7 @@ func Register(registry *providerapi.ProviderRegistry) error {
 	return registry.Package(PackageID,
 		fsModule("fs"),
 		fsModule("node:fs"),
+		fetchModule("fetch"),
 		execModule(),
 		databaseModule("database"),
 		databaseModule("db"),
@@ -156,6 +173,75 @@ func embeddedBackendFromConfig(host providerapi.HostServices, cfg EmbeddedFSConf
 		mounts = append(mounts, fsmod.FSMount{FS: fsys, Root: root, Mount: mountPoint})
 	}
 	return fsmod.NewReadOnlyFSBackend(mounts...), nil
+}
+
+func fetchModule(name string) providerapi.Module {
+	return providerapi.Module{
+		Name:        name,
+		DefaultAs:   name,
+		Description: "Guarded outbound HTTP client module. Requires config.allow=true and supports origin allow-lists, timeouts, response-size limits, and framework-native bearer credential sources.",
+		TypeScript:  fetchmod.New(fetchmod.WithName(name)).TypeScriptModule(),
+		ConfigSchema: json.RawMessage(`{
+  "type": "object",
+  "required": ["allow"],
+  "properties": {
+    "allow": {"type": "boolean", "const": true, "description": "Explicitly enable outbound HTTP from JavaScript."},
+    "allowedOrigins": {"type": "array", "items": {"type": "string"}, "description": "Allowed URL origins. Exact origins are supported, plus development patterns such as http://127.0.0.1:* . Empty means any origin."},
+    "timeout": {"type": "string", "description": "Default request timeout as a Go duration, for example 5s."},
+    "maxResponseBytes": {"type": "integer", "minimum": 1, "description": "Maximum buffered response body size."},
+    "credentials": {
+      "type": "object",
+      "properties": {
+        "allowEnv": {"type": "boolean", "description": "Allow bearer credentials to be read from environment variables."},
+        "allowFiles": {"type": "boolean", "description": "Allow bearer credentials to be read from files."},
+        "allowedFiles": {"type": "array", "items": {"type": "string"}, "description": "Optional exact file paths allowed for credential file sources."}
+      }
+    }
+  }
+}`),
+		NewModuleFactory: func(ctx providerapi.ModuleSetupContext) (require.ModuleLoader, error) {
+			cfg := FetchConfig{}
+			if err := decodeConfig(ctx.Config, &cfg); err != nil {
+				return nil, fmt.Errorf("%s config: %w", name, err)
+			}
+			if !cfg.Allow {
+				return nil, fmt.Errorf("%s module requires config.allow=true", name)
+			}
+			policy, err := fetchPolicyFromConfig(cfg)
+			if err != nil {
+				return nil, fmt.Errorf("%s config: %w", name, err)
+			}
+			requireName := ctx.As
+			if strings.TrimSpace(requireName) == "" {
+				requireName = ctx.Name
+			}
+			if strings.TrimSpace(requireName) == "" {
+				requireName = name
+			}
+			return fetchmod.New(fetchmod.WithName(requireName), fetchmod.WithPolicy(policy)).Loader, nil
+		},
+	}
+}
+
+func fetchPolicyFromConfig(cfg FetchConfig) (fetchmod.Policy, error) {
+	var timeout time.Duration
+	if strings.TrimSpace(cfg.Timeout) != "" {
+		parsed, err := time.ParseDuration(strings.TrimSpace(cfg.Timeout))
+		if err != nil {
+			return fetchmod.Policy{}, err
+		}
+		timeout = parsed
+	}
+	return fetchmod.Policy{
+		AllowedOrigins:   append([]string(nil), cfg.AllowedOrigins...),
+		Timeout:          timeout,
+		MaxResponseBytes: cfg.MaxResponseBytes,
+		Credentials: fetchmod.CredentialPolicy{
+			AllowEnv:     cfg.Credentials.AllowEnv,
+			AllowFiles:   cfg.Credentials.AllowFiles,
+			AllowedFiles: append([]string(nil), cfg.Credentials.AllowedFiles...),
+		},
+	}, nil
 }
 
 func execModule() providerapi.Module {

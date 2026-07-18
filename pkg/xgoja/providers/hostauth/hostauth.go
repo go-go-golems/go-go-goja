@@ -11,6 +11,7 @@ import (
 	"github.com/go-go-golems/go-go-goja/modules"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/audit"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/capability"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/programauth"
 	"github.com/go-go-golems/go-go-goja/pkg/runtimebridge"
 	hostauthsvc "github.com/go-go-golems/go-go-goja/pkg/xgoja/hostauth"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
@@ -75,12 +76,12 @@ func authModule() providerapi.Module {
 			}
 			capabilityService := capability.Service{Store: services.Capability, Audit: services.AuditSink}
 			maxLimit := effectiveMaxLimit(cfg.Audit)
-			return newLoader(queryStore, maxLimit, capabilityService), nil
+			return newLoader(queryStore, maxLimit, capabilityService, services.Agents, services.APITokens), nil
 		},
 	}
 }
 
-func newLoader(queryStore audit.QueryStore, maxLimit int, capabilityService capability.Service) require.ModuleLoader {
+func newLoader(queryStore audit.QueryStore, maxLimit int, capabilityService capability.Service, agentService programauth.AgentService, apiTokenService programauth.APITokenService) require.ModuleLoader {
 	return func(vm *goja.Runtime, moduleObj *goja.Object) {
 		exports := moduleObj.Get("exports").(*goja.Object)
 		auditObj := vm.NewObject()
@@ -103,6 +104,11 @@ func newLoader(queryStore audit.QueryStore, maxLimit int, capabilityService capa
 			return newCapabilityRevokeBuilder(vm, capabilityService)
 		})
 		modules.SetExport(exports, "auth", "capabilities", capabilitiesObj)
+
+		programmatic := newProgrammaticExports(vm, agentService, apiTokenService)
+		modules.SetExport(exports, "auth", "grants", programmatic.grants)
+		modules.SetExport(exports, "auth", "agents", programmatic.agents)
+		modules.SetExport(exports, "auth", "tokens", programmatic.tokens)
 	}
 }
 

@@ -22,3 +22,8 @@ Wired Keycloak demo to SQL appauth store and smoke assertions
 
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/19-express-keycloak-auth-host/cmd/host/main.go — Appauth SQL store wiring and seed data
 
+
+## 2026-06-18
+
+Ticket closed
+

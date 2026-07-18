@@ -19,6 +19,17 @@ func (f expressAuthenticatorFunc) Authenticate(ctx context.Context, req *http.Re
 	return f(ctx, req, session, spec)
 }
 
+type expressResultAuthenticatorFunc func(context.Context, *http.Request, *gojahttp.SessionDTO, gojahttp.SecuritySpec) (gojahttp.AuthResult, error)
+
+func (f expressResultAuthenticatorFunc) Authenticate(ctx context.Context, req *http.Request, session *gojahttp.SessionDTO, spec gojahttp.SecuritySpec) (*gojahttp.Actor, error) {
+	result, err := f(ctx, req, session, spec)
+	return result.Actor, err
+}
+
+func (f expressResultAuthenticatorFunc) AuthenticateResult(ctx context.Context, req *http.Request, session *gojahttp.SessionDTO, spec gojahttp.SecuritySpec) (gojahttp.AuthResult, error) {
+	return f(ctx, req, session, spec)
+}
+
 type expressResolverFunc func(context.Context, gojahttp.ResourceRequest) (*gojahttp.ResourceRef, error)
 
 func (f expressResolverFunc) ResolveResource(ctx context.Context, req gojahttp.ResourceRequest) (*gojahttp.ResourceRef, error) {
@@ -122,6 +133,59 @@ func TestExpressPlannedAuthRouteBuilder(t *testing.T) {
 	}
 	if !strings.Contains(rr.Body.String(), `"actor":"u1"`) || !strings.Contains(rr.Body.String(), `"action":"user.self.read"`) {
 		t.Fatalf("body=%s", rr.Body.String())
+	}
+}
+
+func TestExpressPlannedAuthRestrictionBuilders(t *testing.T) {
+	host := gojahttp.NewHost(gojahttp.HostOptions{Dev: true, Auth: gojahttp.AuthOptions{
+		Authenticator: expressResultAuthenticatorFunc(func(context.Context, *http.Request, *gojahttp.SessionDTO, gojahttp.SecuritySpec) (gojahttp.AuthResult, error) {
+			return gojahttp.AuthResult{Actor: &gojahttp.Actor{ID: "agt_1", Kind: "agent"}, Method: gojahttp.AuthMethodAPIToken, PrincipalKind: gojahttp.PrincipalKindAgent, PrincipalID: "agt_1", CSRFRequired: false}, nil
+		}),
+		Authorizer: expressAuthorizerFunc(func(context.Context, gojahttp.AuthorizationRequest) (gojahttp.AuthorizationDecision, error) {
+			return gojahttp.AuthorizationDecision{Allowed: true}, nil
+		}),
+	}})
+	rt := newExpressAuthRuntime(t, host)
+	runExpressAuthScript(t, rt, `
+		const express = require("express");
+		const app = express.app();
+		app.get("/agent")
+		  .auth(express.anyOf(express.agent(), express.sessionUser()))
+		  .allow("agent.read")
+		  .handle((ctx, res) => res.json({ kind: ctx.auth.principalKind, method: ctx.auth.method }));
+	`)
+	rr := httptest.NewRecorder()
+	host.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/agent", nil))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
+	}
+	if !strings.Contains(rr.Body.String(), `"kind":"agent"`) || !strings.Contains(rr.Body.String(), `"method":"apiToken"`) {
+		t.Fatalf("body=%s", rr.Body.String())
+	}
+}
+
+func TestExpressPlannedAuthRestrictionRejectsWrongPrincipal(t *testing.T) {
+	host := gojahttp.NewHost(gojahttp.HostOptions{Dev: true, Auth: gojahttp.AuthOptions{
+		Authenticator: expressResultAuthenticatorFunc(func(context.Context, *http.Request, *gojahttp.SessionDTO, gojahttp.SecuritySpec) (gojahttp.AuthResult, error) {
+			return gojahttp.AuthResult{Actor: &gojahttp.Actor{ID: "u1", Kind: "user"}, Method: gojahttp.AuthMethodSession, PrincipalKind: gojahttp.PrincipalKindUser, PrincipalID: "u1", CSRFRequired: true}, nil
+		}),
+		Authorizer: expressAuthorizerFunc(func(context.Context, gojahttp.AuthorizationRequest) (gojahttp.AuthorizationDecision, error) {
+			return gojahttp.AuthorizationDecision{Allowed: true}, nil
+		}),
+	}})
+	rt := newExpressAuthRuntime(t, host)
+	runExpressAuthScript(t, rt, `
+		const express = require("express");
+		const app = express.app();
+		app.get("/agent-only")
+		  .auth(express.agent())
+		  .allow("agent.read")
+		  .handle((_ctx, res) => res.json({ ok: true }));
+	`)
+	rr := httptest.NewRecorder()
+	host.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/agent-only", nil))
+	if rr.Code != http.StatusForbidden {
+		t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
 	}
 }
 
