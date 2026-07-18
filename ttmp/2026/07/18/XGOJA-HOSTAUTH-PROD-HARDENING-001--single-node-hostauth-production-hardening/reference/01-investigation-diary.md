@@ -15,12 +15,16 @@ Owners: []
 RelatedFiles:
     - Path: repo://cmd/xgoja/doc/23-auth-host-production-runbook.md
       Note: Phase 5 single-node deployment and release evidence runbook
+    - Path: repo://examples/gojahttp/02-oauth-tinyidp/main.go
+      Note: End-to-end Express OAuth and TinyIDP example
     - Path: repo://modules/express/auth_builders.go
       Note: Express OAuth builder
     - Path: repo://pkg/gojahttp/auth/programauth/device_handlers.go
       Note: Phase 2 native policy, budgets, lifecycle and management handlers
     - Path: repo://pkg/gojahttp/auth/programauth/oauth.go
       Note: Exclusive OAuth bearer verifier boundary
+    - Path: repo://pkg/gojahttp/auth/tinyidpauth/verifier.go
+      Note: Concrete TinyIDP discovery and introspection verifier wired into hostauth
     - Path: repo://pkg/gojahttp/auth_plan.go
       Note: OAuth route requirement and strict validation
     - Path: repo://pkg/gojahttp/enforcer.go
@@ -35,6 +39,8 @@ RelatedFiles:
         Production device-policy configuration
     - Path: repo://pkg/xgoja/hostauth/glazed.go
       Note: CLI configuration parity for device policy
+    - Path: repo://pkg/xgoja/hostauth/maintenance.go
+      Note: Host maintenance entry point for credential retention and refresh-family operations
     - Path: repo://pkg/xgoja/hostauth/preflight.go
       Note: Validates trusted proxy CIDR policy in commit 30bef69
     - Path: repo://pkg/xgoja/providers/http/serve.go
@@ -47,6 +53,7 @@ LastUpdated: 2026-07-18T20:56:00-04:00
 WhatFor: Preserve the reasoning, commands, boundaries, and validation approach behind the companion implementation guide.
 WhenToUse: Read before resuming ticket implementation or reviewing a change against the intended single-node scope.
 ---
+
 
 
 
@@ -908,3 +915,55 @@ The repository validation evidence is complete; a live Traefik smoke remains an 
 
 ### Technical details
 - Serving pods use `/healthz` for liveness and `/auth/readyz` for SQL-aware readiness; migration application belongs in a pre-serving Job.
+
+## Step 10: Complete OAuth operations, maintenance, and example coverage
+
+Completed the remaining implementation slice after the OAuth verifier and route contracts were in place. The host now composes TinyIDP bearer verification, issuer-scoped identity resolution, local-user disablement, refresh-family listing/revocation, credential-retention maintenance, metrics hooks, and the Express/TinyIDP example. The example's status literal was corrected to the standard-library constant before committing.
+
+The focused changes were committed as `d37a6b3` after the repository pre-commit lint, glazed lint, generation, vet, and full Go test hooks passed. A first commit attempt was rejected only because another `golangci-lint` process was running in parallel; rerunning the linter independently reported zero issues and the retry completed successfully.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Fix literal and commit."
+
+**Assistant interpretation:** Correct the remaining example literal, format the file, and commit the completed OAuth/authentication implementation.
+
+**Inferred user intent:** Preserve the final security implementation in a focused, validated commit rather than leaving staged work unfinished.
+
+**Commit (code):** d37a6b3 — "hostauth: complete oauth and credential operations"
+
+### What I did
+- Replaced the example's numeric unauthorized status with `http.StatusUnauthorized`.
+- Ran `gofmt` on `examples/gojahttp/02-oauth-tinyidp/main.go`.
+- Retried the repository pre-commit hook after the first attempt hit `parallel golangci-lint is running`.
+- Committed 19 OAuth, hostauth, maintenance, lifecycle, example, and test files.
+
+### Why
+- Use named HTTP status constants in examples and retain the complete implementation as one reviewable commit.
+
+### What worked
+- `.bin/golangci-lint run -v` passed with `0 issues`.
+- The pre-commit hook passed lint, glazed lint, generation, vet, and `go test ./...`.
+
+### What didn't work
+- The first `git commit` attempt failed with `Error: parallel golangci-lint is running`; no code defect was indicated. Running the linter after the competing process exited, then retrying the commit, resolved it.
+
+### What I learned
+- The repository hook runs lint and the full generated test workflow concurrently, so a stale or overlapping lint invocation can fail the hook independently of source correctness.
+
+### What was tricky to build
+- The implementation spans route-directed credential selection, provider-backed identity, durable lifecycle state, and host maintenance composition. Keeping raw tokens and provider claims out of application-visible context required preserving the existing redaction boundary while adding the new operations.
+
+### What warrants a second pair of eyes
+- Review SQL migration deployment and retention scheduling in the target environment, plus the live Traefik proof that remains outside this source-only workspace.
+
+### What should be done in the future
+- Run the documented proxy/deployment smoke in the target k3s environment and attach sanitized evidence to the ticket.
+
+### Code review instructions
+- Start with `pkg/xgoja/hostauth/builder.go`, `pkg/xgoja/hostauth/oauth_verifier.go`, `pkg/gojahttp/auth/tinyidpauth/verifier.go`, `pkg/gojahttp/auth/programauth/device_handlers.go`, and `modules/express/auth_builders.go`.
+- Validate with `go test -race ./pkg/gojahttp ./pkg/gojahttp/auth/programauth/... ./pkg/xgoja/hostauth -count=1`, `go build ./...`, `.bin/golangci-lint run -v`, and the example smoke test.
+
+### Technical details
+- Commit: `d37a6b3`.
+- Raw bearer tokens, provider secrets, and arbitrary claims remain excluded from JavaScript, audit metadata, and actor projections.

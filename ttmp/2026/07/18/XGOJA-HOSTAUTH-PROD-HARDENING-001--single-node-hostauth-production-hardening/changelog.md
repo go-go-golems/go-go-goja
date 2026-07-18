@@ -95,3 +95,14 @@ Phase 5: corrected the single-node deployment runbook and captured race/build/li
 
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/cmd/xgoja/doc/23-auth-host-production-runbook.md — Production deployment procedure
 
+
+## 2026-07-18
+
+Completed OAuth host composition, issuer-scoped identity mapping, user disablement, refresh-family lifecycle operations, credential-retention maintenance, metrics hooks, and the Express/TinyIDP example (commit d37a6b3). Repository pre-commit lint, generation, vet, and full Go tests passed.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/modules/express/auth_builders.go — Express OAuth route builder integration
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/programauth/maintenance.go — Credential retention maintenance service
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/oauth_verifier.go — OAuth verifier profiles and identity composition
+
