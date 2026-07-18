@@ -77,3 +77,12 @@ Phase 3: added dependency-aware readiness, independent liveness, and outage/reco
 
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/readiness.go — Bounded dynamic SQL readiness
 
+
+## 2026-07-18
+
+Phase 4: implemented typed Express OAuth route declarations, fail-closed validation, exclusive external bearer verifier boundary, and redacted context/audit metadata.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth_plan.go — OAuth route security contract
+
