@@ -28,6 +28,42 @@ func (s *builderStore) newAgentBuilder(vm *goja.Runtime) goja.Value {
 	return s.newAuthBuilder(vm, spec, "express.agent()")
 }
 
+func (s *builderStore) newOAuthBuilder(vm *goja.Runtime) goja.Value {
+	spec := &gojahttp.SecuritySpec{Mode: gojahttp.SecurityModeUser, Required: true, AuthRequirements: []gojahttp.AuthRequirement{{Method: gojahttp.AuthMethodAccessToken, OAuth: &gojahttp.OAuthRequirement{}}}}
+	obj := vm.NewObject()
+	s.authSpecs.Store(obj, spec)
+	state := spec.AuthRequirements[0].OAuth
+	issuerSet, resourceSet, scopesSet := false, false, false
+	_ = obj.Set("issuer", func(value string) (goja.Value, error) {
+		if issuerSet {
+			return nil, fmt.Errorf("express.oauth().issuer() may only be called once")
+		}
+		issuerSet = true
+		state.Issuer = strings.TrimSpace(value)
+		return obj, nil
+	})
+	_ = obj.Set("resource", func(value string) (goja.Value, error) {
+		if resourceSet {
+			return nil, fmt.Errorf("express.oauth().resource() may only be called once")
+		}
+		resourceSet = true
+		state.Resource = strings.TrimSpace(value)
+		return obj, nil
+	})
+	_ = obj.Set("scopes", func(call goja.FunctionCall) (goja.Value, error) {
+		if scopesSet {
+			return nil, fmt.Errorf("express.oauth().scopes() may only be called once")
+		}
+		scopesSet = true
+		state.Scopes = make([]string, len(call.Arguments))
+		for i, value := range call.Arguments {
+			state.Scopes[i] = value.String()
+		}
+		return obj, nil
+	})
+	return obj
+}
+
 func (s *builderStore) newSessionUserBuilder(vm *goja.Runtime) goja.Value {
 	spec := &gojahttp.SecuritySpec{Mode: gojahttp.SecurityModeUser, Required: true, AuthRequirements: []gojahttp.AuthRequirement{{Method: gojahttp.AuthMethodSession, PrincipalKind: gojahttp.PrincipalKindUser}}}
 	return s.newAuthBuilder(vm, spec, "express.sessionUser()")

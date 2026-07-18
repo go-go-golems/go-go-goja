@@ -93,6 +93,7 @@ func (r *Registrar) loader(vm *goja.Runtime, moduleObj *goja.Object) {
 	_ = exports.Set("user", func() goja.Value { return builders.newUserBuilder(vm) })
 	_ = exports.Set("agent", func() goja.Value { return builders.newAgentBuilder(vm) })
 	_ = exports.Set("sessionUser", func() goja.Value { return builders.newSessionUserBuilder(vm) })
+	_ = exports.Set("oauth", func() goja.Value { return builders.newOAuthBuilder(vm) })
 	_ = exports.Set("anyOf", func(call goja.FunctionCall) goja.Value {
 		value, err := builders.newAnyOfBuilder(vm, call.Arguments...)
 		if err != nil {
