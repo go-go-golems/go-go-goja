@@ -251,11 +251,40 @@ func checkAuthRequirements(spec SecuritySpec, auth AuthResult) error {
 	for _, requirement := range spec.AuthRequirements {
 		methodMatches := requirement.Method == "" || requirement.Method == auth.Method
 		kindMatches := requirement.PrincipalKind == "" || requirement.PrincipalKind == auth.PrincipalKind
-		if methodMatches && kindMatches {
+		if methodMatches && kindMatches && oauthRequirementMatches(requirement.OAuth, auth.OAuth) {
 			return nil
 		}
 	}
 	return fmt.Errorf("%w: authenticated principal does not satisfy route auth requirements", ErrForbidden)
+}
+
+func oauthRequirementMatches(requirement *OAuthRequirement, actual *OAuthAuthContext) bool {
+	if requirement == nil {
+		return actual == nil
+	}
+	if actual == nil || actual.Issuer != requirement.Issuer {
+		return false
+	}
+	resourceOK := false
+	for _, resource := range actual.Resources {
+		if resource == requirement.Resource {
+			resourceOK = true
+			break
+		}
+	}
+	if !resourceOK {
+		return false
+	}
+	have := make(map[string]struct{}, len(actual.Scopes))
+	for _, scope := range actual.Scopes {
+		have[scope] = struct{}{}
+	}
+	for _, scope := range requirement.Scopes {
+		if _, ok := have[scope]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 func shouldVerifyCSRF(mode SecurityMode, auth AuthResult) bool {
