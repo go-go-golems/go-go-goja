@@ -350,6 +350,63 @@ func (h *DeviceHandlers) grantsFromActions(actions []string, tenantID string) (g
 	return grants, nil
 }
 
+// ListAgentsHandler returns only the authenticated local user's agents.
+func (h *DeviceHandlers) ListAgentsHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		if h.sessionManager == nil {
+			writeOAuthError(w, http.StatusUnauthorized, "unauthorized", "session manager is not configured", 0)
+			return
+		}
+		session, err := h.sessionManager.SessionFromRequest(r.Context(), r)
+		if err != nil {
+			writeOAuthError(w, http.StatusUnauthorized, "unauthorized", "unauthenticated", 0)
+			return
+		}
+		agents, err := h.service.Agents.ListOwnedAgents(r.Context(), session.UserID)
+		if err != nil {
+			writeOAuthError(w, http.StatusInternalServerError, "server_error", "agent listing failed", 0)
+			return
+		}
+		writeJSONResponse(w, http.StatusOK, map[string]any{"agents": agents})
+	})
+}
+
+// DisableAgentHandler immediately disables an agent owned by the authenticated
+// local user. The service enforces ownership independently of this route.
+func (h *DeviceHandlers) DisableAgentHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		if !h.requireSessionCSRF(w, r, "programauth.agent.disable") {
+			return
+		}
+		var body struct {
+			AgentID string `json:"agentId"`
+		}
+		if err := decodeJSONRequest(r, &body); err != nil {
+			writeOAuthError(w, http.StatusBadRequest, "invalid_request", err.Error(), 0)
+			return
+		}
+		session, err := h.sessionManager.SessionFromRequest(r.Context(), r)
+		if err != nil {
+			writeOAuthError(w, http.StatusUnauthorized, "unauthorized", "unauthenticated", 0)
+			return
+		}
+		if _, err := h.service.Agents.DisableOwnedAgent(r.Context(), session.UserID, body.AgentID); err != nil {
+			writeOAuthError(w, http.StatusNotFound, "not_found", "agent not found", 0)
+			return
+		}
+		writeJSONResponse(w, http.StatusOK, map[string]any{"ok": true})
+		h.observe(r, "programauth.agent.disable", "accepted", "")
+	})
+}
+
 func (h *DeviceHandlers) observe(r *http.Request, event, outcome, reason string) {
 	if h.securityEvents != nil {
 		h.securityEvents.ObserveSecurityEvent(r.Context(), gojahttp.SecurityEvent{Name: event, Outcome: outcome, Reason: reason})
