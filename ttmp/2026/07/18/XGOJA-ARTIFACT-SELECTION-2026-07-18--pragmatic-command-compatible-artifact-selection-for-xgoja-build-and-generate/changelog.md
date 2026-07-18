@@ -41,3 +41,13 @@ Implemented command-compatible primary selection and non-mutating scoped plans; 
 
 Ticket closed
 
+
+## 2026-07-18
+
+Addressed review regression: normalize whitespace-padded artifact types during compatibility/support classification and in scoped generator plans; added non-mutation regression coverage (commit 30d0d88)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-07-18/improve-xgoja/go-go-goja/cmd/xgoja/v2_plan_helpers.go — Whitespace normalization at selection and scoped generation boundaries
+- /home/manuel/workspaces/2026-07-18/improve-xgoja/go-go-goja/cmd/xgoja/v2_plan_helpers_test.go — Regression coverage for padded primary/support artifact types
+

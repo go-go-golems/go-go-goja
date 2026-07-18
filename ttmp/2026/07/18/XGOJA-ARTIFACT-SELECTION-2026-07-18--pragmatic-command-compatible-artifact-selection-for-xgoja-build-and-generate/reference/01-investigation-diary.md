@@ -375,3 +375,82 @@ The change was committed in two focused code commits: `7caaee6` contains the sel
 - Selected build primary types: `binary`, `adapter`, `cobra`.
 - Selected generate primary types: `runtime-package`, `source`, `template`.
 - Retained support types: `dts`, `embedded-assets`.
+
+## Step 4: Address review — normalize whitespace-padded artifact types
+
+A review correctly identified that `specv2.validateArtifacts` accepts whitespace around `artifact.type`, while the new compatibility checks initially compared raw strings. That would reject an accepted `type: " binary "` configuration and regress the previous selector's trimming behavior.
+
+I normalized artifact types at the selection boundary and in the scoped copies sent to generators. The latter matters because generator code compares artifact types directly; merely trimming candidate checks would select a binary but still leave downstream rendering with a whitespace-padded type.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Address code review
+cmd/xgoja/v2_plan_helpers.go
+Comment on lines +63 to +68
+func isCompatiblePrimary(command artifactCommand, artifactType string) bool {
+    switch command {
+    case artifactCommandBuild:
+        return artifactType == \"binary\" || artifactType == \"adapter\" || artifactType == \"cobra\"
+    case artifactCommandGenerate:
+        return artifactType == \"runtime-package\" || artifactType == \"source\" || artifactType == \"template\"
+@chatgpt-codex-connector
+chatgpt-codex-connector Bot
+3 minutes ago
+
+P2 Badge Normalize artifact types before compatibility checks
+
+When an artifact type contains surrounding whitespace (for example, YAML type: \" binary \"), specv2.validateArtifacts accepts it because validation switches on strings.TrimSpace(artifact.Type), but this exact comparison finds no build candidate and rejects the otherwise valid plan. The previous targetFromPlan also trimmed the type before selecting it, so this introduces a regression for accepted specs; trim or normalize artifact types before compatibility and support classification.
+
+Useful? React with 👍 / 👎."
+
+**Assistant interpretation:** Correct the artifact-type whitespace regression identified in code review and add regression coverage, without widening the feature scope.
+
+**Inferred user intent:** Preserve compatibility with accepted v2 YAML while keeping selected plans safe for existing generator code.
+
+### What I did
+
+- Added `normalizedArtifactType`, used by primary compatibility and support-artifact classification.
+- Normalized `ArtifactSpec.Type` and `ArtifactPlan.Spec.Type` only in the shallow scoped copies, preserving the caller's original plan unchanged.
+- Normalized target metadata and diagnostic type formatting.
+- Added `TestSelectPlanTargetNormalizesArtifactTypesInScopedPlan` for whitespace-padded binary, runtime-package, and embedded-assets types.
+- Committed the fix as `30d0d88`.
+
+### Why
+
+- Validation's `strings.TrimSpace` contract should match selection semantics.
+- Generator helpers perform direct artifact-type comparisons, so normalized candidates alone would not make the generated runtime plan or embedding behavior correct.
+
+### What worked
+
+- Focused selection test and xgoja golangci-lint passed before commit.
+- The pre-commit hook passed repository generation, full tests, lint, and Glazed vet.
+
+### What didn't work
+
+- N/A.
+
+### What I learned
+
+- Normalization belongs at the boundary where validation-normalized semantics meet raw config values. Scoped copies provide a safe normalization point because they are already intended for downstream generation and do not mutate the original compiled plan.
+
+### What was tricky to build
+
+- The review specifically mentioned compatibility checks, but direct comparisons also occur in downstream generator logic. Normalizing scoped config and compiled artifact representations prevents a partial fix where selection succeeds but runtime metadata remains malformed.
+
+### What warrants a second pair of eyes
+
+- Confirm that preserving raw whitespace in the original plan while normalizing only generation-scoped copies is preferred over normalizing all spec fields at load time. This matches the narrow review fix and avoids unrelated schema behavior changes.
+
+### What should be done in the future
+
+- Consider normalizing artifact types centrally in `specv2.ApplyDefaults` only as part of a broader normalization policy with tests for all schema fields; it is not needed for this targeted correction.
+
+### Code review instructions
+
+- Review `normalizedArtifactType`, `normalizedArtifactSpec`, and `normalizedArtifactPlan` in `cmd/xgoja/v2_plan_helpers.go`.
+- Confirm the new test proves selection and support retention while asserting original config non-mutation.
+
+### Technical details
+
+- Review-fix commit: `30d0d88a1ac707d8b86808b6c98391417268f0b5`.
+- Validation: focused `TestSelectPlanTarget`, `./.bin/golangci-lint run ./cmd/xgoja/...`, and successful full pre-commit test/lint hooks.
