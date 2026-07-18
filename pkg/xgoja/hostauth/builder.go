@@ -112,6 +112,7 @@ func (b *Builder) BuildHostAuthServices(ctx context.Context, vals *values.Values
 		AuditSink:            auditSink,
 		AuditStore:           stores.Audit,
 		RateLimiter:          rateLimiter,
+		RequestIdentity:      gojahttp.TrustedProxyResolver{Mode: resolved.Proxy.Mode, TrustedPrefixes: resolved.Proxy.TrustedPrefixes},
 		SecurityEvents:       securityEvents,
 		AppAuth:              stores.AppAuth,
 		Capability:           stores.Capability,

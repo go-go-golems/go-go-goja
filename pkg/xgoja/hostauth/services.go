@@ -56,7 +56,8 @@ type Services struct {
 	AuditSink  gojahttp.AuditSink
 	AuditStore audit.Store
 
-	RateLimiter gojahttp.RateLimiter
+	RateLimiter     gojahttp.RateLimiter
+	RequestIdentity gojahttp.TrustedProxyResolver
 	// SecurityEvents receives bounded lifecycle observations. BuilderOptions may
 	// supply a production metrics bridge; otherwise the builder retains an
 	// in-memory counter for diagnostics and integration tests.

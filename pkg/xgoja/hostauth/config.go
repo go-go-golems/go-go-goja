@@ -2,7 +2,10 @@ package hostauth
 
 import (
 	"net/http"
+	"net/netip"
 	"time"
+
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp"
 )
 
 // Mode selects the generated-host authentication infrastructure shape.
@@ -51,6 +54,7 @@ type Config struct {
 	Stores      StoresConfig      `yaml:"stores" json:"stores"`
 	OIDC        OIDCConfig        `yaml:"oidc" json:"oidc"`
 	RateLimiter RateLimiterConfig `yaml:"rate-limiter" json:"rate-limiter"`
+	Proxy       ProxyConfig       `yaml:"proxy" json:"proxy"`
 }
 
 // DeploymentConfig controls the explicit operational profile of the host.
@@ -63,6 +67,14 @@ type DeploymentConfig struct {
 // semantics of memory.
 type RateLimiterConfig struct {
 	Driver RateLimiterDriver `yaml:"driver" json:"driver"`
+}
+
+// ProxyConfig defines the only forwarding-header trust policy supported by a
+// generated host. Trusted CIDRs describe direct reverse-proxy peers, never
+// client addresses advertised in a header.
+type ProxyConfig struct {
+	Mode         gojahttp.ProxyMode `yaml:"mode" json:"mode"`
+	TrustedCIDRs []string           `yaml:"trusted-cidrs" json:"trusted-cidrs"`
 }
 
 // OIDCConfig controls generated-host browser login when Mode is oidc.
@@ -126,6 +138,7 @@ type ResolvedConfig struct {
 	Stores      ResolvedStoresConfig
 	OIDC        ResolvedOIDCConfig
 	RateLimiter ResolvedRateLimiterConfig
+	Proxy       ResolvedProxyConfig
 }
 
 type ResolvedDeploymentConfig struct {
@@ -134,6 +147,11 @@ type ResolvedDeploymentConfig struct {
 
 type ResolvedRateLimiterConfig struct {
 	Driver RateLimiterDriver
+}
+
+type ResolvedProxyConfig struct {
+	Mode            gojahttp.ProxyMode
+	TrustedPrefixes []netip.Prefix
 }
 
 // ResolvedOIDCConfig contains validated OIDC settings. RedirectURL is always
