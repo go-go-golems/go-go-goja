@@ -25,3 +25,19 @@ Validated the ticket with docmgr doctor and uploaded the overview, intern guide,
 - /home/manuel/workspaces/2026-07-18/improve-xgoja/go-go-goja/ttmp/2026/07/18/XGOJA-ARTIFACT-SELECTION-2026-07-18--pragmatic-command-compatible-artifact-selection-for-xgoja-build-and-generate/design-doc/01-intern-guide-to-xgoja-artifact-selection.md — Primary document delivered to reMarkable
 - /home/manuel/workspaces/2026-07-18/improve-xgoja/go-go-goja/ttmp/2026/07/18/XGOJA-ARTIFACT-SELECTION-2026-07-18--pragmatic-command-compatible-artifact-selection-for-xgoja-build-and-generate/reference/01-investigation-diary.md — Validation and upload evidence
 
+
+## 2026-07-18
+
+Implemented command-compatible primary selection and non-mutating scoped plans; build/generate now work with binary/runtime-package in either order, reject ambiguity clearly, scope JS/help sources, retain assets, and pass full validation
+
+### Related Files
+
+- /home/manuel/workspaces/2026-07-18/improve-xgoja/go-go-goja/cmd/xgoja/doc/17-xgoja-v2-reference.md — Documented public command/artifact behavior (commit 4003433)
+- /home/manuel/workspaces/2026-07-18/improve-xgoja/go-go-goja/cmd/xgoja/root_test.go — Order and embedded-source regression coverage (commit 4003433)
+- /home/manuel/workspaces/2026-07-18/improve-xgoja/go-go-goja/cmd/xgoja/v2_plan_helpers.go — Core selection and scoped-plan implementation (commit 7caaee6)
+
+
+## 2026-07-18
+
+Ticket closed
+

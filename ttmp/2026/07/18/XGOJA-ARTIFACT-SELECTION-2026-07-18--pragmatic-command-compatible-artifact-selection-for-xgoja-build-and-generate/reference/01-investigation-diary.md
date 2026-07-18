@@ -11,7 +11,11 @@ Intent: long-term
 Owners: []
 RelatedFiles:
     - Path: ws://go-go-goja/cmd/xgoja/root_test.go
-      Note: Existing command test patterns and future regression test location
+      Note: |-
+        Existing command test patterns and future regression test location
+        End-to-end order, target metadata, source-isolation, and shared-asset regressions
+    - Path: ws://go-go-goja/cmd/xgoja/v2_plan_helpers_test.go
+      Note: Unit coverage for compatibility, ambiguity/no-match diagnostics, scoping, and non-mutation
     - Path: ws://go-go-goja/ttmp/2026/07/18/XGOJA-ARTIFACT-SELECTION-2026-07-18--pragmatic-command-compatible-artifact-selection-for-xgoja-build-and-generate/scripts/01-reproduce-artifact-order.log
       Note: Captured baseline failures and inconsistent runtime target metadata
     - Path: ws://go-go-goja/ttmp/2026/07/18/XGOJA-ARTIFACT-SELECTION-2026-07-18--pragmatic-command-compatible-artifact-selection-for-xgoja-build-and-generate/scripts/01-reproduce-artifact-order.sh
@@ -22,6 +26,7 @@ LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: Preserve reproduction commands, observed failures, reasoning, and implementation review instructions.
 WhenToUse: Read before implementing or reviewing XGOJA-ARTIFACT-SELECTION-2026-07-18.
 ---
+
 
 
 # Diary
@@ -277,3 +282,96 @@ The upload command reported success directly, so no additional cloud listing was
 - Destination: `/ai/2026/07/18/XGOJA-ARTIFACT-SELECTION-2026-07-18`
 - ToC depth: 2
 - Documents: `index.md`, design doc, investigation diary.
+
+## Step 3: Implement command-compatible selection and scoped generation
+
+I replaced the order-dependent first-primary helper with command-aware selection, then passed a scoped plan to both build and generate. The implementation selects exactly one primary compatible with the invoked command, preserves support artifacts, and makes the command's selected target consistent with generator metadata and embedded sources.
+
+The change was committed in two focused code commits: `7caaee6` contains the selector, plan scoping, caller integration, and helper tests; `4003433` contains command-level regression tests and public documentation. No new public selection flag or artifact dependency model was added.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Implement"
+
+**Assistant interpretation:** Implement the accepted pragmatic xgoja artifact-selection design in the local `task/improve-xgoja` workspace.
+
+**Inferred user intent:** Replace the duplicate-spec workaround with deterministic, well-tested build/generate behavior without feature astronauting.
+
+### What I did
+
+- Replaced `targetFromPlan` in `cmd/xgoja/v2_plan_helpers.go` with:
+  - `selectPlanTarget(compiled, command)`;
+  - explicit build/generate compatibility predicates;
+  - no-compatible and ambiguous-primary errors naming YAML artifact IDs/types;
+  - `scopePlanToPrimary`, which shallow-copies `plan.Plan` and its config, puts the selected primary first, retains `dts`/`embedded-assets`, and removes unselected primaries.
+- Updated `cmd/xgoja/cmd_build.go` and `cmd/xgoja/cmd_generate.go` to rebind their plan to the scoped copy before every generator path, including `--template-data`.
+- Added helper tests in `cmd/xgoja/v2_plan_helpers_test.go` for selection, support retention, error diagnostics, and non-mutation of the original plan.
+- Added command regressions in `cmd/xgoja/root_test.go` for binary/package in both YAML orders and for JS/help source isolation with shared assets.
+- Updated `cmd/xgoja/doc/17-xgoja-v2-reference.md` with the command/artifact matrix and ambiguity behavior.
+
+### Why
+
+- Command-local target selection alone would leave `internal/generate` deriving target metadata and embedded sources from the full artifact list.
+- Scoped plans reuse existing generator APIs while guaranteeing one selected primary across command output, runtime metadata, and copied source roots.
+
+### What worked
+
+- `go test ./cmd/xgoja -run 'Test(BuildAndGenerate|SelectPlanTarget)' -count=1` passed.
+- `go test ./cmd/xgoja/... -count=1` passed.
+- `go test ./... -count=1` passed.
+- `go vet ./...` passed.
+- Both commits' pre-commit hooks passed the repository's `go generate`, full test, golangci-lint, and Glazed vet checks.
+- Regression tests prove that binary/package order no longer matters; build receives `kind: xgoja`, generate receives `kind: package`, each receives only its selected JS source, and both receive global assets.
+
+### What didn't work
+
+- The first focused test after deleting the obsolete helper failed because the two command callers still referenced it:
+
+  ```text
+  cmd/xgoja/cmd_build.go:90:12: undefined: targetFromPlan
+  cmd/xgoja/cmd_generate.go:92:12: undefined: targetFromPlan
+  ```
+
+  Fix: wire both callers to `selectPlanTarget` in the planned core integration.
+- An initial command-test helper had an unused local `dir`; removed it.
+- The first follow-up commit attempt failed lint with:
+
+  ```text
+  cmd/xgoja/root_test.go:659:1: named return "specPath" with type "string" found (nonamedreturns)
+  ```
+
+  Removing named returns initially left local path variables undeclared; the resumed fix declared them explicitly. Focused tests and `./.bin/golangci-lint run ./cmd/xgoja/...` then passed before retrying the commit.
+
+### What I learned
+
+- A shallow scoped plan is enough because generator functions already consume `plan.Plan`; changing their public signatures was unnecessary.
+- Updating both `Plan.Config.Artifacts` and `Plan.Artifacts` is mandatory: the generator reads the former while selection reads the latter.
+- Keeping support artifacts after the selected primary preserves existing global asset behavior while preventing selected-source leakage.
+
+### What was tricky to build
+
+- The generator has separate target and source paths, so a fix that only changed `cmd_build.go`/`cmd_generate.go` would have produced correct command output with incorrect generated metadata. Scoping the artifact lists before calling generators aligned those independent paths without introducing a new architecture.
+
+### What warrants a second pair of eyes
+
+- Confirm the intentional no-compatible-primary behavior for v2 specs that declare only support artifacts.
+- Confirm `adapter` and `cobra` should remain build-compatible primary types; their existing generated-main branches support this classification.
+
+### What should be done in the future
+
+- Add `--artifact` only when a real configuration needs multiple compatible primaries; current ambiguity errors deliberately make that need visible.
+- Do not add target-specific asset dependency modeling until a real consumer needs non-global support assets.
+
+### Code review instructions
+
+- Start at `cmd/xgoja/v2_plan_helpers.go` and verify compatibility, errors, and non-mutating plan scope.
+- Verify `cmd_build.go` and `cmd_generate.go` pass the scoped plan through all generator branches.
+- Read `v2_plan_helpers_test.go` and the two new root tests for policy and end-to-end regressions.
+- Verify documentation matches the test contract in `cmd/xgoja/doc/17-xgoja-v2-reference.md`.
+
+### Technical details
+
+- Code commits: `7caaee6fb803a69785d00b8c36918c0b9d9cdfb0`, `400343331a188ed372d647ecb959d659134dc3d2`.
+- Selected build primary types: `binary`, `adapter`, `cobra`.
+- Selected generate primary types: `runtime-package`, `source`, `template`.
+- Retained support types: `dts`, `embedded-assets`.

@@ -1,7 +1,7 @@
 ---
 Title: Pragmatic command-compatible artifact selection for xgoja build and generate
 Ticket: XGOJA-ARTIFACT-SELECTION-2026-07-18
-Status: active
+Status: complete
 Topics:
     - xgoja
     - backend
@@ -18,10 +18,11 @@ RelatedFiles:
       Note: Primary implementation guide
 ExternalSources: []
 Summary: Design and implementation ticket for deterministic build/generate artifact selection using one compatible primary plus global support artifacts.
-LastUpdated: 0001-01-01T00:00:00Z
+LastUpdated: 2026-07-18T17:32:01.390048914-04:00
 WhatFor: Coordinate implementation, testing, review, and delivery of the xgoja multi-artifact order fix.
 WhenToUse: Start here when implementing or reviewing command-compatible artifact selection.
 ---
+
 
 
 # Pragmatic command-compatible artifact selection for xgoja build and generate
@@ -44,10 +45,11 @@ The accepted pragmatic design selects exactly one command-compatible primary, co
 ## Current status
 
 - Failure reproduced against commit `69b69b6`.
-- Focused `go test ./cmd/xgoja/... -count=1` baseline passes.
 - Architecture and generator behavior mapped.
-- Intern design/implementation guide written.
-- Production implementation remains open.
+- Pragmatic selection/scoping implementation committed in `7caaee6`.
+- Command regressions and public documentation committed in `4003433`.
+- Focused/full test, vet, lint, and generated-code hooks pass.
+- Ready for review; release/versioning is intentionally outside this implementation ticket.
 
 ## Accepted scope
 
