@@ -68,3 +68,12 @@ Phase 2: completed device policy, native budgets, inspect/deny, owner-scoped age
 
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/programauth/device_handlers.go — Phase 2 HTTP security boundary
 
+
+## 2026-07-18
+
+Phase 3: added dependency-aware readiness, independent liveness, and outage/recovery coverage (commits c2172ec and HEAD).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/readiness.go — Bounded dynamic SQL readiness
+

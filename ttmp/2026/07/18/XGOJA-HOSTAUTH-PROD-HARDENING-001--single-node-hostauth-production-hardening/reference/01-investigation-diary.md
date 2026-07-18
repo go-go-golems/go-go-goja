@@ -721,3 +721,78 @@ auth:
     max-actions: 1
     verification-uri: https://app.example.test/auth/device
 ~~~
+
+## Step 7: Complete dependency-aware readiness and liveness
+
+Phase 3 replaced the static readiness declaration with bounded live SQL
+checks. The store builder already deduplicated `*sql.DB` handles, so the new
+health capability attaches one probe per unique handle rather than pinging each
+logical auth store serially. Liveness remains independent of SQL availability.
+
+### Prompt Context
+
+**User prompt (verbatim):** "complete phase 3"
+
+**Assistant interpretation:** Finish the dependency-health phase, including recovery coverage and ticket documentation.
+
+**Inferred user intent:** Ensure Kubernetes receives truthful serving signals without making transient SQL outages restart healthy processes.
+
+**Commit (code):** c2172ec2db7e144027d78667a02a37d54f052b99 — "hostauth: make readiness dependency aware"
+
+### What I did
+
+- Added `DependencyHealth` and SQL `PingContext` probes to `StoreBundle`.
+- Replaced static `/auth/readyz` with a two-second bounded concurrent probe.
+- Added `/healthz`, which remains 200 during SQL failure.
+- Added failure and no-restart recovery tests; ran the full pre-commit lint,
+  generation, vet, and test workflow.
+
+### Why
+
+`sql.Open` is lazy; a configured DSN does not mean the host can serve a login,
+session, callback, or token transition. Kubernetes readiness must represent
+live required dependencies, while liveness must only represent a responsive
+process.
+
+### What worked
+
+Focused tests and the full repository pre-commit workflow passed. The response
+contains only safe component names and health booleans.
+
+### What didn't work
+
+No code failure occurred. An ingress-level outage exercise against the actual
+cluster is still deployment validation, not a repository unit test.
+
+### What I learned
+
+Sharing SQL handles in `storeBuilder` made readiness deduplication natural and
+kept infrastructure health out of domain-specific store interfaces.
+
+### What was tricky to build
+
+A readiness handler must be dynamic rather than close over a startup report;
+otherwise recovery cannot change 503 back to 200. The handler recomputes probe
+outcomes for every request with a bounded context.
+
+### What warrants a second pair of eyes
+
+Review whether two seconds is appropriate for the deployment probe timeout and
+ensure Kubernetes thresholds do not turn a short DB outage into aggressive pod
+restarts.
+
+### What should be done in the future
+
+Run the documented SQL outage/recovery test through the real Traefik/k3s
+shape, and publish migration/cleanup operator commands alongside deployment
+manifests.
+
+### Code review instructions
+
+Review `stores.go` health ownership and `readiness.go` timeout/error redaction;
+run `go test ./pkg/xgoja/hostauth -count=1` and the full repository suite.
+
+### Technical details
+
+`/auth/readyz` returns 503 if any required SQL dependency fails and 200 after
+recovery without process restart. `/healthz` returns `{ "live": true }`.
