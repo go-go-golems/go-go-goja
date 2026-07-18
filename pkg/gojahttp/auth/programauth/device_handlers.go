@@ -407,6 +407,62 @@ func (h *DeviceHandlers) DisableAgentHandler() http.Handler {
 	})
 }
 
+// ListRefreshFamiliesHandler exposes redacted refresh credential metadata only to its owner.
+func (h *DeviceHandlers) ListRefreshFamiliesHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		if h.sessionManager == nil {
+			writeOAuthError(w, http.StatusUnauthorized, "unauthorized", "session manager is not configured", 0)
+			return
+		}
+		session, err := h.sessionManager.SessionFromRequest(r.Context(), r)
+		if err != nil {
+			writeOAuthError(w, http.StatusUnauthorized, "unauthorized", "unauthenticated", 0)
+			return
+		}
+		tokens, err := h.service.OAuthTokens.ListOwnedRefreshTokens(r.Context(), session.UserID)
+		if err != nil {
+			writeOAuthError(w, http.StatusInternalServerError, "server_error", "refresh token listing failed", 0)
+			return
+		}
+		writeJSONResponse(w, http.StatusOK, map[string]any{"refreshTokens": tokens})
+	})
+}
+
+// RevokeRefreshFamilyHandler revokes one session-owned refresh-token family.
+func (h *DeviceHandlers) RevokeRefreshFamilyHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		if !h.requireSessionCSRF(w, r, "programauth.refresh.revoke") {
+			return
+		}
+		var body struct {
+			FamilyID string `json:"familyId"`
+		}
+		if err := decodeJSONRequest(r, &body); err != nil {
+			writeOAuthError(w, http.StatusBadRequest, "invalid_request", err.Error(), 0)
+			return
+		}
+		session, err := h.sessionManager.SessionFromRequest(r.Context(), r)
+		if err != nil {
+			writeOAuthError(w, http.StatusUnauthorized, "unauthorized", "unauthenticated", 0)
+			return
+		}
+		if err := h.service.OAuthTokens.RevokeOwnedRefreshTokenFamily(r.Context(), session.UserID, body.FamilyID); err != nil {
+			writeOAuthError(w, http.StatusNotFound, "not_found", "refresh family not found", 0)
+			return
+		}
+		writeJSONResponse(w, http.StatusOK, map[string]any{"ok": true})
+		h.observe(r, "programauth.refresh.revoke", "accepted", "")
+	})
+}
+
 func (h *DeviceHandlers) observe(r *http.Request, event, outcome, reason string) {
 	if h.securityEvents != nil {
 		h.securityEvents.ObserveSecurityEvent(r.Context(), gojahttp.SecurityEvent{Name: event, Outcome: outcome, Reason: reason})

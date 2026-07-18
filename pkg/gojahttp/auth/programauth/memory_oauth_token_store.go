@@ -123,6 +123,21 @@ func (s *MemoryRefreshTokenStore) CreateRefreshToken(_ context.Context, token Re
 	return cloneRefreshToken(token), nil
 }
 
+func (s *MemoryRefreshTokenStore) ListRefreshTokens(_ context.Context, query RefreshTokenQuery) ([]RefreshToken, error) {
+	if s == nil {
+		return nil, fmt.Errorf("programauth memory refresh token store is nil")
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := []RefreshToken{}
+	for _, token := range s.tokens {
+		if (query.SubjectUserID == "" || token.SubjectUserID == query.SubjectUserID) && (query.FamilyID == "" || token.FamilyID == query.FamilyID) {
+			out = append(out, cloneRefreshToken(token))
+		}
+	}
+	return out, nil
+}
+
 func (s *MemoryRefreshTokenStore) FindRefreshTokenByPrefix(_ context.Context, prefix string) ([]RefreshToken, error) {
 	if s == nil {
 		return nil, fmt.Errorf("programauth memory refresh token store is nil")

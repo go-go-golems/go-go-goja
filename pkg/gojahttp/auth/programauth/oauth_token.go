@@ -145,8 +145,14 @@ type AccessTokenStore interface {
 	TouchAccessToken(ctx context.Context, id string, usedAt time.Time) error
 }
 
+type RefreshTokenQuery struct {
+	SubjectUserID string
+	FamilyID      string
+}
+
 type RefreshTokenStore interface {
 	CreateRefreshToken(ctx context.Context, token RefreshToken) (RefreshToken, error)
+	ListRefreshTokens(ctx context.Context, query RefreshTokenQuery) ([]RefreshToken, error)
 	FindRefreshTokenByPrefix(ctx context.Context, prefix string) ([]RefreshToken, error)
 	RotateRefreshToken(ctx context.Context, currentID string, next RefreshToken, usedAt time.Time) (RefreshToken, RefreshToken, error)
 	RevokeRefreshTokenFamily(ctx context.Context, familyID string, revokedAt time.Time) error
@@ -311,6 +317,40 @@ func (s OAuthTokenService) RevokeRefreshToken(ctx context.Context, rawRefreshTok
 		return err
 	}
 	return s.RefreshTokens.RevokeRefreshTokenFamily(ctx, current.FamilyID, s.now())
+}
+
+// ListOwnedRefreshTokens returns only redacted metadata for one local user.
+func (s OAuthTokenService) ListOwnedRefreshTokens(ctx context.Context, userID string) ([]RefreshTokenView, error) {
+	if s.RefreshTokens == nil {
+		return nil, fmt.Errorf("programauth refresh token store is required")
+	}
+	if strings.TrimSpace(userID) == "" {
+		return nil, fmt.Errorf("subject user id is required")
+	}
+	tokens, err := s.RefreshTokens.ListRefreshTokens(ctx, RefreshTokenQuery{SubjectUserID: userID})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]RefreshTokenView, 0, len(tokens))
+	for _, token := range tokens {
+		out = append(out, RefreshTokenToView(token))
+	}
+	return out, nil
+}
+
+// RevokeOwnedRefreshTokenFamily revokes a family only after confirming ownership.
+func (s OAuthTokenService) RevokeOwnedRefreshTokenFamily(ctx context.Context, userID, familyID string) error {
+	if s.RefreshTokens == nil {
+		return fmt.Errorf("programauth refresh token store is required")
+	}
+	tokens, err := s.RefreshTokens.ListRefreshTokens(ctx, RefreshTokenQuery{SubjectUserID: userID, FamilyID: familyID})
+	if err != nil {
+		return err
+	}
+	if len(tokens) == 0 {
+		return ErrRefreshTokenNotFound
+	}
+	return s.RefreshTokens.RevokeRefreshTokenFamily(ctx, familyID, s.now())
 }
 
 func (s OAuthTokenService) AuthenticateBearer(ctx context.Context, raw string, _ gojahttp.SecuritySpec) (gojahttp.AuthResult, error) {

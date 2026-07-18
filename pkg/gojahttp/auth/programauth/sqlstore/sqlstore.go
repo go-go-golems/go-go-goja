@@ -269,6 +269,24 @@ func (s *Store) CreateRefreshToken(ctx context.Context, token programauth.Refres
 	return token, nil
 }
 
+func (s *Store) ListRefreshTokens(ctx context.Context, query programauth.RefreshTokenQuery) ([]programauth.RefreshToken, error) {
+	if strings.TrimSpace(query.SubjectUserID) == "" {
+		return nil, fmt.Errorf("subject user id is required")
+	}
+	where := "subject_user_id = " + s.placeholder(1)
+	args := []any{query.SubjectUserID}
+	if query.FamilyID != "" {
+		where += " AND family_id = " + s.placeholder(2)
+		args = append(args, query.FamilyID)
+	}
+	rows, err := s.db.QueryContext(ctx, s.rebind(`SELECT id, agent_id, subject_user_id, family_id, generation, token_hash, token_prefix, created_at, updated_at, expires_at, used_at, revoked_at, replaced_by_id, grants_json FROM auth_program_refresh_tokens WHERE `+where+` ORDER BY created_at DESC`), args...)
+	if err != nil {
+		return nil, fmt.Errorf("list programauth refresh tokens: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	return scanRefreshTokenRows(rows)
+}
+
 func (s *Store) FindRefreshTokenByPrefix(ctx context.Context, prefix string) ([]programauth.RefreshToken, error) {
 	rows, err := s.db.QueryContext(ctx, s.refreshTokensByPrefixQuery(), strings.TrimSpace(prefix))
 	if err != nil {
