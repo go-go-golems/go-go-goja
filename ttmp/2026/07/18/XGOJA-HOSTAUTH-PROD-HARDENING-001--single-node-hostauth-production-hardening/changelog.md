@@ -115,3 +115,12 @@ Security scan follow-up: replaced inline SQL placeholder concatenation with stat
 
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/appauth/sqlstore/sqlstore.go — Parameterized dialect-specific appauth SQL
 
+
+## 2026-07-18
+
+CI follow-up: updated generated-host OIDC smoke to assert the current /healthz liveness contract (commit afef4da); local make oidc-smoke passes.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/21-generated-host-auth/Makefile — Smoke contract fix
+

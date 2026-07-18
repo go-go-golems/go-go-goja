@@ -17,6 +17,8 @@ RelatedFiles:
       Note: Phase 5 single-node deployment and release evidence runbook
     - Path: repo://examples/gojahttp/02-oauth-tinyidp/main.go
       Note: End-to-end Express OAuth and TinyIDP example
+    - Path: repo://examples/xgoja/21-generated-host-auth/Makefile
+      Note: Generated host CI smoke aligned with the current liveness response contract
     - Path: repo://modules/express/auth_builders.go
       Note: Express OAuth builder
     - Path: repo://pkg/gojahttp/auth/appauth/sqlstore/sqlstore.go
@@ -55,6 +57,7 @@ LastUpdated: 2026-07-18T20:56:00-04:00
 WhatFor: Preserve the reasoning, commands, boundaries, and validation approach behind the companion implementation guide.
 WhenToUse: Read before resuming ticket implementation or reviewing a change against the intended single-node scope.
 ---
+
 
 
 
@@ -1019,3 +1022,55 @@ Addressed the G202 SQL-injection scanner findings reported for external-identity
 
 ### Technical details
 - All caller-controlled values remain SQL parameters; only compile-time query constants are selected by dialect.
+
+## Step 12: Repair the generated-host CI smoke contract
+
+Investigated the failing `publish-auth-host-image` job in PR #98. The generated binary built successfully, but the smoke exited at its first health assertion. Reproducing locally showed that `/healthz` now intentionally returns the liveness contract `{"live":true}` after the hostauth health hardening, while the stale smoke still expected the older `{"ok":true,"auth":"generated-oidc"}` payload.
+
+Updated the smoke to assert the stable liveness field rather than implementation-specific metadata. The local `make oidc-smoke` now passes, and the fix is committed as `afef4da`.
+
+### Prompt Context
+
+**User prompt (verbatim):** "also https://github.com/go-go-golems/go-go-goja/actions/runs/29664734519/job/88133146904?pr=98#step:4:99\n\ngo: downloading github.com/invopop/jsonschema v0.13.0\n+-------------------+--------+------------------------------------+------------------------------------------------------------------------------------------+----------+------------------+-------------+--------------+------------------------------------+---------+-----------+-----------------+-------------------+------------------------------+\n| check             | status | path                               | file                                                                                     | message  | source_id        | source_kind | source_files | module_path                        | version | local_dir | resolution_kind | resolution_source | required_by                  |\n+-------------------+--------+------------------------------------+------------------------------------------------------------------------------------------+----------+------------------+-------------+--------------+------------------------------------+---------+-----------+-----------------+-------------------+------------------------------+\n| schema            | ok     | schema                             | /home/runner/work/go-go-goja/go-go-goja/examples/xgoja/21-generated-host-auth/xgoja.yaml | xgoja/v2 |                  |             |              |                                    |         |           |                 |                   |                              |\n| module-resolution | ok     | github.com/go-go-golems/go-go-goja | /home/runner/work/go-go-goja/go-go-goja/examples/xgoja/21-generated-host-auth/xgoja.yaml | version  |                  |             |              | github.com/go-go-golems/go-go-goja |         |           | versioned       | version           | provider:go-go-goja-core     |\n| module-resolution | ok     | github.com/go-go-golems/go-go-goja | /home/runner/work/go-go-goja/go-go-goja/examples/xgoja/21-generated-host-auth/xgoja.yaml | version  |                  |             |              | github.com/go-go-golems/go-go-goja |         |           | versioned       | version           | provider:go-go-goja-host     |\n| module-resolution | ok     | github.com/go-go-golems/go-go-goja | /home/runner/work/go-go-goja/go-go-goja/examples/xgoja/21-generated-host-auth/xgoja.yaml | version  |                  |             |              | github.com/go-go-golems/go-go-goja |         |           | versioned       | version           | provider:go-go-goja-hostauth |\n| source-plan       | ok     | local-sites                        | /home/runner/work/go-go-goja/go-go-goja/examples/xgoja/21-generated-host-auth/xgoja.yaml | jsverbs  | local-sites      | jsverbs     | 1            |                                    |         |           |                 |                   |                              |\n| source-plan       | ok     | dashboard-assets                   | /home/runner/work/go-go-goja/go-go-goja/examples/xgoja/21-generated-host-auth/xgoja.yaml | assets   | dashboard-assets | assets      | 3            |                                    |         |           |                 |                   |                              |\n+-------------------+--------+------------------------------------+------------------------------------------------------------------------------------------+----------+------------------+-------------+--------------+------------------------------------+---------+-----------+-----------------+-------------------+------------------------------+\ncd /home/runner/work/go-go-goja/go-go-goja && GOWORK=off go run ./cmd/xgoja build -f /home/runner/work/go-go-goja/go-go-goja/examples/xgoja/21-generated-host-auth/xgoja.yaml --output /home/runner/work/go-go-goja/go-go-goja/examples/xgoja/21-generated-host-auth/dist/generated-oidc-host-auth --xgoja-replace /home/runner/work/go-go-goja/go-go-goja --keep-work\nvalidated xgoja/v2 plan for /home/runner/work/go-go-goja/go-go-goja/examples/xgoja/21-generated-host-auth/xgoja.yaml\ngenerated build workspace: /tmp/xgoja-build-1713629158\ngenerated module: xgoja.generated/generated-oidc-host-auth\nxgoja builds from the generated module root: cd /tmp/xgoja-build-1713629158 && go mod tidy && go build -buildvcs=false .\nrelease note: if you check this generated host into a repository as a nested Go module, configure GoReleaser with dir: <generated-module-dir> and main: .\nxgoja build ok: /home/runner/work/go-go-goja/go-go-goja/examples/xgoja/21-generated-host-auth/dist/generated-oidc-host-auth\nmake: *** [Makefile:25: oidc-smoke] Error 1\nmake: Leaving directory '/home/runner/work/go-go-goja/go-go-goja/examples/xgoja/21-generated-host-auth'\nError: Process completed with exit code 2."
+
+**Assistant interpretation:** Investigate the failed generated-host smoke, identify whether build or runtime validation failed, and repair the stale assertion.
+
+**Inferred user intent:** Make PR #98 pass the generated auth host CI job.
+
+**Commit (code):** afef4da — "examples: align generated host health smoke"
+
+### What I did
+- Retrieved the complete GitHub Actions log for run `29664734519`, job `88133146904`.
+- Reproduced `make oidc-smoke` locally with tracing.
+- Confirmed the generated host returned `{"live":true}` from `/healthz`.
+- Replaced the stale `ok`/`auth` assertions with the stable `live` assertion.
+
+### Why
+- The endpoint is now a liveness probe; the smoke must validate the current public contract rather than the previous response shape.
+
+### What worked
+- `xgoja doctor` and generated binary build passed in CI.
+- Local `make oidc-smoke` passed after the assertion update.
+
+### What didn't work
+- CI's original log hid the exact failing assertion because the Make recipe used `set -e` without tracing. Local tracing identified the first health grep as the failure.
+
+### What I learned
+- Health endpoint response contracts must be updated alongside liveness/readiness hardening; smoke tests should assert stable contract fields only.
+
+### What was tricky to build
+- The first local reproduction showed the smoke expected old metadata, while the actual generated host returned only the intentionally minimal liveness response. The fix was to remove both stale assertions and retain only `live=true`, not to weaken the health handler.
+
+### What warrants a second pair of eyes
+- Confirm the rerun of `publish-auth-host-image` passes on commit `afef4da` and that the downstream image smoke remains unaffected.
+
+### What should be done in the future
+- Prefer a small JSON-aware assertion helper for health contracts if additional fields become necessary.
+
+### Code review instructions
+- Review `examples/xgoja/21-generated-host-auth/Makefile` and the host health handler contract.
+- Validate with `make -C examples/xgoja/21-generated-host-auth oidc-smoke`.
+
+### Technical details
+- Old expectation: `{"ok":true,"auth":"generated-oidc"}`.
+- Current liveness contract: `{"live":true}`.
