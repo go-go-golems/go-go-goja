@@ -79,6 +79,11 @@ func (s *builderStore) newAnyOfBuilder(vm *goja.Runtime, values ...goja.Value) (
 		if err != nil {
 			return nil, err
 		}
+		for _, requirement := range spec.AuthRequirements {
+			if requirement.OAuth != nil {
+				return nil, fmt.Errorf("express.anyOf(...) cannot combine express.oauth() with other credentials")
+			}
+		}
 		if spec.MFAFreshWithin > combined.MFAFreshWithin {
 			combined.MFAFreshWithin = spec.MFAFreshWithin
 		}
