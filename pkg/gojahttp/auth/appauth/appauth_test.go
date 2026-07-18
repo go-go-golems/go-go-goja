@@ -98,6 +98,17 @@ func TestUpsertFromOIDCRejectsDisabledExistingUser(t *testing.T) {
 	}
 }
 
+func TestDisableUserRevokesFutureLookups(t *testing.T) {
+	store := NewMemoryStore()
+	store.AddUser(User{ID: "u1"})
+	if err := store.DisableUser(context.Background(), "u1", time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.ByID(context.Background(), "u1"); !errors.Is(err, gojahttp.ErrNotFound) {
+		t.Fatalf("lookup err=%v", err)
+	}
+}
+
 func TestExternalIdentityIsIssuerScopedAndRejectsDisabledUser(t *testing.T) {
 	ctx := context.Background()
 	store := NewMemoryStore()

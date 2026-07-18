@@ -153,6 +153,21 @@ func (s *Store) ByKeycloakSub(ctx context.Context, sub string) (*appauth.User, e
 	return user, nil
 }
 
+func (s *Store) DisableUser(ctx context.Context, id string, disabledAt time.Time) error {
+	result, err := s.db.ExecContext(ctx, `UPDATE auth_app_users SET disabled_at = `+s.placeholder(1)+` WHERE id = `+s.placeholder(2)+` AND disabled_at IS NULL`, disabledAt.UTC(), id)
+	if err != nil {
+		return fmt.Errorf("disable appauth user: %w", err)
+	}
+	n, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return gojahttp.ErrNotFound
+	}
+	return nil
+}
+
 func (s *Store) UpsertFromOIDC(ctx context.Context, sub, email string, emailVerified bool) (*appauth.User, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {

@@ -64,6 +64,7 @@ type UserStore interface {
 	ByKeycloakSub(ctx context.Context, sub string) (*User, error)
 	ByExternalIdentity(ctx context.Context, issuer, subject string) (*User, error)
 	UpsertFromOIDC(ctx context.Context, sub, email string, emailVerified bool) (*User, error)
+	DisableUser(ctx context.Context, id string, disabledAt time.Time) error
 }
 
 // MembershipStore answers tenant membership/role questions.
@@ -264,6 +265,19 @@ func (s *MemoryStore) ByKeycloakSub(ctx context.Context, sub string) (*User, err
 		return nil, gojahttp.ErrNotFound
 	}
 	return s.ByID(ctx, id)
+}
+
+func (s *MemoryStore) DisableUser(_ context.Context, id string, disabledAt time.Time) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	user, ok := s.users[id]
+	if !ok {
+		return gojahttp.ErrNotFound
+	}
+	disabledAt = disabledAt.UTC()
+	user.DisabledAt = &disabledAt
+	s.users[id] = user
+	return nil
 }
 
 func (s *MemoryStore) UpsertFromOIDC(_ context.Context, sub, email string, emailVerified bool) (*User, error) {
