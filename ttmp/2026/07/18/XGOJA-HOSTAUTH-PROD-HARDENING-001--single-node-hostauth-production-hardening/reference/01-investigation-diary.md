@@ -23,8 +23,12 @@ RelatedFiles:
       Note: Express OAuth builder
     - Path: repo://pkg/gojahttp/auth/appauth/sqlstore/sqlstore.go
       Note: Dialect-specific static SQL query constants remove G202 scanner findings
+    - Path: repo://pkg/gojahttp/auth/keycloakauth/keycloakauth.go
+      Note: Logout error semantics and OIDC transaction retention cleanup
     - Path: repo://pkg/gojahttp/auth/programauth/device_handlers.go
-      Note: Phase 2 native policy, budgets, lifecycle and management handlers
+      Note: |-
+        Phase 2 native policy, budgets, lifecycle and management handlers
+        OIDC native device handlers reject disabled users
     - Path: repo://pkg/gojahttp/auth/programauth/oauth.go
       Note: Exclusive OAuth bearer verifier boundary
     - Path: repo://pkg/gojahttp/auth/tinyidpauth/verifier.go
@@ -42,7 +46,9 @@ RelatedFiles:
         Hostauth configuration vocabulary investigated for this plan
         Production device-policy configuration
     - Path: repo://pkg/xgoja/hostauth/glazed.go
-      Note: CLI configuration parity for device policy
+      Note: |-
+        CLI configuration parity for device policy
+        Registered trusted-proxy command settings
     - Path: repo://pkg/xgoja/hostauth/maintenance.go
       Note: Host maintenance entry point for credential retention and refresh-family operations
     - Path: repo://pkg/xgoja/hostauth/preflight.go
@@ -57,6 +63,7 @@ LastUpdated: 2026-07-18T20:56:00-04:00
 WhatFor: Preserve the reasoning, commands, boundaries, and validation approach behind the companion implementation guide.
 WhenToUse: Read before resuming ticket implementation or reviewing a change against the intended single-node scope.
 ---
+
 
 
 
@@ -1074,3 +1081,56 @@ Updated the smoke to assert the stable liveness field rather than implementation
 ### Technical details
 - Old expectation: `{"ok":true,"auth":"generated-oidc"}`.
 - Current liveness contract: `{"live":true}`.
+
+## Step 13: Address Codex review findings without weakening boundaries
+
+Addressed all four inline Codex findings from PR #98. OIDC transaction cleanup is now included in the host maintenance operation; logout reports a session-store failure rather than falsely recording acceptance; disabled local users are rejected both by generated OIDC planned routes and by native device-management routes; and the production runbook now uses registered proxy and deployment flags.
+
+The first partial approach correctly introduced user-store validation but missed native handlers that call `SessionFromRequest` directly and initially coupled program-auth maintenance to the OIDC package. The final design keeps the enabled-user requirement OIDC-specific, routes every native browser-session action through a shared validation helper, and uses a structural cleaner interface to avoid an unnecessary cross-package dependency.
+
+### Prompt Context
+
+**User prompt (verbatim):** "finish, commit, push"
+
+**Assistant interpretation:** Complete the review remediations, validate them, create focused commits, and push the PR branch.
+
+**Inferred user intent:** Resolve substantive review feedback with production-safe behavior rather than only making superficial changes.
+
+**Commit (code):** c9f227e — "hostauth: address review findings"
+
+### What I did
+- Added transaction cleanup support to the host maintenance path.
+- Made logout return 500 and record a failed event when session revocation has an operational failure; absent/invalid cookies remain idempotently successful.
+- Added OIDC-only enabled-user lookup for session actor projection and all native device-management session actions.
+- Added registered Glazed proxy mode/CIDR flags and corrected the production runbook.
+- Added regression coverage for failed logout revocation, maintenance transaction cleanup, disabled native users, actor loading, and Glazed proxy settings.
+
+### Why
+- Disabled users must not retain access through a copied browser cookie, abandoned OIDC state must not grow indefinitely, and deployment instructions must reference the actual command interface.
+
+### What worked
+- Focused keycloakauth, programauth, and hostauth tests passed.
+- Focused golangci-lint reported zero issues and gosec reported zero issues.
+
+### What didn't work
+- An initial broad enabled-user loader affected dev-mode tests because development fixtures do not require appauth user records. Restricting the loader and native checks to OIDC mode preserved the intended development behavior.
+
+### What I learned
+- Native handlers that directly load sessions must share the same enabled-user gate as planned-route authentication; route middleware alone is not a complete lifecycle boundary.
+
+### What was tricky to build
+- The user-disable operation spans generated planned routes and Go-owned native handlers. The solution uses an OIDC-only actor loader for planned routes and a common `authenticatedSession` helper for native device routes, while retaining dev-mode tutorial semantics.
+
+### What warrants a second pair of eyes
+- Review whether future native session handlers follow the shared enabled-user check and whether retention scheduling invokes `RunMaintenanceCommand` at an appropriate cadence.
+
+### What should be done in the future
+- Add new native browser-session routes through the shared authenticated-session helper; do not directly call `SessionFromRequest` in production OIDC handlers.
+
+### Code review instructions
+- Start at `pkg/gojahttp/auth/programauth/device_handlers.go`, `pkg/xgoja/hostauth/builder.go`, `pkg/gojahttp/auth/keycloakauth/keycloakauth.go`, and `pkg/xgoja/hostauth/glazed.go`.
+- Validate with focused auth/hostauth tests, `gosec`, `make lint`, and the full pre-commit suite.
+
+### Technical details
+- OIDC session actor loading maps disabled/missing users to `gojahttp.ErrUnauthenticated`; operational store failures still surface as errors.
+- `auth-proxy-mode` and `auth-proxy-trusted-cidrs` map to the existing trusted-proxy policy and `auth-deployment-profile` is the registered single-node flag.

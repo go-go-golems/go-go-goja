@@ -124,3 +124,13 @@ CI follow-up: updated generated-host OIDC smoke to assert the current /healthz l
 
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/examples/xgoja/21-generated-host-auth/Makefile — Smoke contract fix
 
+
+## 2026-07-18
+
+Addressed all PR #98 Codex review findings: OIDC transaction cleanup, honest logout failure handling, disabled-user enforcement across planned and native OIDC routes, and valid proxy/deployment CLI documentation (commit c9f227e).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/programauth/maintenance.go — Retention abstraction
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/builder.go — Wires OIDC user enforcement and transaction maintenance
+
