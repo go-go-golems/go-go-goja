@@ -24,6 +24,7 @@ type DeviceHandlersConfig struct {
 	SessionManager *sessionauth.Manager
 	Audit          gojahttp.AuditSink
 	SecurityEvents gojahttp.SecurityEventObserver
+	RateLimiter    gojahttp.RateLimiter
 	Policy         DeviceEndpointPolicy
 }
 
@@ -33,6 +34,7 @@ type DeviceHandlers struct {
 	audit          gojahttp.AuditSink
 	securityEvents gojahttp.SecurityEventObserver
 	policy         DeviceEndpointPolicy
+	rateLimiter    gojahttp.RateLimiter
 }
 
 func NewDeviceHandlers(cfg DeviceHandlersConfig) (*DeviceHandlers, error) {
@@ -42,7 +44,7 @@ func NewDeviceHandlers(cfg DeviceHandlersConfig) (*DeviceHandlers, error) {
 	if cfg.Service.OAuthTokens.AccessTokens == nil || cfg.Service.OAuthTokens.RefreshTokens == nil {
 		return nil, fmt.Errorf("device handlers require oauth token service")
 	}
-	return &DeviceHandlers{service: cfg.Service, sessionManager: cfg.SessionManager, audit: cfg.Audit, securityEvents: cfg.SecurityEvents, policy: cfg.Policy}, nil
+	return &DeviceHandlers{service: cfg.Service, sessionManager: cfg.SessionManager, audit: cfg.Audit, securityEvents: cfg.SecurityEvents, policy: cfg.Policy, rateLimiter: cfg.RateLimiter}, nil
 }
 
 func (h *DeviceHandlers) StartHandler() http.Handler {
@@ -50,6 +52,9 @@ func (h *DeviceHandlers) StartHandler() http.Handler {
 		if r.Method != http.MethodPost {
 			h.observe(r, "programauth.device.start", "rejected", "method")
 			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		if !h.allowRequest(w, r, "auth.device.start", 10) {
 			return
 		}
 		var body deviceStartRequest
@@ -89,6 +94,9 @@ func (h *DeviceHandlers) TokenHandler() http.Handler {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
+		if !h.allowRequest(w, r, "auth.device.poll", 60) {
+			return
+		}
 		deviceCode, grantType, err := readDeviceTokenRequest(r)
 		if err != nil {
 			h.observe(r, "programauth.device.poll", "rejected", "invalid_request")
@@ -121,6 +129,9 @@ func (h *DeviceHandlers) RefreshHandler() http.Handler {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
+		if !h.allowRequest(w, r, "auth.device.refresh", 30) {
+			return
+		}
 		refreshToken, grantType, err := readRefreshTokenRequest(r)
 		if err != nil {
 			h.observe(r, "programauth.refresh", "rejected", "invalid_request")
@@ -151,6 +162,9 @@ func (h *DeviceHandlers) RevokeHandler() http.Handler {
 		if r.Method != http.MethodPost {
 			h.observe(r, "programauth.refresh_revoke", "rejected", "method")
 			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		if !h.allowRequest(w, r, "auth.device.revoke", 30) {
 			return
 		}
 		refreshToken, _, err := readRefreshTokenRequest(r)
@@ -223,6 +237,9 @@ func (h *DeviceHandlers) RequestHandler() http.Handler {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 			return
 		}
+		if !h.allowRequest(w, r, "auth.device.approval", 30) {
+			return
+		}
 		if !h.requireSessionCSRF(w, r, "programauth.device.inspect") {
 			return
 		}
@@ -250,6 +267,9 @@ func (h *DeviceHandlers) DenyHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		if !h.allowRequest(w, r, "auth.device.approval", 30) {
 			return
 		}
 		if !h.requireSessionCSRF(w, r, "programauth.device.deny") {
@@ -288,6 +308,22 @@ func (h *DeviceHandlers) requireSessionCSRF(w http.ResponseWriter, r *http.Reque
 		return false
 	}
 	return true
+}
+
+func (h *DeviceHandlers) allowRequest(w http.ResponseWriter, r *http.Request, policy string, limit int) bool {
+	if h.rateLimiter == nil {
+		return true
+	}
+	decision, err := h.rateLimiter.CheckRateLimit(r.Context(), gojahttp.RateLimitRequest{HTTPRequest: r, Spec: gojahttp.RateLimitSpec{Policy: policy, Limit: limit, Window: time.Minute}, Key: gojahttp.RequestClientIP(r)})
+	if err != nil || decision.Allowed {
+		return true
+	}
+	if decision.RetryAfter > 0 {
+		w.Header().Set("Retry-After", fmt.Sprintf("%d", int(decision.RetryAfter.Seconds())+1))
+	}
+	h.observe(r, "programauth.device.rate_limit", "rejected", policy)
+	writeOAuthError(w, http.StatusTooManyRequests, "rate_limited", "too many requests", 0)
+	return false
 }
 
 func (h *DeviceHandlers) grantsFromActions(actions []string, tenantID string) (gojahttp.GrantSet, error) {
