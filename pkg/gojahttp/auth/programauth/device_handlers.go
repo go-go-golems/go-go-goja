@@ -12,11 +12,19 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth"
 )
 
+// DeviceEndpointPolicy is the host-owned boundary for application device grants.
+type DeviceEndpointPolicy struct {
+	AllowedActions  map[string]struct{}
+	MaxActions      int
+	VerificationURI string
+}
+
 type DeviceHandlersConfig struct {
 	Service        DeviceService
 	SessionManager *sessionauth.Manager
 	Audit          gojahttp.AuditSink
 	SecurityEvents gojahttp.SecurityEventObserver
+	Policy         DeviceEndpointPolicy
 }
 
 type DeviceHandlers struct {
@@ -24,6 +32,7 @@ type DeviceHandlers struct {
 	sessionManager *sessionauth.Manager
 	audit          gojahttp.AuditSink
 	securityEvents gojahttp.SecurityEventObserver
+	policy         DeviceEndpointPolicy
 }
 
 func NewDeviceHandlers(cfg DeviceHandlersConfig) (*DeviceHandlers, error) {
@@ -33,7 +42,7 @@ func NewDeviceHandlers(cfg DeviceHandlersConfig) (*DeviceHandlers, error) {
 	if cfg.Service.OAuthTokens.AccessTokens == nil || cfg.Service.OAuthTokens.RefreshTokens == nil {
 		return nil, fmt.Errorf("device handlers require oauth token service")
 	}
-	return &DeviceHandlers{service: cfg.Service, sessionManager: cfg.SessionManager, audit: cfg.Audit, securityEvents: cfg.SecurityEvents}, nil
+	return &DeviceHandlers{service: cfg.Service, sessionManager: cfg.SessionManager, audit: cfg.Audit, securityEvents: cfg.SecurityEvents, policy: cfg.Policy}, nil
 }
 
 func (h *DeviceHandlers) StartHandler() http.Handler {
@@ -49,13 +58,13 @@ func (h *DeviceHandlers) StartHandler() http.Handler {
 			writeOAuthError(w, http.StatusBadRequest, "invalid_request", err.Error(), 0)
 			return
 		}
-		grants, err := grantsFromActions(body.Actions, body.TenantID)
+		grants, err := h.grantsFromActions(body.Actions, body.TenantID)
 		if err != nil {
 			h.observe(r, "programauth.device.start", "rejected", "invalid_scope")
 			writeOAuthError(w, http.StatusBadRequest, "invalid_scope", err.Error(), 0)
 			return
 		}
-		started, err := h.service.StartDeviceAuthorization(r.Context(), DeviceStartSpec{ClientName: firstNonEmpty(body.ClientName, body.ClientNameSnake), TenantID: body.TenantID, Grants: grants, VerificationURI: body.VerificationURI})
+		started, err := h.service.StartDeviceAuthorization(r.Context(), DeviceStartSpec{ClientName: firstNonEmpty(body.ClientName, body.ClientNameSnake), TenantID: body.TenantID, Grants: grants, VerificationURI: h.policy.VerificationURI})
 		if err != nil {
 			h.observe(r, "programauth.device.start", "failed", "persistence")
 			writeOAuthError(w, http.StatusBadRequest, "invalid_request", err.Error(), 0)
@@ -281,6 +290,27 @@ func (h *DeviceHandlers) requireSessionCSRF(w http.ResponseWriter, r *http.Reque
 	return true
 }
 
+func (h *DeviceHandlers) grantsFromActions(actions []string, tenantID string) (gojahttp.GrantSet, error) {
+	grants, err := grantsFromActions(actions, tenantID)
+	if err != nil {
+		return gojahttp.GrantSet{}, err
+	}
+	if len(grants.Grants) == 0 {
+		return gojahttp.GrantSet{}, fmt.Errorf("at least one action is required")
+	}
+	if h.policy.MaxActions > 0 && len(grants.Grants) > h.policy.MaxActions {
+		return gojahttp.GrantSet{}, fmt.Errorf("too many requested actions")
+	}
+	for _, grant := range grants.Grants {
+		if len(h.policy.AllowedActions) != 0 {
+			if _, ok := h.policy.AllowedActions[grant.Action]; !ok {
+				return gojahttp.GrantSet{}, fmt.Errorf("action %q is not allowed", grant.Action)
+			}
+		}
+	}
+	return grants, nil
+}
+
 func (h *DeviceHandlers) observe(r *http.Request, event, outcome, reason string) {
 	if h.securityEvents != nil {
 		h.securityEvents.ObserveSecurityEvent(r.Context(), gojahttp.SecurityEvent{Name: event, Outcome: outcome, Reason: reason})
@@ -319,7 +349,6 @@ type deviceStartRequest struct {
 	ClientNameSnake string   `json:"client_name"`
 	TenantID        string   `json:"tenantId"`
 	Actions         []string `json:"actions"`
-	VerificationURI string   `json:"verificationUri"`
 }
 
 type deviceUserCodeRequest struct {
