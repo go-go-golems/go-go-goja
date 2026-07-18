@@ -41,3 +41,12 @@ Phase 1: added canonical request-identity resolver primitives and migrated DTO, 
 
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/request_identity.go — Resolves trusted proxy identity
 
+
+## 2026-07-18
+
+Phase 1: wired validated hostauth proxy policy around the full generated ServeMux (commit 30bef69).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/providers/http/serve.go — Native and planned routes now share request identity
+

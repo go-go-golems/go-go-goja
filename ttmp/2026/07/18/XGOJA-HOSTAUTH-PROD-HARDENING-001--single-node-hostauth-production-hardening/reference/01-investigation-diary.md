@@ -19,14 +19,19 @@ RelatedFiles:
       Note: Trusted proxy and context projection regression coverage
     - Path: repo://pkg/xgoja/hostauth/config.go
       Note: Hostauth configuration vocabulary investigated for this plan
+    - Path: repo://pkg/xgoja/hostauth/preflight.go
+      Note: Validates trusted proxy CIDR policy in commit 30bef69
     - Path: repo://pkg/xgoja/providers/http/serve.go
-      Note: Native handlers are mounted before the application fallback
+      Note: |-
+        Native handlers are mounted before the application fallback
+        Wraps all generated host routes in canonical identity middleware
 ExternalSources: []
 Summary: Chronological record of the evidence gathering and design work for the minimum credible single-node hostauth hardening implementation.
 LastUpdated: 2026-07-18T20:56:00-04:00
 WhatFor: Preserve the reasoning, commands, boundaries, and validation approach behind the companion implementation guide.
 WhenToUse: Read before resuming ticket implementation or reviewing a change against the intended single-node scope.
 ---
+
 
 
 
@@ -444,3 +449,91 @@ The canonical fallback deliberately returns `unknown` rather than a malformed
 `RemoteAddr` string. This avoids allowing malformed transport data into a
 rate-limit key or audit hash. `TrustedProxyResolver.Resolve` requires a valid
 peer IP; its middleware returns HTTP 400 for malformed trusted forwarded data.
+
+## Step 4: Wire the proxy policy around generated hosts
+
+The generic resolver is now reachable from generated hostauth configuration and
+wraps the outer generated HTTP mux. This completes the phase-one propagation
+path: native handlers and the JavaScript application receive the same resolved
+request context rather than only a planned-route-specific view.
+
+### Prompt Context
+
+**User prompt (verbatim):** "phase 1"
+
+**Assistant interpretation:** Complete the outstanding Phase 1 generated-host proxy configuration and middleware wiring.
+
+**Inferred user intent:** Make the request-identity foundation operational for a host deployed behind trusted Traefik, not merely available as a library primitive.
+
+**Commit (code):** 30bef695142eb652f59bd34c43ada40cf2167c7d — "hostauth: wire trusted proxy identity"
+
+### What I did
+
+- Added `auth.proxy.mode` and `auth.proxy.trusted-cidrs` to hostauth config and
+  resolved CIDR prefixes with reject-on-invalid, duplicate, or contradictory
+  configuration behavior.
+- Added the resolved `gojahttp.TrustedProxyResolver` to `hostauth.Services`.
+- Wrapped the complete `ServeMux` in `RequestIdentityMiddleware` in
+  `pkg/xgoja/providers/http/serve.go`, after mounting native routes and the
+  application fallback.
+- Added hostauth resolution coverage for valid trusted forwarding and invalid
+  direct/empty/malformed configurations.
+- Ran focused package tests and committed; the repository hook subsequently
+  passed lint, vet, generation, and `go test ./...`.
+
+### Why
+
+- Native `/auth/*` endpoints and planned JavaScript routes must agree on the
+  client identity; wrapping only `gojahttp.Host` would leave native handlers
+  outside the security boundary.
+- Explicit CIDRs prevent the dangerous configuration where an XFF header alone
+  creates trust.
+
+### What worked
+
+- `go test ./pkg/xgoja/hostauth ./pkg/xgoja/providers/http ./pkg/gojahttp -count=1`
+  passed before commit.
+- The pre-commit hook passed its full lint/generate/test workflow.
+
+### What didn't work
+
+- No implementation failure occurred. The generated CLI/Glazed flat settings
+  do not yet expose proxy fields; direct YAML/host configuration works, but
+  command-flag parity remains a small Phase 1 documentation/config follow-up.
+
+### What I learned
+
+- `buildServeHandler` is the correct wrapping point because it owns the mux
+  that registers both `Services.NativeHandlers` and the application fallback.
+
+### What was tricky to build
+
+The ordering matters: the middleware must wrap the mux after all routes are
+registered, not be applied only to the fallback application handler. The final
+shape preserves native-route precedence while adding the same request context
+to every branch.
+
+### What warrants a second pair of eyes
+
+- Confirm the configured production Traefik CIDR and NetworkPolicy in the
+  deployment repository; code cannot infer a safe cluster network range.
+- Add Glazed proxy fields before declaring command-line configuration complete.
+
+### What should be done in the future
+
+- Add Glazed/config-reference parity and an ingress-level Traefik test, then
+  mark Phase 1 complete.
+- Begin Phase 2 only after the real proxy topology is verified.
+
+### Code review instructions
+
+- Review `resolveProxyConfig`, then verify that `buildServeHandler` wraps the
+  whole mux with `authServices.RequestIdentity`.
+- Re-run the focused test command above and `make lint` from the repository
+  root.
+
+### Technical details
+
+`trusted-forwarded` requires at least one CIDR; `direct` rejects CIDRs. A
+trusted peer with a malformed XFF chain receives a 400 rather than a guessed
+identity, while an untrusted peer's XFF is ignored.
