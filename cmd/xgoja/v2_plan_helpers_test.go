@@ -16,7 +16,7 @@ func TestSelectPlanTargetSelectsCommandCompatiblePrimaryAndScopesPlan(t *testing
 		specv2.ArtifactSpec{ID: "declarations", Type: "dts", Output: "types.d.ts"},
 	)
 
-	buildTarget, buildPlan, err := selectPlanTarget(compiled, artifactCommandBuild)
+	buildTarget, buildPlan, err := selectPlanTarget(compiled, artifactCommandBuild, "")
 	if err != nil {
 		t.Fatalf("select build target: %v", err)
 	}
@@ -26,7 +26,7 @@ func TestSelectPlanTargetSelectsCommandCompatiblePrimaryAndScopesPlan(t *testing
 	assertArtifactIDs(t, buildPlan.Config.Artifacts, "binary", "assets", "declarations")
 	assertArtifactPlanIDs(t, buildPlan.Artifacts, "binary", "assets", "declarations")
 
-	generateTarget, generatePlan, err := selectPlanTarget(compiled, artifactCommandGenerate)
+	generateTarget, generatePlan, err := selectPlanTarget(compiled, artifactCommandGenerate, "")
 	if err != nil {
 		t.Fatalf("select generate target: %v", err)
 	}
@@ -47,7 +47,7 @@ func TestSelectPlanTargetNormalizesArtifactTypesInScopedPlan(t *testing.T) {
 		specv2.ArtifactSpec{ID: "binary", Type: " binary "},
 	)
 
-	buildTarget, buildPlan, err := selectPlanTarget(compiled, artifactCommandBuild)
+	buildTarget, buildPlan, err := selectPlanTarget(compiled, artifactCommandBuild, "")
 	if err != nil {
 		t.Fatalf("select whitespace-padded build target: %v", err)
 	}
@@ -71,7 +71,7 @@ func TestSelectPlanTargetNormalizesArtifactTypesInScopedPlan(t *testing.T) {
 func TestSelectPlanTargetRejectsNoCompatiblePrimary(t *testing.T) {
 	compiled := artifactSelectionPlan(specv2.ArtifactSpec{ID: "runtime", Type: "runtime-package"})
 
-	_, _, err := selectPlanTarget(compiled, artifactCommandBuild)
+	_, _, err := selectPlanTarget(compiled, artifactCommandBuild, "")
 	if err == nil {
 		t.Fatal("expected no-compatible-primary error")
 	}
@@ -88,7 +88,7 @@ func TestSelectPlanTargetRejectsAmbiguousPrimary(t *testing.T) {
 		specv2.ArtifactSpec{ID: "template", Type: "template"},
 	)
 
-	_, _, err := selectPlanTarget(compiled, artifactCommandGenerate)
+	_, _, err := selectPlanTarget(compiled, artifactCommandGenerate, "")
 	if err == nil {
 		t.Fatal("expected ambiguous-primary error")
 	}
@@ -96,6 +96,45 @@ func TestSelectPlanTargetRejectsAmbiguousPrimary(t *testing.T) {
 		if !strings.Contains(err.Error(), want) {
 			t.Fatalf("error %q missing %q", err, want)
 		}
+	}
+}
+
+func TestSelectPlanTargetExplicitArtifactResolvesAmbiguity(t *testing.T) {
+	compiled := artifactSelectionPlan(
+		specv2.ArtifactSpec{ID: "binary", Type: "binary"},
+		specv2.ArtifactSpec{ID: "cobra", Type: "cobra"},
+	)
+
+	target, scoped, err := selectPlanTarget(compiled, artifactCommandBuild, "cobra")
+	if err != nil {
+		t.Fatalf("select explicit artifact: %v", err)
+	}
+	if target.ID != "cobra" || target.Type != "cobra" {
+		t.Fatalf("unexpected explicit target: %#v", target)
+	}
+	assertArtifactIDs(t, scoped.Config.Artifacts, "cobra")
+}
+
+func TestSelectPlanTargetExplicitArtifactRejectsUnknownOrIncompatible(t *testing.T) {
+	compiled := artifactSelectionPlan(
+		specv2.ArtifactSpec{ID: "binary", Type: "binary"},
+		specv2.ArtifactSpec{ID: "runtime", Type: "runtime-package"},
+	)
+
+	for _, test := range []struct {
+		name string
+		id   string
+		want string
+	}{
+		{name: "unknown", id: "missing", want: `requested unknown artifact "missing"`},
+		{name: "incompatible", id: "runtime", want: `artifact "runtime" has type "runtime-package"`},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			_, _, err := selectPlanTarget(compiled, artifactCommandBuild, test.id)
+			if err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("error = %v, want %q", err, test.want)
+			}
+		})
 	}
 }
 

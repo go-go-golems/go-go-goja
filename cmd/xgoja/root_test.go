@@ -92,7 +92,7 @@ func TestBuildAndGenerateSelectCompatibleArtifactsRegardlessOfOrder(t *testing.T
 				t.Fatalf("new build root command: %v", err)
 			}
 			workDir := filepath.Join(t.TempDir(), "build")
-			buildRoot.SetArgs([]string{"build", "-f", specPath, "--work-dir", workDir, "--dry-run"})
+			buildRoot.SetArgs([]string{"build", "-f", specPath, "--artifact", "binary", "--work-dir", workDir, "--dry-run"})
 			if err := buildRoot.Execute(); err != nil {
 				t.Fatalf("execute build: %v\n%s", err, buildOut.String())
 			}
@@ -110,7 +110,7 @@ func TestBuildAndGenerateSelectCompatibleArtifactsRegardlessOfOrder(t *testing.T
 				t.Fatalf("new generate root command: %v", err)
 			}
 			packageDir := filepath.Join(t.TempDir(), "runtime")
-			generateRoot.SetArgs([]string{"generate", "-f", specPath, "--output", packageDir})
+			generateRoot.SetArgs([]string{"generate", "-f", specPath, "--artifact", "runtime", "--output", packageDir})
 			if err := generateRoot.Execute(); err != nil {
 				t.Fatalf("execute generate: %v\n%s", err, generateOut.String())
 			}

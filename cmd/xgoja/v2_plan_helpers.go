@@ -24,40 +24,64 @@ type v2PlanTarget struct {
 	Template string
 }
 
-func selectPlanTarget(compiled *plan.Plan, command artifactCommand) (v2PlanTarget, *plan.Plan, error) {
+func selectPlanTarget(compiled *plan.Plan, command artifactCommand, artifactID string) (v2PlanTarget, *plan.Plan, error) {
 	if compiled == nil {
 		return v2PlanTarget{}, nil, fmt.Errorf("xgoja %s: compiled plan is nil", command)
 	}
 
-	candidates := make([]plan.ArtifactPlan, 0, len(compiled.Artifacts))
-	for _, artifact := range compiled.Artifacts {
-		if isCompatiblePrimary(command, artifact.Spec.Type) {
-			candidates = append(candidates, artifact)
+	artifactID = strings.TrimSpace(artifactID)
+	var selected plan.ArtifactPlan
+	if artifactID != "" {
+		var ok bool
+		selected, ok = artifactPlanByID(compiled.Artifacts, artifactID)
+		if !ok {
+			return v2PlanTarget{}, nil, fmt.Errorf(
+				"xgoja %s requested unknown artifact %q; configured artifacts: %s",
+				command,
+				artifactID,
+				formatArtifacts(compiled.Artifacts),
+			)
 		}
-	}
-	if len(candidates) == 0 {
-		return v2PlanTarget{}, nil, fmt.Errorf(
-			"xgoja %s found no compatible primary artifact; accepts %s; configured artifacts: %s",
-			command,
-			compatibleArtifactTypes(command),
-			formatArtifacts(compiled.Artifacts),
-		)
-	}
-	if len(candidates) > 1 {
-		return v2PlanTarget{}, nil, fmt.Errorf(
-			"xgoja %s requires exactly one compatible primary artifact; found %d: %s",
-			command,
-			len(candidates),
-			formatArtifacts(candidates),
-		)
+		if !isCompatiblePrimary(command, selected.Spec.Type) {
+			return v2PlanTarget{}, nil, fmt.Errorf(
+				"xgoja %s artifact %q has type %q; accepts %s",
+				command,
+				selected.Spec.ID,
+				normalizedArtifactType(selected.Spec.Type),
+				compatibleArtifactTypes(command),
+			)
+		}
+	} else {
+		candidates := make([]plan.ArtifactPlan, 0, len(compiled.Artifacts))
+		for _, artifact := range compiled.Artifacts {
+			if isCompatiblePrimary(command, artifact.Spec.Type) {
+				candidates = append(candidates, artifact)
+			}
+		}
+		if len(candidates) == 0 {
+			return v2PlanTarget{}, nil, fmt.Errorf(
+				"xgoja %s found no compatible primary artifact; accepts %s; configured artifacts: %s",
+				command,
+				compatibleArtifactTypes(command),
+				formatArtifacts(compiled.Artifacts),
+			)
+		}
+		if len(candidates) > 1 {
+			return v2PlanTarget{}, nil, fmt.Errorf(
+				"xgoja %s requires exactly one compatible primary artifact; found %d: %s; use --artifact <id> to select one",
+				command,
+				len(candidates),
+				formatArtifacts(candidates),
+			)
+		}
+		selected = candidates[0]
 	}
 
-	selected := candidates[0].Spec
-	scoped, err := scopePlanToPrimary(compiled, selected.ID)
+	scoped, err := scopePlanToPrimary(compiled, selected.Spec.ID)
 	if err != nil {
 		return v2PlanTarget{}, nil, err
 	}
-	return targetFromArtifact(selected), scoped, nil
+	return targetFromArtifact(selected.Spec), scoped, nil
 }
 
 func isCompatiblePrimary(command artifactCommand, artifactType string) bool {

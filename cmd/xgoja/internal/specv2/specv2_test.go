@@ -129,6 +129,17 @@ func TestValidateRejectsDuplicateRuntimeAliases(t *testing.T) {
 	}
 }
 
+func TestApplyDefaultsNormalizesArtifactType(t *testing.T) {
+	cfg := &Config{Artifacts: []ArtifactSpec{{ID: "binary", Type: " binary "}}}
+	ApplyDefaults(cfg)
+	if got := cfg.Artifacts[0].Type; got != "binary" {
+		t.Fatalf("artifact type = %q, want binary", got)
+	}
+	if got := cfg.Artifacts[0].Output; got != "dist/xgoja-app" {
+		t.Fatalf("default binary output = %q, want dist/xgoja-app", got)
+	}
+}
+
 func TestRenderAppliesStableDefaults(t *testing.T) {
 	out, err := Render(Config{
 		Name: "My App",

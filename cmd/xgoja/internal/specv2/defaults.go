@@ -46,6 +46,7 @@ func ApplyDefaults(cfg *Config) {
 		applySourceDefaults(&cfg.Sources[i])
 	}
 	for i := range cfg.Artifacts {
+		cfg.Artifacts[i].Type = strings.TrimSpace(cfg.Artifacts[i].Type)
 		if cfg.Artifacts[i].Type == "binary" && strings.TrimSpace(cfg.Artifacts[i].Output) == "" {
 			cfg.Artifacts[i].Output = filepath.ToSlash(filepath.Join("dist", sanitizeModulePathPart(cfg.Name)))
 		}

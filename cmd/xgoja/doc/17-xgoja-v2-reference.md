@@ -421,10 +421,18 @@ order works with both commands. `build` generates from the binary and
 control embedded jsverb/help files. `embedded-assets` artifacts remain global
 support artifacts and are retained by both commands.
 
-If no compatible primary exists, or more than one compatible primary exists,
-the command fails and names the relevant artifact IDs and types. xgoja does not
-yet provide `--artifact` selection or multi-output orchestration; split an
-ambiguous configuration until a concrete need for that larger feature exists.
+If no compatible primary exists, the command fails and names the configured
+artifact IDs and types. If more than one compatible primary exists, pass
+`--artifact <id>` to choose one explicitly:
+
+```bash
+xgoja build -f xgoja.yaml --artifact release-binary
+xgoja generate -f xgoja.yaml --artifact runtime-package
+```
+
+The selected primary's sources are embedded along with global support artifacts.
+xgoja still does not orchestrate multiple outputs in one invocation; run the
+command once for each intended output.
 
 Generated hosts can configure Go-owned auth services with a top-level `auth:`
 block. `app.NewHostWithOptions` installs a lazy `hostauth.ServiceFactoryKey`
@@ -641,7 +649,7 @@ The normal command path is v2-plan-native: `doctor`, `build`, `generate`, `gen-d
 Known limits:
 
 - v2 doctor uses a synthetic provider registry for static validation. It cannot fully validate provider package implementation details unless a provider is linked into a generated sidecar or described by future provider manifests.
-- Multiple compatible primary artifacts are not orchestrated. `xgoja build` and `xgoja generate` each require exactly one compatible primary artifact; use one build primary and one generation primary per spec today. `dts` and `embedded-assets` remain support artifacts.
+- Multiple compatible primary artifacts are not orchestrated in one invocation. `xgoja build` and `xgoja generate` auto-select when exactly one compatible primary exists; use `--artifact <id>` when more than one is intentional. `dts` and `embedded-assets` remain support artifacts.
 - Provider package import path and Go module path are inferred when a provider does not specify replacement/version metadata.
 
 ## Migration policy
