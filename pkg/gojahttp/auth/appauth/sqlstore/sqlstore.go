@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -120,6 +121,18 @@ func (s *Store) AddResource(ctx context.Context, resource appauth.Resource) erro
 
 func (s *Store) ByID(ctx context.Context, id string) (*appauth.User, error) {
 	user, err := scanUser(s.db.QueryRowContext(ctx, s.userByIDQuery(), id))
+	if err != nil {
+		return nil, err
+	}
+	if user.DisabledAt != nil {
+		return nil, gojahttp.ErrNotFound
+	}
+	return user, nil
+}
+
+func (s *Store) ByExternalIdentity(ctx context.Context, issuer, subject string) (*appauth.User, error) {
+	query := `SELECT ` + userColumns + ` FROM auth_app_users u JOIN auth_app_external_identities e ON e.user_id = u.id WHERE e.issuer = ` + s.placeholder(1) + ` AND e.subject = ` + s.placeholder(2)
+	user, err := scanUser(s.db.QueryRowContext(ctx, query, issuer, subject))
 	if err != nil {
 		return nil, err
 	}
@@ -290,6 +303,13 @@ const (
 	resourceByIDSQLite     = `SELECT ` + resourceColumns + ` FROM auth_app_resources WHERE type = ? AND id = ?`
 	resourceByIDPostgres   = `SELECT ` + resourceColumns + ` FROM auth_app_resources WHERE type = $1 AND id = $2`
 )
+
+func (s *Store) placeholder(index int) string {
+	if s.dialect == DialectPostgres {
+		return "$" + strconv.Itoa(index)
+	}
+	return "?"
+}
 
 func (s *Store) upsertUserQuery() string {
 	if s.dialect == DialectPostgres {
