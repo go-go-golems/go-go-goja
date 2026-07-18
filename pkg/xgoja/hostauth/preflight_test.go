@@ -126,6 +126,7 @@ func validSingleNodeConfig() Config {
 			Driver: "sqlite",
 			DSN:    "file:single-node.db",
 		}},
+		Device: DeviceConfig{AllowedActions: []string{"user.self.read"}, VerificationURI: "https://app.example.test/auth/device"},
 		OIDC: OIDCConfig{
 			IssuerURL:     "https://idp.example.test",
 			ClientID:      "example-app",

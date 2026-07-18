@@ -139,7 +139,7 @@ func BuildNativeHandlers(ctx context.Context, cfg ResolvedConfig, sessionManager
 		{Method: "GET", Path: "/auth/readyz", Handler: readinessHandler(BuildReadinessReport(cfg))},
 	}
 	if deviceService.Store != nil {
-		deviceHandlers, err := programauth.NewDeviceHandlers(programauth.DeviceHandlersConfig{Service: deviceService, SessionManager: sessionManager, Audit: auditSink, SecurityEvents: securityEvents, RateLimiter: rateLimiter})
+		deviceHandlers, err := programauth.NewDeviceHandlers(programauth.DeviceHandlersConfig{Service: deviceService, SessionManager: sessionManager, Audit: auditSink, SecurityEvents: securityEvents, RateLimiter: rateLimiter, Policy: programauth.DeviceEndpointPolicy{AllowedActions: cfg.Device.AllowedActions, MaxActions: cfg.Device.MaxActions, VerificationURI: cfg.Device.VerificationURI}})
 		if err != nil {
 			return nil, err
 		}

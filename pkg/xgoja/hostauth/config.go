@@ -55,6 +55,7 @@ type Config struct {
 	OIDC        OIDCConfig        `yaml:"oidc" json:"oidc"`
 	RateLimiter RateLimiterConfig `yaml:"rate-limiter" json:"rate-limiter"`
 	Proxy       ProxyConfig       `yaml:"proxy" json:"proxy"`
+	Device      DeviceConfig      `yaml:"device" json:"device"`
 }
 
 // DeploymentConfig controls the explicit operational profile of the host.
@@ -75,6 +76,12 @@ type RateLimiterConfig struct {
 type ProxyConfig struct {
 	Mode         gojahttp.ProxyMode `yaml:"mode" json:"mode"`
 	TrustedCIDRs []string           `yaml:"trusted-cidrs" json:"trusted-cidrs"`
+}
+
+type DeviceConfig struct {
+	AllowedActions  []string `yaml:"allowed-actions" json:"allowed-actions"`
+	MaxActions      int      `yaml:"max-actions" json:"max-actions"`
+	VerificationURI string   `yaml:"verification-uri" json:"verification-uri"`
 }
 
 // OIDCConfig controls generated-host browser login when Mode is oidc.
@@ -139,6 +146,7 @@ type ResolvedConfig struct {
 	OIDC        ResolvedOIDCConfig
 	RateLimiter ResolvedRateLimiterConfig
 	Proxy       ResolvedProxyConfig
+	Device      ResolvedDeviceConfig
 }
 
 type ResolvedDeploymentConfig struct {
@@ -152,6 +160,12 @@ type ResolvedRateLimiterConfig struct {
 type ResolvedProxyConfig struct {
 	Mode            gojahttp.ProxyMode
 	TrustedPrefixes []netip.Prefix
+}
+
+type ResolvedDeviceConfig struct {
+	AllowedActions  map[string]struct{}
+	MaxActions      int
+	VerificationURI string
 }
 
 // ResolvedOIDCConfig contains validated OIDC settings. RedirectURL is always
