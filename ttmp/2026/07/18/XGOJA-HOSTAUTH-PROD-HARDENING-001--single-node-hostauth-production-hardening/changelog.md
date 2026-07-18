@@ -50,3 +50,12 @@ Phase 1: wired validated hostauth proxy policy around the full generated ServeMu
 
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/providers/http/serve.go — Native and planned routes now share request identity
 
+
+## 2026-07-18
+
+Phase 2: added redacted device request inspection and CSRF-protected terminal denial (commit 831887c).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/programauth/device_handlers.go — Native inspection and denial handlers
+
