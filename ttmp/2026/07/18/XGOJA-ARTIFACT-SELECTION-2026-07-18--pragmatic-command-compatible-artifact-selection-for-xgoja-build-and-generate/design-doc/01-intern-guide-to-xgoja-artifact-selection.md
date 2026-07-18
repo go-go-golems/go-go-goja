@@ -57,7 +57,7 @@ The proposed fix is intentionally pragmatic:
 6. Add focused unit, command, and embedding tests.
 7. Document the command/artifact matrix and the one-compatible-primary limitation.
 
-This design does **not** add `--artifact`, artifact dependency graphs, arbitrary target closures, or a generalized build orchestrator. Those features should wait until a real consumer needs multiple build-compatible or multiple generate-compatible primaries in one invocation.
+The initial design deferred `--artifact`; implementation later added it as a small, local extension after command-compatible scoping existed. `--artifact <id>` selects one compatible primary when a spec intentionally has multiple candidates. The design still does **not** add artifact dependency graphs, arbitrary target closures, or a generalized build orchestrator.
 
 ## 2. Problem statement
 
@@ -151,7 +151,6 @@ A fix that changes only the command's local `target` variable can still generate
 
 ### 3.2 Explicit non-goals
 
-- No `--artifact <id>` flag.
 - No dependency graph between artifacts.
 - No `depends-on`, `for`, or target-specific support-artifact schema.
 - No command that builds every binary or generates every package.
@@ -576,19 +575,19 @@ Properties of good errors:
 - Include IDs so the user can find the entries.
 - State accepted types.
 - Do not suggest adding a nonexistent `target:` field.
-- Do not suggest `--artifact`, because this ticket does not implement that option.
+- Suggest `--artifact <id>` only when more than one primary is compatible with the invoked command.
+- Do not imply that one invocation builds or generates every artifact.
 
 ### 6.6 Command integration
 
 Build:
 
 ```go
-selection, err := selectPlanTarget(compiledPlan, artifactCommandBuild)
+target, scopedPlan, err := selectPlanTarget(compiledPlan, artifactCommandBuild, settings.Artifact)
 if err != nil {
     return err
 }
-compiledPlan = selection.Plan
-target := selection.Target
+compiledPlan = scopedPlan
 
 // Existing output/work-dir/build logic follows.
 generate.WriteAllPlan(workDir, compiledPlan, opts)
@@ -597,12 +596,11 @@ generate.WriteAllPlan(workDir, compiledPlan, opts)
 Generate:
 
 ```go
-selection, err := selectPlanTarget(compiledPlan, artifactCommandGenerate)
+target, scopedPlan, err := selectPlanTarget(compiledPlan, artifactCommandGenerate, settings.Artifact)
 if err != nil {
     return err
 }
-compiledPlan = selection.Plan
-target := selection.Target
+compiledPlan = scopedPlan
 
 // Every branch uses compiledPlan, including template-data.
 generate.TemplateDataJSONFromPlan(compiledPlan, packageName)
@@ -611,11 +609,11 @@ generate.WritePackagePlan(output, compiledPlan, opts)
 
 Delete the old post-selection kind rejection blocks once compatibility is enforced by selection. Keep output/package/template validation because those validate selected-artifact fields and CLI overrides.
 
-### 6.7 Why no `--artifact` yet
+### 6.7 Explicit `--artifact` selection (implementation amendment)
 
-An explicit selector is attractive but unnecessary for the current consumer. It also creates a public promise that multiple compatible primaries are supported correctly. That promise would force decisions about target-specific assets, DTS output, source isolation, and multi-output invocation.
+The initial design deferred an explicit selector. It was subsequently added because command-compatible scoping already makes its behavior local and deterministic: the flag chooses one compatible primary, while the existing scoped-plan rule still retains global support artifacts and excludes unselected primary JS/help sources.
 
-Failing on ambiguity gives users deterministic behavior and tells maintainers exactly when a real need for `--artifact` has appeared.
+`--artifact` does not build or generate multiple outputs, add artifact dependencies, or assign target-specific assets. It only resolves an otherwise actionable ambiguity. Unknown or incompatible IDs fail with a command-specific error naming accepted artifact types.
 
 ## 7. Architecture diagrams
 
@@ -745,13 +743,13 @@ binary.sources ----------- removed -+
 - **Consequences:** Different primaries cannot yet own different asset sets. That is an explicit limitation, not silently invented behavior.
 - **Status:** accepted
 
-### Decision: Do not add `--artifact`
+### Decision: Add scoped `--artifact` selection
 
-- **Context:** Explicit selection could resolve ambiguity but expands the public API and implied orchestration semantics.
-- **Options considered:** Add the flag now; support it only partially; defer until needed.
-- **Decision:** Defer.
-- **Rationale:** The current shipping case has exactly one compatible primary for each command.
-- **Consequences:** Ambiguous specs fail clearly rather than being selectable.
+- **Context:** Explicit selection resolves a real ambiguity without requiring multi-output orchestration because selected-plan scoping already controls metadata and embedded sources.
+- **Options considered:** Continue rejecting ambiguity; add an explicit selector; generate all candidates.
+- **Decision:** Add `--artifact <id>` to `build` and `generate`.
+- **Rationale:** It is a small, testable CLI extension that selects one command-compatible primary and retains existing scoped support-artifact semantics.
+- **Consequences:** Multiple compatible primaries are now usable one-at-a-time. Artifact dependency graphs, target-specific assets, and build-all/generate-all remain out of scope.
 - **Status:** accepted
 
 ## 9. Implementation guide
@@ -1004,7 +1002,7 @@ Rejected. It fixes binary/package coexistence but leaves two binaries or package
 
 ### Add `--artifact` now
 
-Deferred. It is simple at the CLI surface but implies broader support for multiple compatible primaries. A clear ambiguity error is sufficient for the current shipping case.
+Implemented after the scoped-plan foundation landed. The flag chooses one compatible primary; it does not imply multi-output orchestration or target-specific support-artifact ownership.
 
 ### Generate every compatible artifact
 
@@ -1121,4 +1119,4 @@ The ticket is complete when:
 - Global static assets remain embedded.
 - Existing single-primary examples and tests pass.
 - The public v2 reference documents the actual behavior.
-- No `--artifact`, dependency graph, or multi-output orchestration was introduced.
+- `--artifact` selects a compatible primary; no dependency graph or multi-output orchestration was introduced.

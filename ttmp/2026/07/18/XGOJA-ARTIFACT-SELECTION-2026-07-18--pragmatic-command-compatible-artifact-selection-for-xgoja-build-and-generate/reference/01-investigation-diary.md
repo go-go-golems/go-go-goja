@@ -10,6 +10,8 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: ws://go-go-goja/cmd/xgoja/internal/specv2/defaults.go
+      Note: Central ArtifactSpec.Type normalization before default output derivation
     - Path: ws://go-go-goja/cmd/xgoja/root_test.go
       Note: |-
         Existing command test patterns and future regression test location
@@ -26,6 +28,7 @@ LastUpdated: 0001-01-01T00:00:00Z
 WhatFor: Preserve reproduction commands, observed failures, reasoning, and implementation review instructions.
 WhenToUse: Read before implementing or reviewing XGOJA-ARTIFACT-SELECTION-2026-07-18.
 ---
+
 
 
 
@@ -454,3 +457,81 @@ Useful? React with 👍 / 👎."
 
 - Review-fix commit: `30d0d88a1ac707d8b86808b6c98391417268f0b5`.
 - Validation: focused `TestSelectPlanTarget`, `./.bin/golangci-lint run ./cmd/xgoja/...`, and successful full pre-commit test/lint hooks.
+
+## Step 5: Add explicit artifact selection and central artifact-type normalization
+
+The user chose to include two previously deferred but low-risk improvements: explicit `--artifact <id>` selection and normalization of artifact types at v2 defaulting time. The existing scoped-plan implementation made the flag a contained extension: it selects one compatible primary and reuses the same metadata/source-isolation path rather than introducing output orchestration.
+
+The implementation is committed as `a6f83de` and replaces the design guide's prior recommendation to defer the flag.
+
+### Prompt Context
+
+**User prompt (verbatim):** "do 1. and 3."
+
+**Assistant interpretation:** Implement the previously listed `--artifact` flag and central `ArtifactSpec.Type` normalization in `specv2.ApplyDefaults`.
+
+**Inferred user intent:** Improve the practical multi-artifact UX now that the small supporting architecture is in place, without adding dependency graphs or build-all behavior.
+
+### What I did
+
+- Added `--artifact` fields to both build and generate Glazed command settings and help text.
+- Extended `selectPlanTarget` with an optional artifact ID:
+  - no ID retains automatic exactly-one-compatible selection;
+  - an ID selects one compatible primary even if others exist;
+  - unknown IDs and incompatible IDs return command-specific errors.
+- Updated ambiguity diagnostics to recommend `--artifact <id>`.
+- Trimmed every `ArtifactSpec.Type` in `specv2.ApplyDefaults` before binary default-output logic.
+- Added unit tests for explicit selection, unknown/incompatible IDs, and central type normalization.
+- Updated command integration tests to pass `--artifact binary` and `--artifact runtime`.
+- Updated the v2 reference and the intern guide to reflect the new public contract.
+
+### Why
+
+- `--artifact` resolves legitimate multiple-binary or multiple-generation-target specs without changing the scoped-plan model.
+- Central normalization aligns defaults, validation, selection, and downstream generator comparisons for all normal v2 load paths.
+
+### What worked
+
+- Focused `go test ./cmd/xgoja/... -count=1` passed.
+- `./.bin/golangci-lint run ./cmd/xgoja/...` passed.
+- Commit hook passed `go generate ./...`, `go test ./...`, golangci-lint, and Glazed vet.
+
+### What didn't work
+
+- The first help-text revision put Markdown backticks inside Go's raw string literal, causing:
+
+  ```text
+  cmd/xgoja/cmd_generate.go:42:22: syntax error: unexpected name runtime in argument list
+  ```
+
+  Fix: use plain text in the raw CLI help string; Markdown backticks remain appropriate in Markdown docs.
+
+### What I learned
+
+- The scoped plan converts explicit selection from an architectural feature into a local policy choice: once a primary is selected, existing source/asset handling already follows it.
+- Central `ApplyDefaults` normalization makes the later defensive scoped-copy normalization redundant for normal loaded specs, but retaining it protects direct manually constructed plans used by tests/internal callers.
+
+### What was tricky to build
+
+- `--artifact` must not bypass compatibility checks. Allowing a runtime-package ID on `build`, for example, would recreate the original wrong-command failure under a different path. The helper therefore validates the selected artifact against the command's allow-list before scoping.
+
+### What warrants a second pair of eyes
+
+- Review exact artifact-ID matching semantics. The flag trims its input; artifact IDs otherwise retain existing schema behavior. This is intentionally narrower than normalizing all artifact fields.
+
+### What should be done in the future
+
+- Continue to defer dependency graphs, target-specific support assets, and multi-output orchestration; `--artifact` selects one output per invocation.
+
+### Code review instructions
+
+- Start with `selectPlanTarget`'s explicit-ID branch and verify unknown/incompatible errors.
+- Verify build/generate decode and pass `settings.Artifact`.
+- Verify `specv2.ApplyDefaults` trims type before checking `binary` default output.
+- Run the focused tests and inspect documentation examples.
+
+### Technical details
+
+- Code commit: `a6f83de3bc0808ba871462bd88b11b19b0426683`.
+- New CLI forms: `xgoja build --artifact <id>` and `xgoja generate --artifact <id>`.
+- Non-goals remain: dependency graphs, target-specific assets, and multiple outputs per invocation.

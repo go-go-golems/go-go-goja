@@ -51,3 +51,13 @@ Addressed review regression: normalize whitespace-padded artifact types during c
 - /home/manuel/workspaces/2026-07-18/improve-xgoja/go-go-goja/cmd/xgoja/v2_plan_helpers.go — Whitespace normalization at selection and scoped generation boundaries
 - /home/manuel/workspaces/2026-07-18/improve-xgoja/go-go-goja/cmd/xgoja/v2_plan_helpers_test.go — Regression coverage for padded primary/support artifact types
 
+
+## 2026-07-18
+
+Added scoped --artifact selection to build/generate and central artifact-type normalization; explicit IDs resolve ambiguity but still enforce command compatibility, while full hooks pass (commit a6f83de)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-07-18/improve-xgoja/go-go-goja/cmd/xgoja/internal/specv2/defaults.go — Central whitespace normalization
+- /home/manuel/workspaces/2026-07-18/improve-xgoja/go-go-goja/cmd/xgoja/v2_plan_helpers.go — Explicit compatible-primary selection and diagnostics
+
