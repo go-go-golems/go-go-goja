@@ -19,6 +19,8 @@ RelatedFiles:
       Note: End-to-end Express OAuth and TinyIDP example
     - Path: repo://modules/express/auth_builders.go
       Note: Express OAuth builder
+    - Path: repo://pkg/gojahttp/auth/appauth/sqlstore/sqlstore.go
+      Note: Dialect-specific static SQL query constants remove G202 scanner findings
     - Path: repo://pkg/gojahttp/auth/programauth/device_handlers.go
       Note: Phase 2 native policy, budgets, lifecycle and management handlers
     - Path: repo://pkg/gojahttp/auth/programauth/oauth.go
@@ -53,6 +55,7 @@ LastUpdated: 2026-07-18T20:56:00-04:00
 WhatFor: Preserve the reasoning, commands, boundaries, and validation approach behind the companion implementation guide.
 WhenToUse: Read before resuming ticket implementation or reviewing a change against the intended single-node scope.
 ---
+
 
 
 
@@ -967,3 +970,52 @@ The focused changes were committed as `d37a6b3` after the repository pre-commit 
 ### Technical details
 - Commit: `d37a6b3`.
 - Raw bearer tokens, provider secrets, and arbitrary claims remain excluded from JavaScript, audit metadata, and actor projections.
+
+## Step 11: Remove SQL placeholder concatenation findings
+
+Addressed the G202 SQL-injection scanner findings reported for external-identity binding and local-user disablement. The SQL values were already parameterized, but placeholder text was assembled inline; the implementation now selects complete SQLite/Postgres query constants through dialect-specific helpers. The external-identity lookup was normalized the same way, removing the remaining placeholder helper and its `strconv` dependency.
+
+### Prompt Context
+
+**User prompt (verbatim):** "[/home/runner/work/go-go-goja/go-go-goja/pkg/gojahttp/auth/appauth/sqlstore/sqlstore.go:165] - G202 (CWE-89): SQL string concatenation (Confidence: HIGH, Severity: MEDIUM)\n    164: func (s *Store) DisableUser(ctx context.Context, id string, disabledAt time.Time) error {\n  > 165:     result, err := s.db.ExecContext(ctx, `UPDATE auth_app_users SET disabled_at = `+s.placeholder(1)+` WHERE id = `+s.placeholder(2)+` AND disabled_at IS NULL`, disabledAt.UTC(), id)\n    166:     if err != nil {\n\nAutofix: \n\n[/home/runner/work/go-go-goja/go-go-goja/pkg/gojahttp/auth/appauth/sqlstore/sqlstore.go:134] - G202 (CWE-89): SQL string concatenation (Confidence: HIGH, Severity: MEDIUM)\n    133:     _, err := s.db.ExecContext(ctx, `INSERT INTO auth_app_external_identities (issuer, subject, user_id) VALUES (`+s.placeholder(1)+`, `+s.placeholder(2)+`, `+s.placeholder(3)+`) ON CONFLICT(issuer, subject) DO UPDATE SET user_id = excluded.user_id`, issuer, subject, userID)\n    134: \nAutofix:"
+
+**Assistant interpretation:** Replace inline SQL placeholder concatenation with static dialect-specific parameterized query constants and verify the scanner findings are gone.
+
+**Inferred user intent:** Make the PR pass the security scanner without weakening SQL parameterization or changing SQLite/Postgres behavior.
+
+**Commit (code):** 94241a2 — "appauth/sqlstore: remove SQL placeholder concatenation"
+
+### What I did
+- Added static SQLite and Postgres query constants for external-identity lookup/binding and user disablement.
+- Replaced inline placeholder construction with dialect query selector methods.
+- Removed the unused placeholder helper and `strconv` import.
+
+### Why
+- Gosec G202 flags SQL text concatenation even when only trusted placeholder syntax is concatenated; static query variants make the safety invariant visible to scanners and reviewers.
+
+### What worked
+- `go test ./pkg/gojahttp/auth/appauth/sqlstore ./pkg/gojahttp/auth/appauth -count=1` passed.
+- `.bin/golangci-lint run ./pkg/gojahttp/auth/appauth/sqlstore ./pkg/gojahttp/auth/appauth` passed with `0 issues`.
+- `gosec ./pkg/gojahttp/auth/appauth/sqlstore` reported `Issues: 0`.
+
+### What didn't work
+- The first edit attempt failed because the exact `DisableUser` replacement block did not match; no source changes were applied by that failed edit. The follow-up targeted edits succeeded.
+
+### What I learned
+- Dialect-specific query constants are preferable to runtime placeholder string assembly when static security analysis is part of the release gate.
+
+### What was tricky to build
+- The same placeholder helper was also used by `ByExternalIdentity`; removing it required converting lookup, write, and disable operations together while preserving `$n` ordering for Postgres and `?` ordering for SQLite.
+
+### What warrants a second pair of eyes
+- Confirm the Postgres and SQLite query constants remain semantically identical, especially the external-identity upsert conflict behavior and disabled-user conditional update.
+
+### What should be done in the future
+- Keep new SQL statements in complete dialect-specific constants or vetted query builders so G202 does not regress.
+
+### Code review instructions
+- Review `pkg/gojahttp/auth/appauth/sqlstore/sqlstore.go` around `BindExternalIdentity`, `ByExternalIdentity`, `DisableUser`, and the query constants/helpers.
+- Validate with the two package tests, `gosec ./pkg/gojahttp/auth/appauth/sqlstore`, and repository lint.
+
+### Technical details
+- All caller-controlled values remain SQL parameters; only compile-time query constants are selected by dialect.

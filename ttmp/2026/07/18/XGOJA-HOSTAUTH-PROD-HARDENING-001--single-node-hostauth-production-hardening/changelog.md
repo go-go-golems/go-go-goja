@@ -106,3 +106,12 @@ Completed OAuth host composition, issuer-scoped identity mapping, user disableme
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/programauth/maintenance.go — Credential retention maintenance service
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/xgoja/hostauth/oauth_verifier.go — OAuth verifier profiles and identity composition
 
+
+## 2026-07-18
+
+Security scan follow-up: replaced inline SQL placeholder concatenation with static SQLite/Postgres query constants for external identities and user disablement (commit 94241a2); gosec reports zero issues.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/appauth/sqlstore/sqlstore.go — Parameterized dialect-specific appauth SQL
+
