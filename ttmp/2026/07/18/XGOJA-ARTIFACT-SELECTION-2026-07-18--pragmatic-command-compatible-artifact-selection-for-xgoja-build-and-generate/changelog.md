@@ -61,3 +61,13 @@ Added scoped --artifact selection to build/generate and central artifact-type no
 - /home/manuel/workspaces/2026-07-18/improve-xgoja/go-go-goja/cmd/xgoja/internal/specv2/defaults.go — Central whitespace normalization
 - /home/manuel/workspaces/2026-07-18/improve-xgoja/go-go-goja/cmd/xgoja/v2_plan_helpers.go — Explicit compatible-primary selection and diagnostics
 
+
+## 2026-07-18
+
+Addressed review: normalize artifact IDs during v2 defaults and explicit --artifact matching/scoping, with padded-ID regression coverage (commit 2820fad)
+
+### Related Files
+
+- /home/manuel/workspaces/2026-07-18/improve-xgoja/go-go-goja/cmd/xgoja/internal/specv2/defaults.go — Central artifact ID normalization
+- /home/manuel/workspaces/2026-07-18/improve-xgoja/go-go-goja/cmd/xgoja/v2_plan_helpers.go — Normalized explicit selector, lookup, scoped plan, and diagnostics
+

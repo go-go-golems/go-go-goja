@@ -535,3 +535,83 @@ The implementation is committed as `a6f83de` and replaces the design guide's pri
 - Code commit: `a6f83de3bc0808ba871462bd88b11b19b0426683`.
 - New CLI forms: `xgoja build --artifact <id>` and `xgoja generate --artifact <id>`.
 - Non-goals remain: dependency graphs, target-specific assets, and multiple outputs per invocation.
+
+## Step 6: Address review — normalize artifact IDs for `--artifact`
+
+A second review correctly found that `validateArtifacts` trims artifact IDs for validation while the initial `--artifact` implementation trimmed the flag but compared it with the raw stored ID. A valid `id: " release "` therefore could not be selected as `--artifact release` in an ambiguous spec.
+
+I made artifact-ID normalization central for normal v2 loading and defensive for direct plans. This gives the CLI, validation, selection, scoped generation, and diagnostics one identifier representation without expanding the feature surface.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Address
+cmd/xgoja/v2_plan_helpers.go
+Comment on lines +32 to +36
+    artifactID = strings.TrimSpace(artifactID)
+    var selected plan.ArtifactPlan
+    if artifactID != \"\" {
+        var ok bool
+        selected, ok = artifactPlanByID(compiled.Artifacts, artifactID)
+@chatgpt-codex-connector
+chatgpt-codex-connector Bot
+now
+
+P2 Badge Normalize artifact IDs before matching --artifact
+
+When a valid spec uses an artifact ID with surrounding whitespace (for example, id: \" release \"), validation accepts it because validateArtifacts trims IDs, but this code trims the flag value and then compares it exactly with the unnormalized stored ID. Consequently --artifact release is reported as unknown—and passing the padded value cannot work because it is trimmed here—so an ambiguous spec containing that artifact cannot be resolved explicitly. Normalize artifact IDs during defaulting or compare their trimmed forms consistently.
+
+Useful? React with 👍 / 👎."
+
+**Assistant interpretation:** Align artifact-ID defaulting and explicit selection with validation's existing whitespace semantics, then prove the flag handles a padded declared ID.
+
+**Inferred user intent:** Remove the remaining accepted-spec regression from `--artifact` without adding unrelated identifier redesign.
+
+### What I did
+
+- Added `cfg.Artifacts[i].ID = strings.TrimSpace(cfg.Artifacts[i].ID)` in `specv2.ApplyDefaults`.
+- Added `normalizedArtifactID` and used it when matching IDs, scoping artifacts, rendering diagnostics, and copying artifact specs.
+- Added an explicit-selection regression with `ID: " binary "` and `--artifact " binary "`; the selected/scoped ID becomes `binary`, while the manually constructed original plan remains unchanged.
+- Extended the existing defaults test to assert normalized ID, type, and binary output.
+- Committed code/tests as `2820fad`.
+
+### Why
+
+- The explicit selector must use the same normalized identifier representation as v2 validation.
+- Defensive helper normalization keeps direct internal test plans correct even before they pass through `ApplyDefaults`.
+
+### What worked
+
+- Focused `go test ./cmd/xgoja/... -count=1` passed.
+- Focused xgoja lint passed.
+- The full pre-commit hook passed generation, all tests, lint, and Glazed vet.
+
+### What didn't work
+
+- N/A.
+
+### What I learned
+
+- The artifact-ID and artifact-type fixes share a pattern: central defaulting establishes correct normal behavior, while scoped helper normalization guards manually assembled `plan.Plan` values without mutating them.
+
+### What was tricky to build
+
+- The selected `ArtifactPlan` can originate with a raw padded ID, so scoping must pass the normalized ID into lookup; normalizing lookup comparisons alone is insufficient if the next lookup receives the unnormalized selected ID.
+
+### What warrants a second pair of eyes
+
+- Confirm that normalizing artifact IDs in defaults is consistent with the existing validation behavior and other normalized identifier fields such as provider/source IDs.
+
+### What should be done in the future
+
+- N/A.
+
+### Code review instructions
+
+- Verify `ApplyDefaults` trims artifact IDs before deriving binary defaults.
+- Verify explicit selection, config lookup, plan lookup, scoped copies, target metadata, and diagnostics use normalized IDs.
+- Run the padded-ID explicit-selection regression.
+
+### Technical details
+
+- Code commit: `2820fadd440b79018266ac038df79cc7d04130f1`.
+- Validation: focused xgoja tests/lint plus successful full pre-commit hook.
