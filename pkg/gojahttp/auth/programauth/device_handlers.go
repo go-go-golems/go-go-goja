@@ -206,6 +206,81 @@ func (h *DeviceHandlers) ApproveHandler() http.Handler {
 	})
 }
 
+// RequestHandler returns a redacted pending request to an authenticated browser
+// user. POST keeps user codes out of query-string logs and browser history.
+func (h *DeviceHandlers) RequestHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		if !h.requireSessionCSRF(w, r, "programauth.device.inspect") {
+			return
+		}
+		var body deviceUserCodeRequest
+		if err := decodeJSONRequest(r, &body); err != nil {
+			h.observe(r, "programauth.device.inspect", "rejected", "invalid_request")
+			writeOAuthError(w, http.StatusBadRequest, "invalid_request", err.Error(), 0)
+			return
+		}
+		pending, err := h.service.InspectDeviceAuthorization(r.Context(), firstNonEmpty(body.UserCode, body.UserCodeSnake))
+		if err != nil {
+			h.observe(r, "programauth.device.inspect", "rejected", "request")
+			writeOAuthError(w, http.StatusBadRequest, "invalid_request", "invalid device request", 0)
+			return
+		}
+		writeJSONResponse(w, http.StatusOK, map[string]any{"clientName": pending.ClientName, "requestedActions": pending.RequestedActions, "expiresAt": pending.ExpiresAt, "status": pending.Status})
+		h.observe(r, "programauth.device.inspect", "accepted", "")
+	})
+}
+
+// DenyHandler terminally denies a pending device request for the authenticated
+// browser user. Polling the corresponding device code subsequently returns
+// access_denied.
+func (h *DeviceHandlers) DenyHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		if !h.requireSessionCSRF(w, r, "programauth.device.deny") {
+			return
+		}
+		var body deviceUserCodeRequest
+		if err := decodeJSONRequest(r, &body); err != nil {
+			writeOAuthError(w, http.StatusBadRequest, "invalid_request", err.Error(), 0)
+			return
+		}
+		if _, err := h.service.DenyDeviceAuthorization(r.Context(), firstNonEmpty(body.UserCode, body.UserCodeSnake)); err != nil {
+			h.observe(r, "programauth.device.deny", "rejected", "request")
+			writeOAuthError(w, http.StatusBadRequest, "invalid_request", "invalid device request", 0)
+			return
+		}
+		writeJSONResponse(w, http.StatusOK, map[string]any{"ok": true})
+		h.observe(r, "programauth.device.deny", "accepted", "")
+	})
+}
+
+func (h *DeviceHandlers) requireSessionCSRF(w http.ResponseWriter, r *http.Request, event string) bool {
+	if h.sessionManager == nil {
+		h.observe(r, event, "rejected", "session_unavailable")
+		writeOAuthError(w, http.StatusUnauthorized, "unauthorized", "session manager is not configured", 0)
+		return false
+	}
+	session, err := h.sessionManager.SessionFromRequest(r.Context(), r)
+	if err != nil {
+		h.observe(r, event, "rejected", "unauthenticated")
+		writeOAuthError(w, http.StatusUnauthorized, "unauthorized", "unauthenticated", 0)
+		return false
+	}
+	if err := h.sessionManager.VerifyCSRF(r.Context(), gojahttp.CSRFRequest{HTTPRequest: r, Actor: &gojahttp.Actor{ID: session.UserID}}); err != nil {
+		h.observe(r, event, "rejected", "csrf")
+		writeOAuthError(w, http.StatusForbidden, "access_denied", "missing or invalid CSRF token", 0)
+		return false
+	}
+	return true
+}
+
 func (h *DeviceHandlers) observe(r *http.Request, event, outcome, reason string) {
 	if h.securityEvents != nil {
 		h.securityEvents.ObserveSecurityEvent(r.Context(), gojahttp.SecurityEvent{Name: event, Outcome: outcome, Reason: reason})
@@ -245,6 +320,11 @@ type deviceStartRequest struct {
 	TenantID        string   `json:"tenantId"`
 	Actions         []string `json:"actions"`
 	VerificationURI string   `json:"verificationUri"`
+}
+
+type deviceUserCodeRequest struct {
+	UserCode      string `json:"userCode"`
+	UserCodeSnake string `json:"user_code"`
 }
 
 type deviceApproveRequest struct {
