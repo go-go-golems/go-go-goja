@@ -32,3 +32,12 @@ Reframed the plan as measured complete product slices and added an ordered six-p
 
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/ttmp/2026/07/18/XGOJA-HOSTAUTH-PROD-HARDENING-001--single-node-hostauth-production-hardening/design-doc/01-intern-implementation-guide-for-single-node-hostauth-hardening.md — Defines revised scope and phase exit criteria
 
+
+## 2026-07-18
+
+Phase 1: added canonical request-identity resolver primitives and migrated DTO, audit, limiter, and access-log consumers (commit 3b3b448).
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/request_identity.go — Resolves trusted proxy identity
+
