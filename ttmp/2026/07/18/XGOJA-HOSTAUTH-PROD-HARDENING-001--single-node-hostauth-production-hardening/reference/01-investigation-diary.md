@@ -13,12 +13,18 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: repo://pkg/gojahttp/auth/programauth/device_handlers.go
+      Note: Phase 2 native policy, budgets, lifecycle and management handlers
     - Path: repo://pkg/gojahttp/request_identity.go
       Note: Canonical request identity resolver implemented in Phase 1 commit 3b3b448
     - Path: repo://pkg/gojahttp/request_identity_test.go
       Note: Trusted proxy and context projection regression coverage
     - Path: repo://pkg/xgoja/hostauth/config.go
-      Note: Hostauth configuration vocabulary investigated for this plan
+      Note: |-
+        Hostauth configuration vocabulary investigated for this plan
+        Production device-policy configuration
+    - Path: repo://pkg/xgoja/hostauth/glazed.go
+      Note: CLI configuration parity for device policy
     - Path: repo://pkg/xgoja/hostauth/preflight.go
       Note: Validates trusted proxy CIDR policy in commit 30bef69
     - Path: repo://pkg/xgoja/providers/http/serve.go
@@ -31,6 +37,7 @@ LastUpdated: 2026-07-18T20:56:00-04:00
 WhatFor: Preserve the reasoning, commands, boundaries, and validation approach behind the companion implementation guide.
 WhenToUse: Read before resuming ticket implementation or reviewing a change against the intended single-node scope.
 ---
+
 
 
 
@@ -615,3 +622,102 @@ and the lifecycle regression test; run the focused command above.
 The inspection response contains client name, stored requested actions, expiry,
 and terminal/pending status only. It contains no user code, device code, token
 hash, token family, or subject identity.
+
+## Step 6: Complete the implemented Phase 2 device boundary
+
+The remaining Phase 2 slices were completed as focused commits: device-start
+grant constraints, native request budgets, single-node policy configuration,
+and owner-scoped agent listing/disablement. The work keeps policy in Go-owned
+host configuration and keeps the ownership predicate in the service layer,
+rather than trusting a browser UI.
+
+### Prompt Context
+
+**User prompt (verbatim):** "You are still stopping after the commit. DON'T. Do phase 2 in full, with all its commits and diary updates."
+
+**Assistant interpretation:** Continue through the remaining agreed Phase 2 implementation and record the whole sequence before reporting completion.
+
+**Inferred user intent:** Receive a complete, auditable lifecycle hardening increment rather than repeated partial progress messages.
+
+**Commit (code):** 2c87e64d03d23d5cfd5ee7e94463c29accf73fd5 — "programauth: constrain device start grants"; 318e6d4b1d6ec605ad68db1c0b296bfb05451bde — "hostauth: rate limit native device endpoints"; 5bab59a52c463e9ae7f08503956a5555da6b201f — "programauth: enforce owner-scoped agent disablement"; 3412610812054a723c0bd201d8f90c0c76c8b7ef — "hostauth: require production device policy"; a34076882bc78ee7d3accff5e24efc5a7f28a8c4 — "hostauth: expose owner-scoped agent management"; 83133e5fdcaebed28d8eb096c7d5064c38536dda — "hostauth: expose device policy command settings"
+
+### What I did
+
+- Required non-empty device actions, optional allowlist membership, and an
+  optional maximum action count before device persistence.
+- Removed client control of `verificationUri`; host policy supplies it.
+- Applied IP-keyed fixed-window budgets to start, polling, refresh, revoke,
+  inspect, deny, and approval, returning 429 with `Retry-After`.
+- Added `auth.device` config plus Glazed flags and made single-node preflight
+  require configured actions and a verification URI.
+- Added owner-scoped agent service methods and native `GET /auth/agents` plus
+  CSRF-protected `POST /auth/agents/disable` routes.
+- Added lifecycle and ownership regression coverage; every code commit passed
+  the repository pre-commit lint, generation, vet, and full test workflow.
+
+### Why
+
+These pieces together provide the current product’s agent lifecycle: a user
+can inspect/deny a pending authorization, receive only approved local actions,
+and list or disable only their own agents. They also bound the public native
+work before code/token persistence and remove client-selected browser origins.
+
+### What worked
+
+All focused tests and every full pre-commit workflow passed. The new
+single-node configuration fails closed when device policy is absent.
+
+### What didn't work
+
+Refresh-family **self-service listing/revocation** is not implemented because
+current store interfaces do not expose an owner-scoped family query. The
+existing credential-presented `/auth/device/revoke` endpoint remains available.
+Adding a browser management view safely requires a separate store/query design;
+it must not be faked by accepting arbitrary family IDs from a browser.
+
+### What I learned
+
+The existing programauth domain already contained durable device denial,
+agent-disable semantics, and refresh-family revocation. The central work was
+placing the correct HTTP/configuration boundaries around those primitives.
+
+### What was tricky to build
+
+Native endpoints do not traverse planned-route enforcement, so they need their
+own small use of the shared limiter. The implementation uses canonical client
+identity and stable low-cardinality policy names rather than manufacturing fake
+route plans or allowing raw codes into limiter keys.
+
+### What warrants a second pair of eyes
+
+- Budget values are conservative defaults and should be tuned against observed
+  usage before public launch.
+- `verification-uri` should be constrained to the configured public HTTPS
+  origin in a follow-up rather than merely supplied by trusted configuration.
+- Management handlers should gain HTTP-level cross-owner tests in addition to
+  the service-level ownership test.
+
+### What should be done in the future
+
+- Design owner-scoped refresh-family storage/query APIs and then add browser
+  revocation UI/routes.
+- Add real Traefik ingress proof, maintenance/cleanup commands, and Phase 3
+  dependency readiness.
+
+### Code review instructions
+
+Review `DeviceEndpointPolicy`, `allowRequest`, `DeviceConfig` preflight, and
+`DisableOwnedAgent` together. Confirm no handler takes an owner ID, raw device
+code in a URL, or client-selected verification URI.
+
+### Technical details
+
+The production config shape is:
+
+~~~yaml
+auth:
+  device:
+    allowed-actions: [user.self.read]
+    max-actions: 1
+    verification-uri: https://app.example.test/auth/device
+~~~

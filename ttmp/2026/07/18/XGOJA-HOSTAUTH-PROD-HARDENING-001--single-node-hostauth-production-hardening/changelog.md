@@ -59,3 +59,12 @@ Phase 2: added redacted device request inspection and CSRF-protected terminal de
 
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/programauth/device_handlers.go — Native inspection and denial handlers
 
+
+## 2026-07-18
+
+Phase 2: completed device policy, native budgets, inspect/deny, owner-scoped agent management, and configuration wiring; refresh-family browser management remains separately designed.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth/programauth/device_handlers.go — Phase 2 HTTP security boundary
+
