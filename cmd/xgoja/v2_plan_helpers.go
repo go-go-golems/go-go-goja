@@ -77,7 +77,7 @@ func selectPlanTarget(compiled *plan.Plan, command artifactCommand, artifactID s
 		selected = candidates[0]
 	}
 
-	scoped, err := scopePlanToPrimary(compiled, selected.Spec.ID)
+	scoped, err := scopePlanToPrimary(compiled, normalizedArtifactID(selected.Spec.ID))
 	if err != nil {
 		return v2PlanTarget{}, nil, err
 	}
@@ -103,6 +103,10 @@ func isSupportArtifact(artifactType string) bool {
 
 func normalizedArtifactType(artifactType string) string {
 	return strings.TrimSpace(artifactType)
+}
+
+func normalizedArtifactID(artifactID string) string {
+	return strings.TrimSpace(artifactID)
 }
 
 func compatibleArtifactTypes(command artifactCommand) string {
@@ -169,6 +173,7 @@ func scopePlanToPrimary(compiled *plan.Plan, selectedID string) (*plan.Plan, err
 }
 
 func normalizedArtifactSpec(artifact specv2.ArtifactSpec) specv2.ArtifactSpec {
+	artifact.ID = normalizedArtifactID(artifact.ID)
 	artifact.Type = normalizedArtifactType(artifact.Type)
 	return artifact
 }
@@ -180,7 +185,7 @@ func normalizedArtifactPlan(artifact plan.ArtifactPlan) plan.ArtifactPlan {
 
 func artifactByID(artifacts []specv2.ArtifactSpec, id string) (specv2.ArtifactSpec, bool) {
 	for _, artifact := range artifacts {
-		if artifact.ID == id {
+		if normalizedArtifactID(artifact.ID) == id {
 			return artifact, true
 		}
 	}
@@ -189,7 +194,7 @@ func artifactByID(artifacts []specv2.ArtifactSpec, id string) (specv2.ArtifactSp
 
 func artifactPlanByID(artifacts []plan.ArtifactPlan, id string) (plan.ArtifactPlan, bool) {
 	for _, artifact := range artifacts {
-		if artifact.Spec.ID == id {
+		if normalizedArtifactID(artifact.Spec.ID) == id {
 			return artifact, true
 		}
 	}
@@ -202,7 +207,7 @@ func formatArtifacts(artifacts []plan.ArtifactPlan) string {
 	}
 	parts := make([]string, 0, len(artifacts))
 	for _, artifact := range artifacts {
-		parts = append(parts, fmt.Sprintf("%s (%s)", artifact.Spec.ID, normalizedArtifactType(artifact.Spec.Type)))
+		parts = append(parts, fmt.Sprintf("%s (%s)", normalizedArtifactID(artifact.Spec.ID), normalizedArtifactType(artifact.Spec.Type)))
 	}
 	return strings.Join(parts, ", ")
 }

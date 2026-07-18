@@ -130,8 +130,11 @@ func TestValidateRejectsDuplicateRuntimeAliases(t *testing.T) {
 }
 
 func TestApplyDefaultsNormalizesArtifactType(t *testing.T) {
-	cfg := &Config{Artifacts: []ArtifactSpec{{ID: "binary", Type: " binary "}}}
+	cfg := &Config{Artifacts: []ArtifactSpec{{ID: " binary ", Type: " binary "}}}
 	ApplyDefaults(cfg)
+	if got := cfg.Artifacts[0].ID; got != "binary" {
+		t.Fatalf("artifact id = %q, want binary", got)
+	}
 	if got := cfg.Artifacts[0].Type; got != "binary" {
 		t.Fatalf("artifact type = %q, want binary", got)
 	}

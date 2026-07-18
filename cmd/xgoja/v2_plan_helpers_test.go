@@ -115,6 +115,24 @@ func TestSelectPlanTargetExplicitArtifactResolvesAmbiguity(t *testing.T) {
 	assertArtifactIDs(t, scoped.Config.Artifacts, "cobra")
 }
 
+func TestSelectPlanTargetExplicitArtifactNormalizesID(t *testing.T) {
+	compiled := artifactSelectionPlan(specv2.ArtifactSpec{ID: " binary ", Type: "binary"})
+
+	target, scoped, err := selectPlanTarget(compiled, artifactCommandBuild, " binary ")
+	if err != nil {
+		t.Fatalf("select whitespace-padded artifact id: %v", err)
+	}
+	if target.ID != "binary" {
+		t.Fatalf("target id = %q, want binary", target.ID)
+	}
+	if got := scoped.Config.Artifacts[0].ID; got != "binary" {
+		t.Fatalf("scoped config artifact id = %q, want binary", got)
+	}
+	if got := compiled.Config.Artifacts[0].ID; got != " binary " {
+		t.Fatalf("original config was mutated: %q", got)
+	}
+}
+
 func TestSelectPlanTargetExplicitArtifactRejectsUnknownOrIncompatible(t *testing.T) {
 	compiled := artifactSelectionPlan(
 		specv2.ArtifactSpec{ID: "binary", Type: "binary"},
