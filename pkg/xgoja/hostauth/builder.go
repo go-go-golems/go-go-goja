@@ -100,7 +100,14 @@ func (b *Builder) BuildHostAuthServices(ctx context.Context, vals *values.Values
 	if securityEvents == nil {
 		securityEvents = &gojahttp.MemorySecurityMetrics{}
 	}
-	authOptions := BuildAuthOptions(sessionManager, stores, auditSink, rateLimiter, apiTokenService, oauthTokenService, b.options.OAuthBearerAuthenticator)
+	oauthBearer := b.options.OAuthBearerAuthenticator
+	if oauthBearer == nil && len(resolved.OAuthResources) > 0 {
+		oauthBearer, err = buildOAuthVerifierSet(ctx, resolved.OAuthResources, externalIdentityResolver{users: stores.AppAuth.Users, memberships: stores.AppAuth.Memberships})
+		if err != nil {
+			return nil, err
+		}
+	}
+	authOptions := BuildAuthOptions(sessionManager, stores, auditSink, rateLimiter, apiTokenService, oauthTokenService, oauthBearer)
 	authOptions.SecurityEvents = securityEvents
 	nativeHandlers, err := BuildNativeHandlers(ctx, resolved, sessionManager, stores, deviceService, auditSink, securityEvents, rateLimiter)
 	if err != nil {

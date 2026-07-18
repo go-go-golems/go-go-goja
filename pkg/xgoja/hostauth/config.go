@@ -48,14 +48,15 @@ const (
 // Config is the generated-host auth infrastructure configuration. It is host
 // config, not JavaScript route config and not an authorization policy DSL.
 type Config struct {
-	Mode        Mode              `yaml:"mode" json:"mode"`
-	Deployment  DeploymentConfig  `yaml:"deployment" json:"deployment"`
-	Session     SessionConfig     `yaml:"session" json:"session"`
-	Stores      StoresConfig      `yaml:"stores" json:"stores"`
-	OIDC        OIDCConfig        `yaml:"oidc" json:"oidc"`
-	RateLimiter RateLimiterConfig `yaml:"rate-limiter" json:"rate-limiter"`
-	Proxy       ProxyConfig       `yaml:"proxy" json:"proxy"`
-	Device      DeviceConfig      `yaml:"device" json:"device"`
+	Mode           Mode                  `yaml:"mode" json:"mode"`
+	Deployment     DeploymentConfig      `yaml:"deployment" json:"deployment"`
+	Session        SessionConfig         `yaml:"session" json:"session"`
+	Stores         StoresConfig          `yaml:"stores" json:"stores"`
+	OIDC           OIDCConfig            `yaml:"oidc" json:"oidc"`
+	RateLimiter    RateLimiterConfig     `yaml:"rate-limiter" json:"rate-limiter"`
+	Proxy          ProxyConfig           `yaml:"proxy" json:"proxy"`
+	Device         DeviceConfig          `yaml:"device" json:"device"`
+	OAuthResources []OAuthResourceConfig `yaml:"oauth-resources" json:"oauth-resources"`
 }
 
 // DeploymentConfig controls the explicit operational profile of the host.
@@ -76,6 +77,13 @@ type RateLimiterConfig struct {
 type ProxyConfig struct {
 	Mode         gojahttp.ProxyMode `yaml:"mode" json:"mode"`
 	TrustedCIDRs []string           `yaml:"trusted-cidrs" json:"trusted-cidrs"`
+}
+
+// OAuthResourceConfig configures one external issuer resource-server profile.
+type OAuthResourceConfig struct {
+	IssuerURL    string `yaml:"issuer-url" json:"issuer-url"`
+	ClientID     string `yaml:"client-id" json:"client-id"`
+	ClientSecret string `yaml:"client-secret" json:"client-secret"`
 }
 
 type DeviceConfig struct {
@@ -139,14 +147,15 @@ type StoreConfig struct {
 // ResolvedConfig is the fully parsed and defaulted configuration used by
 // builders. It contains no unresolved env references.
 type ResolvedConfig struct {
-	Mode        Mode
-	Deployment  ResolvedDeploymentConfig
-	Session     ResolvedSessionConfig
-	Stores      ResolvedStoresConfig
-	OIDC        ResolvedOIDCConfig
-	RateLimiter ResolvedRateLimiterConfig
-	Proxy       ResolvedProxyConfig
-	Device      ResolvedDeviceConfig
+	Mode           Mode
+	Deployment     ResolvedDeploymentConfig
+	Session        ResolvedSessionConfig
+	Stores         ResolvedStoresConfig
+	OIDC           ResolvedOIDCConfig
+	RateLimiter    ResolvedRateLimiterConfig
+	Proxy          ResolvedProxyConfig
+	Device         ResolvedDeviceConfig
+	OAuthResources []ResolvedOAuthResourceConfig
 }
 
 type ResolvedDeploymentConfig struct {
@@ -161,6 +170,8 @@ type ResolvedProxyConfig struct {
 	Mode            gojahttp.ProxyMode
 	TrustedPrefixes []netip.Prefix
 }
+
+type ResolvedOAuthResourceConfig struct{ IssuerURL, ClientID, ClientSecret string }
 
 type ResolvedDeviceConfig struct {
 	AllowedActions  map[string]struct{}

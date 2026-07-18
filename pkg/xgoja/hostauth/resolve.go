@@ -73,6 +73,11 @@ func ResolveConfig(cfg Config, opts ResolveOptions) (ResolvedConfig, error) {
 		return ResolvedConfig{}, err
 	}
 	resolved := ResolvedConfig{Mode: mode, Deployment: deployment, Session: session, Stores: stores, RateLimiter: rateLimiter, Proxy: proxy, Device: device}
+	oauthResources, err := resolveOAuthResources(cfg.OAuthResources)
+	if err != nil {
+		return ResolvedConfig{}, err
+	}
+	resolved.OAuthResources = oauthResources
 	if mode == ModeOIDC {
 		oidc, err := resolveOIDCConfig(cfg.OIDC, session.Cookie.AllowInsecureHTTP)
 		if err != nil {
@@ -84,6 +89,27 @@ func ResolveConfig(cfg Config, opts ResolveOptions) (ResolvedConfig, error) {
 		return ResolvedConfig{}, err
 	}
 	return resolved, nil
+}
+
+func resolveOAuthResources(configs []OAuthResourceConfig) ([]ResolvedOAuthResourceConfig, error) {
+	out := make([]ResolvedOAuthResourceConfig, 0, len(configs))
+	seen := map[string]struct{}{}
+	for i, cfg := range configs {
+		issuer := strings.TrimRight(strings.TrimSpace(cfg.IssuerURL), "/")
+		parsed, err := url.ParseRequestURI(issuer)
+		if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+			return nil, configError(fmt.Sprintf("auth.oauth-resources[%d].issuer-url", i), fmt.Errorf("must be an absolute URL"))
+		}
+		if strings.TrimSpace(cfg.ClientID) == "" || strings.TrimSpace(cfg.ClientSecret) == "" {
+			return nil, configError(fmt.Sprintf("auth.oauth-resources[%d]", i), fmt.Errorf("client id and secret are required"))
+		}
+		if _, ok := seen[issuer]; ok {
+			return nil, configError("auth.oauth-resources", fmt.Errorf("duplicate issuer %q", issuer))
+		}
+		seen[issuer] = struct{}{}
+		out = append(out, ResolvedOAuthResourceConfig{IssuerURL: issuer, ClientID: strings.TrimSpace(cfg.ClientID), ClientSecret: cfg.ClientSecret})
+	}
+	return out, nil
 }
 
 func configError(path string, err error) error {
