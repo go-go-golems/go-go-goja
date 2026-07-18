@@ -14,9 +14,12 @@ const SectionSlug = "auth"
 // auth settings. It intentionally mirrors CLI field names rather than the nested
 // hostauth.Config shape so generated commands can expose clear --auth-* flags.
 type GlazedSettings struct {
-	Mode              string `glazed:"auth-mode"`
-	DeploymentProfile string `glazed:"auth-deployment-profile"`
-	RateLimiterDriver string `glazed:"auth-rate-limiter-driver"`
+	Mode                  string   `glazed:"auth-mode"`
+	DeploymentProfile     string   `glazed:"auth-deployment-profile"`
+	RateLimiterDriver     string   `glazed:"auth-rate-limiter-driver"`
+	DeviceAllowedActions  []string `glazed:"auth-device-allowed-actions"`
+	DeviceMaxActions      int      `glazed:"auth-device-max-actions"`
+	DeviceVerificationURI string   `glazed:"auth-device-verification-uri"`
 
 	SessionCookieAllowInsecureHTTP bool   `glazed:"auth-session-cookie-allow-insecure-http"`
 	SessionCookieName              string `glazed:"auth-session-cookie-name"`
@@ -76,6 +79,9 @@ func GlazedConfigSection(base Config, opts ...schema.SectionOption) (schema.Sect
 		fields.New("auth-mode", fields.TypeChoice, fields.WithChoices(string(ModeNone), string(ModeDev), string(ModeOIDC)), fields.WithDefault(defaults.Mode), fields.WithHelp("Generated-host auth mode")),
 		fields.New("auth-deployment-profile", fields.TypeChoice, fields.WithChoices(string(DeploymentProfileDevelopment), string(DeploymentProfileSingleNode)), fields.WithDefault(defaults.DeploymentProfile), fields.WithHelp("Operational contract: development or one durable production process")),
 		fields.New("auth-rate-limiter-driver", fields.TypeChoice, fields.WithChoices(string(RateLimiterDriverMemory)), fields.WithDefault(defaults.RateLimiterDriver), fields.WithHelp("Host-wide rate limiter; memory requires exactly one serving process")),
+		fields.New("auth-device-allowed-actions", fields.TypeStringList, fields.WithDefault(defaults.DeviceAllowedActions), fields.WithHelp("Application actions device authorization may request")),
+		fields.New("auth-device-max-actions", fields.TypeInteger, fields.WithDefault(defaults.DeviceMaxActions), fields.WithHelp("Maximum actions allowed in one device request; zero uses no additional cap")),
+		fields.New("auth-device-verification-uri", fields.TypeString, fields.WithDefault(defaults.DeviceVerificationURI), fields.WithHelp("Server-owned browser verification URI for device authorization")),
 		fields.New("auth-session-cookie-allow-insecure-http", fields.TypeBool, fields.WithDefault(defaults.SessionCookieAllowInsecureHTTP), fields.WithHelp("Allow non-Secure auth session cookies for local HTTP demos")),
 		fields.New("auth-session-cookie-name", fields.TypeString, fields.WithDefault(defaults.SessionCookieName), fields.WithHelp("Auth session cookie name; empty uses the session manager default")),
 		fields.New("auth-session-cookie-same-site", fields.TypeChoice, fields.WithChoices("", "lax", "strict", "none", "default"), fields.WithDefault(defaults.SessionCookieSameSite), fields.WithHelp("Auth session cookie SameSite mode")),
@@ -124,9 +130,12 @@ func FlattenConfig(cfg Config) GlazedSettings {
 	programauth := cfg.Stores.ProgramAuth
 	oidcTransaction := cfg.Stores.OIDCTransaction
 	return GlazedSettings{
-		Mode:              cfgModeDefault(cfg.Mode),
-		DeploymentProfile: deploymentProfileDefault(cfg.Deployment.Profile),
-		RateLimiterDriver: rateLimiterDriverDefault(cfg.RateLimiter.Driver),
+		Mode:                  cfgModeDefault(cfg.Mode),
+		DeploymentProfile:     deploymentProfileDefault(cfg.Deployment.Profile),
+		RateLimiterDriver:     rateLimiterDriverDefault(cfg.RateLimiter.Driver),
+		DeviceAllowedActions:  append([]string(nil), cfg.Device.AllowedActions...),
+		DeviceMaxActions:      cfg.Device.MaxActions,
+		DeviceVerificationURI: strings.TrimSpace(cfg.Device.VerificationURI),
 
 		SessionCookieAllowInsecureHTTP: cfg.Session.Cookie.AllowInsecureHTTP,
 		SessionCookieName:              strings.TrimSpace(cfg.Session.Cookie.Name),
@@ -203,6 +212,7 @@ func (s GlazedSettings) ToConfig() Config {
 		Mode:        Mode(strings.TrimSpace(s.Mode)),
 		Deployment:  DeploymentConfig{Profile: DeploymentProfile(strings.TrimSpace(s.DeploymentProfile))},
 		RateLimiter: RateLimiterConfig{Driver: RateLimiterDriver(strings.TrimSpace(s.RateLimiterDriver))},
+		Device:      DeviceConfig{AllowedActions: trimStringSlice(s.DeviceAllowedActions), MaxActions: s.DeviceMaxActions, VerificationURI: strings.TrimSpace(s.DeviceVerificationURI)},
 		Session: SessionConfig{
 			Cookie: CookieConfig{
 				AllowInsecureHTTP: s.SessionCookieAllowInsecureHTTP,
