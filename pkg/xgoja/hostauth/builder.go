@@ -99,7 +99,7 @@ func (b *Builder) BuildHostAuthServices(ctx context.Context, vals *values.Values
 	}
 	authOptions := BuildAuthOptions(sessionManager, stores, auditSink, rateLimiter, apiTokenService, oauthTokenService)
 	authOptions.SecurityEvents = securityEvents
-	nativeHandlers, err := BuildNativeHandlers(ctx, resolved, sessionManager, stores, deviceService, auditSink, securityEvents)
+	nativeHandlers, err := BuildNativeHandlers(ctx, resolved, sessionManager, stores, deviceService, auditSink, securityEvents, rateLimiter)
 	if err != nil {
 		return nil, err
 	}
@@ -134,12 +134,12 @@ func (b *Builder) BuildHostAuthServices(ctx context.Context, vals *values.Values
 
 // BuildNativeHandlers maps resolved auth config into Go-owned HTTP handlers
 // mounted by xgoja serve before the JavaScript app host fallback.
-func BuildNativeHandlers(ctx context.Context, cfg ResolvedConfig, sessionManager *sessionauth.Manager, stores *StoreBundle, deviceService programauth.DeviceService, auditSink gojahttp.AuditSink, securityEvents gojahttp.SecurityEventObserver) ([]NativeHandler, error) {
+func BuildNativeHandlers(ctx context.Context, cfg ResolvedConfig, sessionManager *sessionauth.Manager, stores *StoreBundle, deviceService programauth.DeviceService, auditSink gojahttp.AuditSink, securityEvents gojahttp.SecurityEventObserver, rateLimiter gojahttp.RateLimiter) ([]NativeHandler, error) {
 	nativeHandlers := []NativeHandler{
 		{Method: "GET", Path: "/auth/readyz", Handler: readinessHandler(BuildReadinessReport(cfg))},
 	}
 	if deviceService.Store != nil {
-		deviceHandlers, err := programauth.NewDeviceHandlers(programauth.DeviceHandlersConfig{Service: deviceService, SessionManager: sessionManager, Audit: auditSink, SecurityEvents: securityEvents})
+		deviceHandlers, err := programauth.NewDeviceHandlers(programauth.DeviceHandlersConfig{Service: deviceService, SessionManager: sessionManager, Audit: auditSink, SecurityEvents: securityEvents, RateLimiter: rateLimiter})
 		if err != nil {
 			return nil, err
 		}
