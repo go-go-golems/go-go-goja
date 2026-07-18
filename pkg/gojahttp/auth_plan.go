@@ -77,9 +77,17 @@ type RoutePlan struct {
 // accepts any current or future credential family that authenticates as an
 // agent, while {Method: "session", PrincipalKind: "user"} is browser-session
 // user auth only.
+// OAuthRequirement is the exact issuer-issued bearer contract for one route.
+type OAuthRequirement struct {
+	Issuer   string
+	Resource string
+	Scopes   []string
+}
+
 type AuthRequirement struct {
 	Method        AuthMethod
 	PrincipalKind PrincipalKind
+	OAuth         *OAuthRequirement
 }
 
 // SecuritySpec describes who may enter a planned route.
@@ -151,6 +159,18 @@ type AuthResult struct {
 	Grants         GrantSet
 	Scopes         []string
 	CSRFRequired   bool
+	OAuth          *OAuthAuthContext
+}
+
+// OAuthAuthContext contains only verifier-confirmed, non-secret assertions.
+type OAuthAuthContext struct {
+	Issuer    string
+	Subject   string
+	ClientID  string
+	Resources []string
+	Scopes    []string
+	ExpiresAt time.Time
+	TokenType string
 }
 
 type AuthOptions struct {
@@ -308,10 +328,20 @@ func normalizeAuthRequirements(in []AuthRequirement) ([]AuthRequirement, error) 
 		return nil, nil
 	}
 	out := make([]AuthRequirement, 0, len(in))
-	seen := map[AuthRequirement]struct{}{}
+	seen := map[string]struct{}{}
 	for _, requirement := range in {
 		requirement.Method = AuthMethod(strings.TrimSpace(string(requirement.Method)))
 		requirement.PrincipalKind = PrincipalKind(strings.TrimSpace(string(requirement.PrincipalKind)))
+		if requirement.OAuth != nil {
+			oauth, err := normalizeOAuthRequirement(*requirement.OAuth)
+			if err != nil {
+				return nil, err
+			}
+			requirement.OAuth = &oauth
+			if requirement.Method != AuthMethodAccessToken || requirement.PrincipalKind != "" {
+				return nil, fmt.Errorf("oauth requirement requires accessToken method and no principal kind")
+			}
+		}
 		if requirement.Method == "" && requirement.PrincipalKind == "" {
 			return nil, fmt.Errorf("empty auth requirement")
 		}
@@ -321,13 +351,43 @@ func normalizeAuthRequirements(in []AuthRequirement) ([]AuthRequirement, error) 
 		if err := validatePrincipalKind(requirement.PrincipalKind); err != nil {
 			return nil, err
 		}
-		if _, ok := seen[requirement]; ok {
+		key := string(requirement.Method) + "|" + string(requirement.PrincipalKind)
+		if requirement.OAuth != nil {
+			key += "|" + requirement.OAuth.Issuer + "|" + requirement.OAuth.Resource + "|" + strings.Join(requirement.OAuth.Scopes, ",")
+		}
+		if _, ok := seen[key]; ok {
 			continue
 		}
-		seen[requirement] = struct{}{}
+		seen[key] = struct{}{}
 		out = append(out, requirement)
 	}
 	return out, nil
+}
+
+func normalizeOAuthRequirement(in OAuthRequirement) (OAuthRequirement, error) {
+	in.Issuer = strings.TrimSpace(in.Issuer)
+	in.Resource = strings.TrimSpace(in.Resource)
+	if in.Issuer == "" || in.Resource == "" {
+		return OAuthRequirement{}, fmt.Errorf("oauth requirement requires issuer and resource")
+	}
+	if len(in.Scopes) == 0 {
+		return OAuthRequirement{}, fmt.Errorf("oauth requirement requires scopes")
+	}
+	seen := map[string]struct{}{}
+	out := make([]string, 0, len(in.Scopes))
+	for _, scope := range in.Scopes {
+		scope = strings.TrimSpace(scope)
+		if scope == "" || strings.ContainsAny(scope, " \t\n") {
+			return OAuthRequirement{}, fmt.Errorf("invalid oauth scope %q", scope)
+		}
+		if _, ok := seen[scope]; ok {
+			return OAuthRequirement{}, fmt.Errorf("duplicate oauth scope %q", scope)
+		}
+		seen[scope] = struct{}{}
+		out = append(out, scope)
+	}
+	in.Scopes = out
+	return in, nil
 }
 
 func validateAuthMethod(method AuthMethod) error {
