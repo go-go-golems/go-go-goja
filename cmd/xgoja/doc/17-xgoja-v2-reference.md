@@ -403,6 +403,29 @@ help source sets that should be copied into the generated embedded filesystem.
 For assets, use a separate `embedded-assets` artifact with `sources` pointing at
 asset source IDs.
 
+### Artifact selection by command
+
+`xgoja build` and `xgoja generate` select a primary artifact by command
+compatibility, not YAML order. Each command requires exactly one compatible
+primary artifact:
+
+| Command | Compatible primary artifact types | Retained support artifacts |
+| --- | --- | --- |
+| `xgoja build` | `binary`, `adapter`, `cobra` | `dts`, `embedded-assets` |
+| `xgoja generate` | `runtime-package`, `source`, `template` | `dts`, `embedded-assets` |
+| `xgoja gen-dts` | first `dts` artifact (existing behavior) | N/A |
+
+A spec may therefore contain one `binary` and one `runtime-package`; either
+order works with both commands. `build` generates from the binary and
+`generate` generates from the runtime package. The selected primary's `sources`
+control embedded jsverb/help files. `embedded-assets` artifacts remain global
+support artifacts and are retained by both commands.
+
+If no compatible primary exists, or more than one compatible primary exists,
+the command fails and names the relevant artifact IDs and types. xgoja does not
+yet provide `--artifact` selection or multi-output orchestration; split an
+ambiguous configuration until a concrete need for that larger feature exists.
+
 Generated hosts can configure Go-owned auth services with a top-level `auth:`
 block. `app.NewHostWithOptions` installs a lazy `hostauth.ServiceFactoryKey`
 from the runtime plan, and the HTTP `serve` provider builds concrete
@@ -618,7 +641,7 @@ The normal command path is v2-plan-native: `doctor`, `build`, `generate`, `gen-d
 Known limits:
 
 - v2 doctor uses a synthetic provider registry for static validation. It cannot fully validate provider package implementation details unless a provider is linked into a generated sidecar or described by future provider manifests.
-- Multiple artifacts are not fully orchestrated by `xgoja build`. The first binary-style artifact controls the current build target.
+- Multiple compatible primary artifacts are not orchestrated. `xgoja build` and `xgoja generate` each require exactly one compatible primary artifact; use one build primary and one generation primary per spec today. `dts` and `embedded-assets` remain support artifacts.
 - Provider package import path and Go module path are inferred when a provider does not specify replacement/version metadata.
 
 ## Migration policy
