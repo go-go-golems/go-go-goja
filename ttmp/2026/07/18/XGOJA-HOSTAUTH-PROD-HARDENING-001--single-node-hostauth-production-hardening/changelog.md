@@ -86,3 +86,12 @@ Phase 4: implemented typed Express OAuth route declarations, fail-closed validat
 
 - /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/pkg/gojahttp/auth_plan.go — OAuth route security contract
 
+
+## 2026-07-18
+
+Phase 5: corrected the single-node deployment runbook and captured race/build/lint validation evidence.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-06-12/goja-express-auth/go-go-goja/cmd/xgoja/doc/23-auth-host-production-runbook.md — Production deployment procedure
+

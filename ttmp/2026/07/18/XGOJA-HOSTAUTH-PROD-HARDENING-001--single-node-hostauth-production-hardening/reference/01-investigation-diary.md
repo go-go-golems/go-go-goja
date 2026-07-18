@@ -13,6 +13,8 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: repo://cmd/xgoja/doc/23-auth-host-production-runbook.md
+      Note: Phase 5 single-node deployment and release evidence runbook
     - Path: repo://modules/express/auth_builders.go
       Note: Express OAuth builder
     - Path: repo://pkg/gojahttp/auth/programauth/device_handlers.go
@@ -45,6 +47,7 @@ LastUpdated: 2026-07-18T20:56:00-04:00
 WhatFor: Preserve the reasoning, commands, boundaries, and validation approach behind the companion implementation guide.
 WhenToUse: Read before resuming ticket implementation or reviewing a change against the intended single-node scope.
 ---
+
 
 
 
@@ -856,3 +859,52 @@ The composite authenticator uses an external OAuth verifier only for an OAuth-de
 
 ### Technical details
 - OAuth routes require `AuthMethodAccessToken` plus matching verified OAuth issuer, resource, and every requested scope. Raw bearer strings and arbitrary claims never enter `AuthResult`, JavaScript context, or audit attributes.
+
+## Step 9: Phase 5 runbook correction and release evidence
+
+Corrected the production runbook so the documented single-node deployment shape matches the shipped preflight, proxy identity, and health behavior. The runbook now distinguishes migration Jobs from serving processes, requires narrow trusted Traefik CIDRs and NetworkPolicy validation, and gives explicit readiness, backup, restore, and ingress-proof checks.
+
+The repository validation evidence is complete; a live Traefik smoke remains an environment-owned release gate because this source workspace has no target k3s context, namespace, or runtime credentials. The runbook makes that required proof reproducible without inventing a claim that it ran here.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Phase 5"
+
+**Assistant interpretation:** Complete the planned documentation correction and release/deployment validation phase.
+
+**Inferred user intent:** Make operations documentation match the hardened code and capture trustworthy validation evidence.
+
+**Commit (code):** pending — "docs: harden single-node auth host runbook"
+
+### What I did
+- Updated `cmd/xgoja/doc/23-auth-host-production-runbook.md` with single-node migration, proxy, NetworkPolicy, liveness/readiness, backup/restore, and ingress-validation guidance.
+- Verified tiny-idp's README already accurately says strict `/introspect` is available only to configured confidential resource servers.
+- Ran `go test -race ./pkg/gojahttp ./pkg/gojahttp/auth/programauth/... ./pkg/xgoja/hostauth -count=1`, `go build ./...`, and `make lint`.
+
+### Why
+- Production instructions must not tell operators to use the runtime schema flag that the single-node profile rejects, nor imply readiness is merely process liveness.
+
+### What worked
+- All race tests, builds, and lint checks passed after the runbook change.
+
+### What didn't work
+- The combined `go test -race ... && go build ./... && make lint` command exceeded the 120-second tool timeout before completion. Re-running the race suite and build/lint separately passed.
+
+### What I learned
+- Tiny-idp's root README already contains the required introspection correction; duplicating or changing it would create unrelated churn.
+
+### What was tricky to build
+- Deployment proof depends on the live cluster's actual Traefik peer CIDR and NetworkPolicy labels. Hard-coding guessed values would weaken the security contract, so the runbook directs operators to measure and record those values.
+
+### What warrants a second pair of eyes
+- Platform owners should verify the rendered NetworkPolicy permits kubelet/probe traffic and only the measured Traefik path before rollout.
+
+### What should be done in the future
+- Run the documented strict smoke in the target k3s environment and attach sanitized command output, peer CIDR, and negative-path results to the release evidence.
+
+### Code review instructions
+- Review the `Single-node hostauth hardening` and `Backup, restore, and rollback` sections of `cmd/xgoja/doc/23-auth-host-production-runbook.md`.
+- Repeat the listed race, build, and lint commands.
+
+### Technical details
+- Serving pods use `/healthz` for liveness and `/auth/readyz` for SQL-aware readiness; migration application belongs in a pre-serving Job.
