@@ -75,6 +75,17 @@ func TestEnforcerAppliesRouteAuthRequirements(t *testing.T) {
 			wantCode: http.StatusForbidden,
 		},
 		{
+			name: "oauth accepts exact verified bearer context",
+			spec: gojahttp.SecuritySpec{Mode: gojahttp.SecurityModeUser, Required: true, AuthRequirements: []gojahttp.AuthRequirement{{Method: gojahttp.AuthMethodAccessToken, OAuth: &gojahttp.OAuthRequirement{Issuer: "https://idp.example", Resource: "inbox", Scopes: []string{"inbox.read"}}}}},
+			auth: gojahttp.AuthResult{Actor: &gojahttp.Actor{ID: "u1", Kind: "user"}, Method: gojahttp.AuthMethodAccessToken, PrincipalKind: gojahttp.PrincipalKindUser, OAuth: &gojahttp.OAuthAuthContext{Issuer: "https://idp.example", Subject: "subject-1", Resources: []string{"inbox"}, Scopes: []string{"inbox.read"}}},
+		},
+		{
+			name:     "oauth rejects app access token without verified oauth context",
+			spec:     gojahttp.SecuritySpec{Mode: gojahttp.SecurityModeUser, Required: true, AuthRequirements: []gojahttp.AuthRequirement{{Method: gojahttp.AuthMethodAccessToken, OAuth: &gojahttp.OAuthRequirement{Issuer: "https://idp.example", Resource: "inbox", Scopes: []string{"inbox.read"}}}}},
+			auth:     gojahttp.AuthResult{Actor: &gojahttp.Actor{ID: "u1", Kind: "user"}, Method: gojahttp.AuthMethodAccessToken, PrincipalKind: gojahttp.PrincipalKindUser, PrincipalID: "u1"},
+			wantCode: http.StatusForbidden,
+		},
+		{
 			name: "anyOf accepts session user",
 			spec: gojahttp.AnyOf(gojahttp.Agent(), gojahttp.SessionUser()),
 			auth: gojahttp.AuthResult{Actor: &gojahttp.Actor{ID: "u1", Kind: "user"}, Method: gojahttp.AuthMethodSession, PrincipalKind: gojahttp.PrincipalKindUser, PrincipalID: "u1", CSRFRequired: true},
@@ -93,7 +104,7 @@ func TestEnforcerAppliesRouteAuthRequirements(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Request: %v", err)
 			}
-			sec, status, err := enforcer.Enforce(context.Background(), httptest.NewRequest(http.MethodGet, "/route", nil), req, &gojahttp.RoutePlan{Method: http.MethodGet, Pattern: "/route", Security: tt.spec, Action: "route.read"})
+			sec, status, err := enforcer.Enforce(context.Background(), httptest.NewRequest(http.MethodGet, "/route", nil), req, &gojahttp.RoutePlan{Method: http.MethodGet, Pattern: "/route", Security: tt.spec, Action: "route.read", Audit: gojahttp.AuditSpec{Event: "route.access"}})
 			if tt.wantCode == 0 {
 				if err != nil || status != 0 {
 					t.Fatalf("Enforce status=%d err=%v", status, err)

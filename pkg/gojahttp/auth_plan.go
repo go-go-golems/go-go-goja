@@ -293,6 +293,11 @@ func ValidateRoutePlan(plan RoutePlan) (RoutePlan, error) {
 			return RoutePlan{}, fmt.Errorf("planned route %s %s auth requirements: %w", plan.Method, plan.Pattern, err)
 		}
 		plan.Security.AuthRequirements = authRequirements
+		for _, requirement := range authRequirements {
+			if requirement.OAuth != nil && plan.Audit.Event == "" {
+				return RoutePlan{}, fmt.Errorf("planned oauth route %s %s requires .audit(event)", plan.Method, plan.Pattern)
+			}
+		}
 		if plan.Action == "" {
 			return RoutePlan{}, fmt.Errorf("planned user route %s %s requires .allow(action)", plan.Method, plan.Pattern)
 		}
