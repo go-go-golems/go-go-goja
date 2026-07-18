@@ -3,7 +3,6 @@ package gojahttp
 import (
 	"context"
 	"fmt"
-	"net"
 	"net/http"
 	"sort"
 	"strings"
@@ -367,12 +366,5 @@ func requestIP(httpReq *http.Request, req *RequestDTO) string {
 	if httpReq == nil {
 		return "unknown"
 	}
-	host, _, err := net.SplitHostPort(httpReq.RemoteAddr)
-	if err == nil && host != "" {
-		return host
-	}
-	if strings.TrimSpace(httpReq.RemoteAddr) != "" {
-		return strings.TrimSpace(httpReq.RemoteAddr)
-	}
-	return "unknown"
+	return RequestClientIP(httpReq)
 }
