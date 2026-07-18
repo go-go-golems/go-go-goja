@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -131,7 +130,7 @@ func (s *Store) ByID(ctx context.Context, id string) (*appauth.User, error) {
 }
 
 func (s *Store) BindExternalIdentity(ctx context.Context, userID, issuer, subject string) error {
-	_, err := s.db.ExecContext(ctx, `INSERT INTO auth_app_external_identities (issuer, subject, user_id) VALUES (`+s.placeholder(1)+`, `+s.placeholder(2)+`, `+s.placeholder(3)+`) ON CONFLICT(issuer, subject) DO UPDATE SET user_id = excluded.user_id`, issuer, subject, userID)
+	_, err := s.db.ExecContext(ctx, s.bindExternalIdentityQuery(), issuer, subject, userID)
 	if err != nil {
 		return fmt.Errorf("bind appauth external identity: %w", err)
 	}
@@ -139,8 +138,7 @@ func (s *Store) BindExternalIdentity(ctx context.Context, userID, issuer, subjec
 }
 
 func (s *Store) ByExternalIdentity(ctx context.Context, issuer, subject string) (*appauth.User, error) {
-	query := `SELECT ` + userColumns + ` FROM auth_app_users u JOIN auth_app_external_identities e ON e.user_id = u.id WHERE e.issuer = ` + s.placeholder(1) + ` AND e.subject = ` + s.placeholder(2)
-	user, err := scanUser(s.db.QueryRowContext(ctx, query, issuer, subject))
+	user, err := scanUser(s.db.QueryRowContext(ctx, s.externalIdentityQuery(), issuer, subject))
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +160,7 @@ func (s *Store) ByKeycloakSub(ctx context.Context, sub string) (*appauth.User, e
 }
 
 func (s *Store) DisableUser(ctx context.Context, id string, disabledAt time.Time) error {
-	result, err := s.db.ExecContext(ctx, `UPDATE auth_app_users SET disabled_at = `+s.placeholder(1)+` WHERE id = `+s.placeholder(2)+` AND disabled_at IS NULL`, disabledAt.UTC(), id)
+	result, err := s.db.ExecContext(ctx, s.disableUserQuery(), disabledAt.UTC(), id)
 	if err != nil {
 		return fmt.Errorf("disable appauth user: %w", err)
 	}
@@ -300,14 +298,20 @@ const (
 )
 
 const (
-	upsertUserSQLite       = `INSERT INTO auth_app_users (` + userColumns + `) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET keycloak_sub = excluded.keycloak_sub, email = excluded.email, display_name = excluded.display_name, email_verified = excluded.email_verified, disabled_at = excluded.disabled_at`
-	upsertUserPostgres     = `INSERT INTO auth_app_users (` + userColumns + `) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT(id) DO UPDATE SET keycloak_sub = excluded.keycloak_sub, email = excluded.email, display_name = excluded.display_name, email_verified = excluded.email_verified, disabled_at = excluded.disabled_at`
-	upsertOIDCUserSQLite   = `INSERT INTO auth_app_users (` + userColumns + `) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(keycloak_sub) DO UPDATE SET email = excluded.email, email_verified = excluded.email_verified WHERE auth_app_users.disabled_at IS NULL`
-	upsertOIDCUserPostgres = `INSERT INTO auth_app_users (` + userColumns + `) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT(keycloak_sub) DO UPDATE SET email = excluded.email, email_verified = excluded.email_verified WHERE auth_app_users.disabled_at IS NULL`
-	userByIDSQLite         = `SELECT ` + userColumns + ` FROM auth_app_users WHERE id = ?`
-	userByIDPostgres       = `SELECT ` + userColumns + ` FROM auth_app_users WHERE id = $1`
-	userBySubSQLite        = `SELECT ` + userColumns + ` FROM auth_app_users WHERE keycloak_sub = ?`
-	userBySubPostgres      = `SELECT ` + userColumns + ` FROM auth_app_users WHERE keycloak_sub = $1`
+	upsertUserSQLite             = `INSERT INTO auth_app_users (` + userColumns + `) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET keycloak_sub = excluded.keycloak_sub, email = excluded.email, display_name = excluded.display_name, email_verified = excluded.email_verified, disabled_at = excluded.disabled_at`
+	upsertUserPostgres           = `INSERT INTO auth_app_users (` + userColumns + `) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT(id) DO UPDATE SET keycloak_sub = excluded.keycloak_sub, email = excluded.email, display_name = excluded.display_name, email_verified = excluded.email_verified, disabled_at = excluded.disabled_at`
+	upsertOIDCUserSQLite         = `INSERT INTO auth_app_users (` + userColumns + `) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(keycloak_sub) DO UPDATE SET email = excluded.email, email_verified = excluded.email_verified WHERE auth_app_users.disabled_at IS NULL`
+	upsertOIDCUserPostgres       = `INSERT INTO auth_app_users (` + userColumns + `) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT(keycloak_sub) DO UPDATE SET email = excluded.email, email_verified = excluded.email_verified WHERE auth_app_users.disabled_at IS NULL`
+	userByIDSQLite               = `SELECT ` + userColumns + ` FROM auth_app_users WHERE id = ?`
+	userByIDPostgres             = `SELECT ` + userColumns + ` FROM auth_app_users WHERE id = $1`
+	userBySubSQLite              = `SELECT ` + userColumns + ` FROM auth_app_users WHERE keycloak_sub = ?`
+	userBySubPostgres            = `SELECT ` + userColumns + ` FROM auth_app_users WHERE keycloak_sub = $1`
+	externalIdentitySQLite       = `SELECT ` + userColumns + ` FROM auth_app_users u JOIN auth_app_external_identities e ON e.user_id = u.id WHERE e.issuer = ? AND e.subject = ?`
+	externalIdentityPostgres     = `SELECT ` + userColumns + ` FROM auth_app_users u JOIN auth_app_external_identities e ON e.user_id = u.id WHERE e.issuer = $1 AND e.subject = $2`
+	bindExternalIdentitySQLite   = `INSERT INTO auth_app_external_identities (issuer, subject, user_id) VALUES (?, ?, ?) ON CONFLICT(issuer, subject) DO UPDATE SET user_id = excluded.user_id`
+	bindExternalIdentityPostgres = `INSERT INTO auth_app_external_identities (issuer, subject, user_id) VALUES ($1, $2, $3) ON CONFLICT(issuer, subject) DO UPDATE SET user_id = excluded.user_id`
+	disableUserSQLite            = `UPDATE auth_app_users SET disabled_at = ? WHERE id = ? AND disabled_at IS NULL`
+	disableUserPostgres          = `UPDATE auth_app_users SET disabled_at = $1 WHERE id = $2 AND disabled_at IS NULL`
 )
 
 const (
@@ -327,11 +331,25 @@ const (
 	resourceByIDPostgres   = `SELECT ` + resourceColumns + ` FROM auth_app_resources WHERE type = $1 AND id = $2`
 )
 
-func (s *Store) placeholder(index int) string {
+func (s *Store) externalIdentityQuery() string {
 	if s.dialect == DialectPostgres {
-		return "$" + strconv.Itoa(index)
+		return externalIdentityPostgres
 	}
-	return "?"
+	return externalIdentitySQLite
+}
+
+func (s *Store) bindExternalIdentityQuery() string {
+	if s.dialect == DialectPostgres {
+		return bindExternalIdentityPostgres
+	}
+	return bindExternalIdentitySQLite
+}
+
+func (s *Store) disableUserQuery() string {
+	if s.dialect == DialectPostgres {
+		return disableUserPostgres
+	}
+	return disableUserSQLite
 }
 
 func (s *Store) upsertUserQuery() string {
