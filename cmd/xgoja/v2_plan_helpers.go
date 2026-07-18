@@ -61,6 +61,7 @@ func selectPlanTarget(compiled *plan.Plan, command artifactCommand) (v2PlanTarge
 }
 
 func isCompatiblePrimary(command artifactCommand, artifactType string) bool {
+	artifactType = normalizedArtifactType(artifactType)
 	switch command {
 	case artifactCommandBuild:
 		return artifactType == "binary" || artifactType == "adapter" || artifactType == "cobra"
@@ -72,7 +73,12 @@ func isCompatiblePrimary(command artifactCommand, artifactType string) bool {
 }
 
 func isSupportArtifact(artifactType string) bool {
+	artifactType = normalizedArtifactType(artifactType)
 	return artifactType == "dts" || artifactType == "embedded-assets"
+}
+
+func normalizedArtifactType(artifactType string) string {
+	return strings.TrimSpace(artifactType)
 }
 
 func compatibleArtifactTypes(command artifactCommand) string {
@@ -87,6 +93,7 @@ func compatibleArtifactTypes(command artifactCommand) string {
 }
 
 func targetFromArtifact(artifact specv2.ArtifactSpec) v2PlanTarget {
+	artifact = normalizedArtifactSpec(artifact)
 	kind := artifact.Type
 	switch kind {
 	case "binary":
@@ -117,6 +124,8 @@ func scopePlanToPrimary(compiled *plan.Plan, selectedID string) (*plan.Plan, err
 	if !ok {
 		return nil, fmt.Errorf("scope plan: selected artifact %q is missing from compiled artifacts", selectedID)
 	}
+	selectedConfig = normalizedArtifactSpec(selectedConfig)
+	selectedPlan = normalizedArtifactPlan(selectedPlan)
 
 	scoped := *compiled
 	scoped.Config = compiled.Config
@@ -124,15 +133,25 @@ func scopePlanToPrimary(compiled *plan.Plan, selectedID string) (*plan.Plan, err
 	scoped.Artifacts = []plan.ArtifactPlan{selectedPlan}
 	for _, artifact := range compiled.Config.Artifacts {
 		if isSupportArtifact(artifact.Type) {
-			scoped.Config.Artifacts = append(scoped.Config.Artifacts, artifact)
+			scoped.Config.Artifacts = append(scoped.Config.Artifacts, normalizedArtifactSpec(artifact))
 		}
 	}
 	for _, artifact := range compiled.Artifacts {
 		if isSupportArtifact(artifact.Spec.Type) {
-			scoped.Artifacts = append(scoped.Artifacts, artifact)
+			scoped.Artifacts = append(scoped.Artifacts, normalizedArtifactPlan(artifact))
 		}
 	}
 	return &scoped, nil
+}
+
+func normalizedArtifactSpec(artifact specv2.ArtifactSpec) specv2.ArtifactSpec {
+	artifact.Type = normalizedArtifactType(artifact.Type)
+	return artifact
+}
+
+func normalizedArtifactPlan(artifact plan.ArtifactPlan) plan.ArtifactPlan {
+	artifact.Spec = normalizedArtifactSpec(artifact.Spec)
+	return artifact
 }
 
 func artifactByID(artifacts []specv2.ArtifactSpec, id string) (specv2.ArtifactSpec, bool) {
@@ -159,7 +178,7 @@ func formatArtifacts(artifacts []plan.ArtifactPlan) string {
 	}
 	parts := make([]string, 0, len(artifacts))
 	for _, artifact := range artifacts {
-		parts = append(parts, fmt.Sprintf("%s (%s)", artifact.Spec.ID, artifact.Spec.Type))
+		parts = append(parts, fmt.Sprintf("%s (%s)", artifact.Spec.ID, normalizedArtifactType(artifact.Spec.Type)))
 	}
 	return strings.Join(parts, ", ")
 }

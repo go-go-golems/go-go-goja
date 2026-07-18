@@ -40,6 +40,34 @@ func TestSelectPlanTargetSelectsCommandCompatiblePrimaryAndScopesPlan(t *testing
 	assertArtifactPlanIDs(t, compiled.Artifacts, "runtime", "assets", "binary", "declarations")
 }
 
+func TestSelectPlanTargetNormalizesArtifactTypesInScopedPlan(t *testing.T) {
+	compiled := artifactSelectionPlan(
+		specv2.ArtifactSpec{ID: "runtime", Type: " runtime-package "},
+		specv2.ArtifactSpec{ID: "assets", Type: " embedded-assets "},
+		specv2.ArtifactSpec{ID: "binary", Type: " binary "},
+	)
+
+	buildTarget, buildPlan, err := selectPlanTarget(compiled, artifactCommandBuild)
+	if err != nil {
+		t.Fatalf("select whitespace-padded build target: %v", err)
+	}
+	if buildTarget.Type != "binary" || buildTarget.Kind != "xgoja" {
+		t.Fatalf("unexpected normalized build target: %#v", buildTarget)
+	}
+	if got := buildPlan.Config.Artifacts[0].Type; got != "binary" {
+		t.Fatalf("scoped config primary type = %q, want binary", got)
+	}
+	if got := buildPlan.Config.Artifacts[1].Type; got != "embedded-assets" {
+		t.Fatalf("scoped config support type = %q, want embedded-assets", got)
+	}
+	if got := buildPlan.Artifacts[0].Spec.Type; got != "binary" {
+		t.Fatalf("scoped plan primary type = %q, want binary", got)
+	}
+	if got := compiled.Config.Artifacts[2].Type; got != " binary " {
+		t.Fatalf("original config was mutated: %q", got)
+	}
+}
+
 func TestSelectPlanTargetRejectsNoCompatiblePrimary(t *testing.T) {
 	compiled := artifactSelectionPlan(specv2.ArtifactSpec{ID: "runtime", Type: "runtime-package"})
 
