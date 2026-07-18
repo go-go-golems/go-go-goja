@@ -89,15 +89,13 @@ func (c *generateCommand) Run(ctx context.Context, vals *values.Values) error {
 	if err != nil {
 		return err
 	}
-	target := targetFromPlan(compiledPlan)
+	target, scopedPlan, err := selectPlanTarget(compiledPlan, artifactCommandGenerate)
+	if err != nil {
+		return err
+	}
+	compiledPlan = scopedPlan
 	_, _ = fmt.Fprintf(c.out, "validated xgoja/v2 plan for %s\n", settings.File)
 	kind := strings.TrimSpace(target.Kind)
-	if kind == "" {
-		kind = "xgoja"
-	}
-	if kind != "package" && kind != "source" && kind != "template" {
-		return fmt.Errorf("xgoja generate supports target.kind package, source, or template; got %q", kind)
-	}
 	output := strings.TrimSpace(settings.Output)
 	if output == "" {
 		output = target.Output

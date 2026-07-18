@@ -87,11 +87,12 @@ func (c *buildCommand) Run(ctx context.Context, vals *values.Values) error {
 	if err != nil {
 		return err
 	}
-	target := targetFromPlan(compiledPlan)
-	_, _ = fmt.Fprintf(c.out, "validated xgoja/v2 plan for %s\n", settings.File)
-	if kind := strings.TrimSpace(target.Kind); kind == "package" || kind == "source" || kind == "template" {
-		return fmt.Errorf("target.kind %s is source generation only; use xgoja generate -f %s", kind, settings.File)
+	target, scopedPlan, err := selectPlanTarget(compiledPlan, artifactCommandBuild)
+	if err != nil {
+		return err
 	}
+	compiledPlan = scopedPlan
+	_, _ = fmt.Fprintf(c.out, "validated xgoja/v2 plan for %s\n", settings.File)
 	output := settings.Output
 	if output == "" {
 		output = target.Output
