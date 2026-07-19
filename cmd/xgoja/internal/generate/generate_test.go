@@ -152,7 +152,7 @@ func TestWriteAllPlanCopiesEmbeddedSources(t *testing.T) {
 
 func TestRenderPackagePlanUsesRuntimePlanAPI(t *testing.T) {
 	got := RenderPackagePlan(fixturePlan(t), "xgojaruntime")
-	for _, want := range []string{"EmbeddedRuntimePlanJSON", "DecodeRuntimePlan() (*app.RuntimePlan, error)", "RuntimePlan *app.RuntimePlan", "NewBundle", "NewRuntime"} {
+	for _, want := range []string{"EmbeddedRuntimePlanJSON", "DecodeRuntimePlan() (*app.RuntimePlan, error)", "RuntimePlan *app.RuntimePlan", "ConfigureRuntimePlan func(*app.RuntimePlan) error", "configure runtime plan", "NewBundle", "NewRuntime"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("generated runtime package missing %q:\n%s", want, got)
 		}

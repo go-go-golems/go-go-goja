@@ -42,9 +42,13 @@ var embeddedAssets embed.FS
 {{ end }}
 
 type Options struct {
-	Out               io.Writer
-	MiddlewaresFunc   cli.CobraMiddlewaresFunc
-	ConfigureServices func(*app.HostServices)
+	Out                  io.Writer
+	MiddlewaresFunc      cli.CobraMiddlewaresFunc
+	ConfigureServices    func(*app.HostServices)
+	// ConfigureRuntimePlan runs after decoding the embedded plan and before
+	// provider modules and the host are constructed. It is intended for
+	// host-owned configuration overrides such as a database DSN.
+	ConfigureRuntimePlan func(*app.RuntimePlan) error
 }
 
 type Bundle struct {
@@ -81,6 +85,11 @@ func NewBundle(opts Options) (*Bundle, error) {
 	runtimePlan, err := DecodeRuntimePlan()
 	if err != nil {
 		return nil, err
+	}
+	if opts.ConfigureRuntimePlan != nil {
+		if err := opts.ConfigureRuntimePlan(runtimePlan); err != nil {
+			return nil, fmt.Errorf("configure runtime plan: %w", err)
+		}
 	}
 	host := app.NewHostWithOptions(registry, runtimePlan, app.HostOptions{
 {{- if .HasEmbeddedJSVerb }}
