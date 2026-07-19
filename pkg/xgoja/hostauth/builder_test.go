@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/oidcauth"
+	oidcauthsql "github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/oidcauth/sqlstore"
 	programauthsql "github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/programauth/sqlstore"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth"
 )
@@ -64,7 +65,7 @@ func TestBuildAuthOptionsWiresSessionAuditResourcesAndAuthorizer(t *testing.T) {
 		t.Fatalf("BuildSessionManager: %v", err)
 	}
 	limiter := gojahttp.NewMemoryRateLimiter()
-	options := BuildAuthOptions(manager, stores, nil, limiter, nil, nil)
+	options := BuildAuthOptions(manager, stores, nil, limiter, nil, nil, nil)
 	if options.Authenticator == nil || options.CSRF == nil || options.Resources == nil || options.Authorizer == nil || options.RateLimiter == nil {
 		t.Fatalf("auth options missing fields: %#v", options)
 	}
@@ -83,6 +84,21 @@ func TestServiceFactoryModeNoneBuildsNoAuthOptions(t *testing.T) {
 	}
 	if services.AuthOptions != (gojahttp.AuthOptions{}) || services.SessionManager != nil || len(services.Closers) != 0 {
 		t.Fatalf("services = %#v", services)
+	}
+}
+
+func TestServiceFactoryWiresConfiguredSecurityEventObserver(t *testing.T) {
+	metrics := &gojahttp.MemorySecurityMetrics{}
+	services, err := NewServiceFactory(BuilderOptions{
+		Config:         Config{Mode: ModeDev, Session: SessionConfig{Cookie: CookieConfig{AllowInsecureHTTP: true}}},
+		SecurityEvents: metrics,
+	}).BuildHostAuthServices(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("BuildHostAuthServices: %v", err)
+	}
+	defer func() { _ = services.Close(context.Background()) }()
+	if services.SecurityEvents != metrics || services.AuthOptions.SecurityEvents != metrics {
+		t.Fatalf("configured security observer was not retained: services=%#v auth=%#v", services.SecurityEvents, services.AuthOptions.SecurityEvents)
 	}
 }
 
@@ -156,7 +172,7 @@ func TestServiceFactoryOIDCBuildsNativeHandlers(t *testing.T) {
 	for _, route := range services.NativeHandlers {
 		got[route.Method+" "+route.Path] = route.Handler != nil
 	}
-	for _, want := range []string{"POST /auth/device/start", "POST /auth/device/token", "POST /auth/device/approve", "GET /auth/login", "GET /auth/callback", "POST /auth/logout", "GET /auth/session"} {
+	for _, want := range []string{"GET /auth/readyz", "POST /auth/device/start", "POST /auth/device/token", "POST /auth/device/refresh", "POST /auth/device/revoke", "POST /auth/device/approve", "GET /auth/login", "GET /auth/callback", "POST /auth/logout", "GET /auth/session"} {
 		if !got[want] {
 			t.Fatalf("native handlers missing %s: %#v", want, services.NativeHandlers)
 		}
@@ -168,6 +184,51 @@ func TestServiceFactoryOIDCBuildsNativeHandlers(t *testing.T) {
 		if got[removed] {
 			t.Fatalf("native demo handler %s should be owned by application code, got %#v", removed, services.NativeHandlers)
 		}
+	}
+}
+
+func TestReadinessHandlerDoesNotExposeStoreDSNOrOIDCSecret(t *testing.T) {
+	resolved, err := ResolveConfig(validSingleNodeConfig(), ResolveOptions{})
+	if err != nil {
+		t.Fatalf("ResolveConfig: %v", err)
+	}
+	report := BuildReadinessReport(resolved)
+	if !report.Ready || report.Profile != DeploymentProfileSingleNode || report.RateLimiter != RateLimiterDriverMemory {
+		t.Fatalf("report = %#v", report)
+	}
+	if len(report.Stores) != 6 || report.Stores[0].Name != "session" || report.Stores[0].Driver != StoreDriverSQLite {
+		t.Fatalf("stores = %#v", report.Stores)
+	}
+	recorder := httptest.NewRecorder()
+	readinessHandler(report, nil).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/auth/readyz", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d", recorder.Code)
+	}
+	body := recorder.Body.String()
+	if !strings.Contains(body, `"ready":true`) || strings.Contains(body, "file:single-node.db") || strings.Contains(body, "ClientSecret") {
+		t.Fatalf("unsafe readiness body: %s", body)
+	}
+}
+
+func TestServiceFactoryOIDCUsesConfiguredSQLTransactionStore(t *testing.T) {
+	issuer := newOIDCDiscoveryServer(t)
+	applySchema := true
+	services, err := NewServiceFactory(BuilderOptions{Config: Config{
+		Mode:    ModeOIDC,
+		Session: SessionConfig{Cookie: CookieConfig{AllowInsecureHTTP: true}},
+		Stores: StoresConfig{Default: StoreConfig{
+			Driver:      "sqlite",
+			DSN:         "file:hostauth-oidc-transaction?mode=memory&cache=shared",
+			ApplySchema: &applySchema,
+		}},
+		OIDC: OIDCConfig{IssuerURL: issuer.URL, ClientID: "goja-app", PublicBaseURL: "http://localhost:8787"},
+	}}).BuildHostAuthServices(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("BuildHostAuthServices: %v", err)
+	}
+	defer func() { _ = services.Close(context.Background()) }()
+	if _, ok := services.OIDCTransactionStore.(*oidcauthsql.Store); !ok {
+		t.Fatalf("OIDCTransactionStore type = %T", services.OIDCTransactionStore)
 	}
 }
 
@@ -188,35 +249,8 @@ func TestDefaultOIDCUserNormalizerUpsertsUserWithoutGrantingMemberships(t *testi
 	if len(session.TenantIDs) != 0 {
 		t.Fatalf("generic normalizer must not grant memberships, got %#v", session.TenantIDs)
 	}
-	if session.Claims["oidcSubject"] != "kc-sub-1" || session.Claims["preferredUsername"] != "demo" {
+	if session.Claims["oidcIssuer"] != "https://issuer.example.test" || session.Claims["oidcSubject"] != "kc-sub-1" || session.Claims["preferredUsername"] != "demo" {
 		t.Fatalf("claims = %#v", session.Claims)
-	}
-}
-
-func TestServiceFactoryUsesDirectDSNAtBuildTime(t *testing.T) {
-	factory := NewServiceFactory(BuilderOptions{Config: Config{
-		Mode:   ModeDev,
-		Stores: StoresConfig{Default: StoreConfig{Driver: "sqlite"}},
-	}})
-	_, err := factory.BuildHostAuthServices(context.Background(), nil)
-	if err == nil {
-		t.Fatalf("expected missing dsn error")
-	}
-
-	applySchema := true
-	factory = NewServiceFactory(BuilderOptions{Config: Config{
-		Mode:   ModeDev,
-		Stores: StoresConfig{Default: StoreConfig{Driver: "sqlite", DSN: "file:hostauth-service-factory-dsn?mode=memory&cache=shared", ApplySchema: &applySchema}},
-	}})
-	services, err := factory.BuildHostAuthServices(context.Background(), nil)
-	if err != nil {
-		t.Fatalf("BuildHostAuthServices: %v", err)
-	}
-	if len(services.Closers) != 1 {
-		t.Fatalf("closers = %d, want shared sqlite closer", len(services.Closers))
-	}
-	if err := services.Close(context.Background()); err != nil {
-		t.Fatalf("Close: %v", err)
 	}
 }
 
@@ -252,6 +286,33 @@ func TestServiceFactoryUsesSQLProgramAuthStore(t *testing.T) {
 	}
 	if _, ok := services.DeviceStore.(*programauthsql.Store); !ok {
 		t.Fatalf("device store type = %T", services.DeviceStore)
+	}
+}
+
+func TestServiceFactoryUsesDirectDSNAtBuildTime(t *testing.T) {
+	factory := NewServiceFactory(BuilderOptions{Config: Config{
+		Mode:   ModeDev,
+		Stores: StoresConfig{Default: StoreConfig{Driver: "sqlite"}},
+	}})
+	_, err := factory.BuildHostAuthServices(context.Background(), nil)
+	if err == nil {
+		t.Fatalf("expected missing dsn error")
+	}
+
+	applySchema := true
+	factory = NewServiceFactory(BuilderOptions{Config: Config{
+		Mode:   ModeDev,
+		Stores: StoresConfig{Default: StoreConfig{Driver: "sqlite", DSN: "file:hostauth-service-factory-dsn?mode=memory&cache=shared", ApplySchema: &applySchema}},
+	}})
+	services, err := factory.BuildHostAuthServices(context.Background(), nil)
+	if err != nil {
+		t.Fatalf("BuildHostAuthServices: %v", err)
+	}
+	if len(services.Closers) != 1 {
+		t.Fatalf("closers = %d, want shared sqlite closer", len(services.Closers))
+	}
+	if err := services.Close(context.Background()); err != nil {
+		t.Fatalf("Close: %v", err)
 	}
 }
 

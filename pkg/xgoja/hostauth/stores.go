@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
@@ -15,6 +16,8 @@ import (
 	auditsql "github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/audit/sqlstore"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/capability"
 	capabilitysql "github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/capability/sqlstore"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/oidcauth"
+	oidcauthsql "github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/oidcauth/sqlstore"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/programauth"
 	programauthsql "github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/programauth/sqlstore"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth"
@@ -23,22 +26,40 @@ import (
 
 // ProgramAuthStores groups host-owned automation credential stores.
 type ProgramAuthStores struct {
-	Agents        programauth.AgentStore
-	APITokens     programauth.APITokenStore
-	AccessTokens  programauth.AccessTokenStore
-	RefreshTokens programauth.RefreshTokenStore
-	Devices       programauth.DeviceAuthorizationStore
+	Agents          programauth.AgentStore
+	APITokens       programauth.APITokenStore
+	AccessTokens    programauth.AccessTokenStore
+	RefreshTokens   programauth.RefreshTokenStore
+	OAuthTokenPairs programauth.OAuthTokenPairStore
+	Devices         programauth.DeviceAuthorizationStore
 }
 
 // StoreBundle contains the concrete stores built from ResolvedStoresConfig.
+// DependencyHealth is an infrastructure probe kept outside domain-store
+// interfaces so readiness can check shared SQL handles once.
+type DependencyHealth interface {
+	Name() string
+	CheckHealth(context.Context) error
+}
+
+type sqlHealth struct {
+	name string
+	db   *sql.DB
+}
+
+func (h sqlHealth) Name() string                          { return h.name }
+func (h sqlHealth) CheckHealth(ctx context.Context) error { return h.db.PingContext(ctx) }
+
 type StoreBundle struct {
-	Session     sessionauth.Store
-	Audit       audit.Store
-	AppAuth     AppAuthStores
-	Capability  capability.Store
-	ProgramAuth ProgramAuthStores
+	Session         sessionauth.Store
+	Audit           audit.Store
+	AppAuth         AppAuthStores
+	Capability      capability.Store
+	ProgramAuth     ProgramAuthStores
+	OIDCTransaction oidcauth.TransactionStore
 
 	Closers []func(context.Context) error
+	Health  []DependencyHealth
 }
 
 // Close closes all resources owned by the bundle.
@@ -64,6 +85,7 @@ func BuildStores(ctx context.Context, cfg ResolvedStoresConfig) (*StoreBundle, e
 type storeBuilder struct {
 	dbs     map[sqlDBKey]*sql.DB
 	closers []func(context.Context) error
+	health  []DependencyHealth
 }
 
 type sqlDBKey struct {
@@ -92,7 +114,11 @@ func (b *storeBuilder) build(ctx context.Context, cfg ResolvedStoresConfig) (*St
 	if err != nil {
 		return nil, err
 	}
-	return &StoreBundle{Session: sessionStore, Audit: auditStore, AppAuth: appAuthStores, Capability: capabilityStore, ProgramAuth: programAuthStores, Closers: append([]func(context.Context) error(nil), b.closers...)}, nil
+	oidcTransactionStore, err := b.buildOIDCTransactionStore(ctx, cfg.OIDCTransaction)
+	if err != nil {
+		return nil, err
+	}
+	return &StoreBundle{Session: sessionStore, Audit: auditStore, AppAuth: appAuthStores, Capability: capabilityStore, ProgramAuth: programAuthStores, OIDCTransaction: oidcTransactionStore, Closers: append([]func(context.Context) error(nil), b.closers...), Health: append([]DependencyHealth(nil), b.health...)}, nil
 }
 
 func (b *storeBuilder) buildSessionStore(ctx context.Context, cfg ResolvedStoreConfig) (sessionauth.Store, error) {
@@ -216,9 +242,33 @@ func (b *storeBuilder) buildProgramAuthStores(ctx context.Context, cfg ResolvedS
 				return ProgramAuthStores{}, err
 			}
 		}
-		return ProgramAuthStores{Agents: store, APITokens: store, AccessTokens: store, RefreshTokens: store, Devices: store}, nil
+		return ProgramAuthStores{Agents: store, APITokens: store, AccessTokens: store, RefreshTokens: store, OAuthTokenPairs: store, Devices: store}, nil
 	default:
 		return ProgramAuthStores{}, fmt.Errorf("build programauth store: unsupported driver %q", cfg.Driver)
+	}
+}
+
+func (b *storeBuilder) buildOIDCTransactionStore(ctx context.Context, cfg ResolvedStoreConfig) (oidcauth.TransactionStore, error) {
+	switch cfg.Driver {
+	case StoreDriverMemory:
+		return oidcauth.NewMemoryTransactionStore(10 * time.Minute), nil
+	case StoreDriverSQLite, StoreDriverPostgres:
+		db, err := b.openDB(cfg)
+		if err != nil {
+			return nil, fmt.Errorf("build oidc transaction store: %w", err)
+		}
+		store, err := oidcauthsql.New(oidcauthsql.Config{DB: db, Dialect: oidcTransactionDialect(cfg.Driver)})
+		if err != nil {
+			return nil, fmt.Errorf("build oidc transaction store: %w", err)
+		}
+		if cfg.ApplySchema {
+			if err := store.ApplySchema(ctx); err != nil {
+				return nil, err
+			}
+		}
+		return store, nil
+	default:
+		return nil, fmt.Errorf("build oidc transaction store: unsupported driver %q", cfg.Driver)
 	}
 }
 
@@ -237,6 +287,7 @@ func (b *storeBuilder) openDB(cfg ResolvedStoreConfig) (*sql.DB, error) {
 	}
 	b.dbs[key] = db
 	b.closers = append(b.closers, func(context.Context) error { return db.Close() })
+	b.health = append(b.health, sqlHealth{name: string(cfg.Driver), db: db})
 	return db, nil
 }
 
@@ -286,6 +337,13 @@ func programAuthDialect(driver StoreDriver) programauthsql.Dialect {
 		return programauthsql.DialectSQLite
 	}
 	return programauthsql.DialectPostgres
+}
+
+func oidcTransactionDialect(driver StoreDriver) oidcauthsql.Dialect {
+	if driver == StoreDriverSQLite {
+		return oidcauthsql.DialectSQLite
+	}
+	return oidcauthsql.DialectPostgres
 }
 
 func closeAll(ctx context.Context, closers []func(context.Context) error) error {

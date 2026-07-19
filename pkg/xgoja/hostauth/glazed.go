@@ -6,6 +6,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/fields"
 	"github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp"
 )
 
 const SectionSlug = "auth"
@@ -14,7 +15,17 @@ const SectionSlug = "auth"
 // auth settings. It intentionally mirrors CLI field names rather than the nested
 // hostauth.Config shape so generated commands can expose clear --auth-* flags.
 type GlazedSettings struct {
-	Mode string `glazed:"auth-mode"`
+	Mode                  string   `glazed:"auth-mode"`
+	DeploymentProfile     string   `glazed:"auth-deployment-profile"`
+	ProxyMode             string   `glazed:"auth-proxy-mode"`
+	ProxyTrustedCIDRs     []string `glazed:"auth-proxy-trusted-cidrs"`
+	RateLimiterDriver     string   `glazed:"auth-rate-limiter-driver"`
+	DeviceAllowedActions  []string `glazed:"auth-device-allowed-actions"`
+	DeviceMaxActions      int      `glazed:"auth-device-max-actions"`
+	DeviceVerificationURI string   `glazed:"auth-device-verification-uri"`
+	OAuthIssuerURL        string   `glazed:"auth-oauth-issuer-url"`
+	OAuthClientID         string   `glazed:"auth-oauth-client-id"`
+	OAuthClientSecret     string   `glazed:"auth-oauth-client-secret"`
 
 	SessionCookieAllowInsecureHTTP bool   `glazed:"auth-session-cookie-allow-insecure-http"`
 	SessionCookieName              string `glazed:"auth-session-cookie-name"`
@@ -47,6 +58,10 @@ type GlazedSettings struct {
 	ProgramAuthStoreDSN         string `glazed:"auth-programauth-store-dsn"`
 	ProgramAuthStoreApplySchema bool   `glazed:"auth-programauth-store-apply-schema"`
 
+	OIDCTransactionStoreDriver      string `glazed:"auth-oidc-transaction-store-driver"`
+	OIDCTransactionStoreDSN         string `glazed:"auth-oidc-transaction-store-dsn"`
+	OIDCTransactionStoreApplySchema bool   `glazed:"auth-oidc-transaction-store-apply-schema"`
+
 	OIDCIssuerURL      string   `glazed:"auth-oidc-issuer-url"`
 	OIDCClientID       string   `glazed:"auth-oidc-client-id"`
 	OIDCClientSecret   string   `glazed:"auth-oidc-client-secret"`
@@ -68,6 +83,17 @@ func GlazedConfigSection(base Config, opts ...schema.SectionOption) (schema.Sect
 	defaults := FlattenConfig(base)
 	fieldDefs := []schema.SectionOption{schema.WithFields(
 		fields.New("auth-mode", fields.TypeChoice, fields.WithChoices(string(ModeNone), string(ModeDev), string(ModeOIDC)), fields.WithDefault(defaults.Mode), fields.WithHelp("Generated-host auth mode")),
+		fields.New("auth-deployment-profile", fields.TypeChoice, fields.WithChoices(string(DeploymentProfileDevelopment), string(DeploymentProfileSingleNode)), fields.WithDefault(defaults.DeploymentProfile), fields.WithHelp("Operational contract: development or one durable production process")),
+		fields.New("auth-proxy-mode", fields.TypeChoice, fields.WithChoices(string(gojahttp.ProxyModeDirect), string(gojahttp.ProxyModeTrustedForwarded)), fields.WithDefault(defaults.ProxyMode), fields.WithHelp("Forwarded-header trust mode")),
+		fields.New("auth-proxy-trusted-cidrs", fields.TypeStringList, fields.WithDefault(defaults.ProxyTrustedCIDRs), fields.WithHelp("Direct reverse-proxy CIDRs allowed to supply forwarded client identity")),
+		fields.New("auth-rate-limiter-driver", fields.TypeChoice, fields.WithChoices(string(RateLimiterDriverMemory)), fields.WithDefault(defaults.RateLimiterDriver), fields.WithHelp("Host-wide rate limiter; memory requires exactly one serving process")),
+
+		fields.New("auth-device-allowed-actions", fields.TypeStringList, fields.WithDefault(defaults.DeviceAllowedActions), fields.WithHelp("Application actions device authorization may request")),
+		fields.New("auth-device-max-actions", fields.TypeInteger, fields.WithDefault(defaults.DeviceMaxActions), fields.WithHelp("Maximum actions allowed in one device request; zero uses no additional cap")),
+		fields.New("auth-device-verification-uri", fields.TypeString, fields.WithDefault(defaults.DeviceVerificationURI), fields.WithHelp("Server-owned browser verification URI for device authorization")),
+		fields.New("auth-oauth-issuer-url", fields.TypeString, fields.WithHelp("External OAuth issuer URL; secret remains Go-owned")),
+		fields.New("auth-oauth-client-id", fields.TypeString, fields.WithHelp("Confidential OAuth introspection client ID")),
+		fields.New("auth-oauth-client-secret", fields.TypeString, fields.WithHelp("Confidential OAuth introspection client secret")),
 		fields.New("auth-session-cookie-allow-insecure-http", fields.TypeBool, fields.WithDefault(defaults.SessionCookieAllowInsecureHTTP), fields.WithHelp("Allow non-Secure auth session cookies for local HTTP demos")),
 		fields.New("auth-session-cookie-name", fields.TypeString, fields.WithDefault(defaults.SessionCookieName), fields.WithHelp("Auth session cookie name; empty uses the session manager default")),
 		fields.New("auth-session-cookie-same-site", fields.TypeChoice, fields.WithChoices("", "lax", "strict", "none", "default"), fields.WithDefault(defaults.SessionCookieSameSite), fields.WithHelp("Auth session cookie SameSite mode")),
@@ -82,6 +108,7 @@ func GlazedConfigSection(base Config, opts ...schema.SectionOption) (schema.Sect
 	opts = append(opts, storeFields("appauth", defaults.AppAuthStoreDriver, defaults.AppAuthStoreDSN, defaults.AppAuthStoreApplySchema)...)
 	opts = append(opts, storeFields("capability", defaults.CapabilityStoreDriver, defaults.CapabilityStoreDSN, defaults.CapabilityStoreApplySchema)...)
 	opts = append(opts, storeFields("programauth", defaults.ProgramAuthStoreDriver, defaults.ProgramAuthStoreDSN, defaults.ProgramAuthStoreApplySchema)...)
+	opts = append(opts, storeFields("oidc-transaction", defaults.OIDCTransactionStoreDriver, defaults.OIDCTransactionStoreDSN, defaults.OIDCTransactionStoreApplySchema)...)
 	opts = append(opts, schema.WithFields(
 		fields.New("auth-oidc-issuer-url", fields.TypeString, fields.WithDefault(defaults.OIDCIssuerURL), fields.WithHelp("OIDC issuer URL for auth.mode=oidc")),
 		fields.New("auth-oidc-client-id", fields.TypeString, fields.WithDefault(defaults.OIDCClientID), fields.WithHelp("OIDC client ID for auth.mode=oidc")),
@@ -113,8 +140,17 @@ func FlattenConfig(cfg Config) GlazedSettings {
 	appauth := cfg.Stores.AppAuth
 	capability := cfg.Stores.Capability
 	programauth := cfg.Stores.ProgramAuth
+	oidcTransaction := cfg.Stores.OIDCTransaction
 	return GlazedSettings{
-		Mode: cfgModeDefault(cfg.Mode),
+		Mode:                  cfgModeDefault(cfg.Mode),
+		DeploymentProfile:     deploymentProfileDefault(cfg.Deployment.Profile),
+		ProxyMode:             proxyModeDefault(cfg.Proxy.Mode),
+		ProxyTrustedCIDRs:     append([]string(nil), cfg.Proxy.TrustedCIDRs...),
+		RateLimiterDriver:     rateLimiterDriverDefault(cfg.RateLimiter.Driver),
+		DeviceAllowedActions:  append([]string(nil), cfg.Device.AllowedActions...),
+		DeviceMaxActions:      cfg.Device.MaxActions,
+		DeviceVerificationURI: strings.TrimSpace(cfg.Device.VerificationURI),
+		OAuthIssuerURL:        firstOAuthIssuer(cfg.OAuthResources), OAuthClientID: firstOAuthClientID(cfg.OAuthResources), OAuthClientSecret: firstOAuthSecret(cfg.OAuthResources),
 
 		SessionCookieAllowInsecureHTTP: cfg.Session.Cookie.AllowInsecureHTTP,
 		SessionCookieName:              strings.TrimSpace(cfg.Session.Cookie.Name),
@@ -146,6 +182,10 @@ func FlattenConfig(cfg Config) GlazedSettings {
 		ProgramAuthStoreDriver:      strings.TrimSpace(programauth.Driver),
 		ProgramAuthStoreDSN:         strings.TrimSpace(programauth.DSN),
 		ProgramAuthStoreApplySchema: boolValue(programauth.ApplySchema),
+
+		OIDCTransactionStoreDriver:      strings.TrimSpace(oidcTransaction.Driver),
+		OIDCTransactionStoreDSN:         strings.TrimSpace(oidcTransaction.DSN),
+		OIDCTransactionStoreApplySchema: boolValue(oidcTransaction.ApplySchema),
 
 		OIDCIssuerURL:      strings.TrimSpace(cfg.OIDC.IssuerURL),
 		OIDCClientID:       strings.TrimSpace(cfg.OIDC.ClientID),
@@ -184,7 +224,15 @@ func valuesContainAuthSection(vals *values.Values) bool {
 
 func (s GlazedSettings) ToConfig() Config {
 	return Config{
-		Mode: Mode(strings.TrimSpace(s.Mode)),
+		Mode:       Mode(strings.TrimSpace(s.Mode)),
+		Deployment: DeploymentConfig{Profile: DeploymentProfile(strings.TrimSpace(s.DeploymentProfile))},
+		Proxy: ProxyConfig{
+			Mode:         gojahttp.ProxyMode(strings.TrimSpace(s.ProxyMode)),
+			TrustedCIDRs: trimStringSlice(s.ProxyTrustedCIDRs),
+		},
+		RateLimiter:    RateLimiterConfig{Driver: RateLimiterDriver(strings.TrimSpace(s.RateLimiterDriver))},
+		Device:         DeviceConfig{AllowedActions: trimStringSlice(s.DeviceAllowedActions), MaxActions: s.DeviceMaxActions, VerificationURI: strings.TrimSpace(s.DeviceVerificationURI)},
+		OAuthResources: oauthResourcesFromGlazed(s.OAuthIssuerURL, s.OAuthClientID, s.OAuthClientSecret),
 		Session: SessionConfig{
 			Cookie: CookieConfig{
 				AllowInsecureHTTP: s.SessionCookieAllowInsecureHTTP,
@@ -196,12 +244,13 @@ func (s GlazedSettings) ToConfig() Config {
 			AbsoluteTimeout: strings.TrimSpace(s.SessionAbsoluteTimeout),
 		},
 		Stores: StoresConfig{
-			Default:     storeConfigFromGlazed(s.DefaultStoreDriver, s.DefaultStoreDSN, s.DefaultStoreApplySchema),
-			Session:     storeConfigFromGlazed(s.SessionStoreDriver, s.SessionStoreDSN, s.SessionStoreApplySchema),
-			Audit:       storeConfigFromGlazed(s.AuditStoreDriver, s.AuditStoreDSN, s.AuditStoreApplySchema),
-			AppAuth:     storeConfigFromGlazed(s.AppAuthStoreDriver, s.AppAuthStoreDSN, s.AppAuthStoreApplySchema),
-			Capability:  storeConfigFromGlazed(s.CapabilityStoreDriver, s.CapabilityStoreDSN, s.CapabilityStoreApplySchema),
-			ProgramAuth: storeConfigFromGlazed(s.ProgramAuthStoreDriver, s.ProgramAuthStoreDSN, s.ProgramAuthStoreApplySchema),
+			Default:         storeConfigFromGlazed(s.DefaultStoreDriver, s.DefaultStoreDSN, s.DefaultStoreApplySchema),
+			Session:         storeConfigFromGlazed(s.SessionStoreDriver, s.SessionStoreDSN, s.SessionStoreApplySchema),
+			Audit:           storeConfigFromGlazed(s.AuditStoreDriver, s.AuditStoreDSN, s.AuditStoreApplySchema),
+			AppAuth:         storeConfigFromGlazed(s.AppAuthStoreDriver, s.AppAuthStoreDSN, s.AppAuthStoreApplySchema),
+			Capability:      storeConfigFromGlazed(s.CapabilityStoreDriver, s.CapabilityStoreDSN, s.CapabilityStoreApplySchema),
+			ProgramAuth:     storeConfigFromGlazed(s.ProgramAuthStoreDriver, s.ProgramAuthStoreDSN, s.ProgramAuthStoreApplySchema),
+			OIDCTransaction: storeConfigFromGlazed(s.OIDCTransactionStoreDriver, s.OIDCTransactionStoreDSN, s.OIDCTransactionStoreApplySchema),
 		},
 		OIDC: OIDCConfig{
 			IssuerURL:      strings.TrimSpace(s.OIDCIssuerURL),
@@ -214,6 +263,31 @@ func (s GlazedSettings) ToConfig() Config {
 			AfterLogoutURL: strings.TrimSpace(s.OIDCAfterLogoutURL),
 		},
 	}
+}
+
+func oauthResourcesFromGlazed(issuer, clientID, secret string) []OAuthResourceConfig {
+	if strings.TrimSpace(issuer) == "" && strings.TrimSpace(clientID) == "" && strings.TrimSpace(secret) == "" {
+		return nil
+	}
+	return []OAuthResourceConfig{{IssuerURL: issuer, ClientID: clientID, ClientSecret: secret}}
+}
+func firstOAuthIssuer(v []OAuthResourceConfig) string {
+	if len(v) > 0 {
+		return v[0].IssuerURL
+	}
+	return ""
+}
+func firstOAuthClientID(v []OAuthResourceConfig) string {
+	if len(v) > 0 {
+		return v[0].ClientID
+	}
+	return ""
+}
+func firstOAuthSecret(v []OAuthResourceConfig) string {
+	if len(v) > 0 {
+		return v[0].ClientSecret
+	}
+	return ""
 }
 
 func trimStringSlice(values []string) []string {
@@ -242,6 +316,30 @@ func cfgModeDefault(mode Mode) string {
 		return string(ModeNone)
 	}
 	return string(mode)
+}
+
+func deploymentProfileDefault(profile DeploymentProfile) string {
+	profile = DeploymentProfile(strings.TrimSpace(string(profile)))
+	if profile == "" {
+		return string(DeploymentProfileDevelopment)
+	}
+	return string(profile)
+}
+
+func proxyModeDefault(mode gojahttp.ProxyMode) string {
+	mode = gojahttp.ProxyMode(strings.TrimSpace(string(mode)))
+	if mode == "" {
+		return string(gojahttp.ProxyModeDirect)
+	}
+	return string(mode)
+}
+
+func rateLimiterDriverDefault(driver RateLimiterDriver) string {
+	driver = RateLimiterDriver(strings.TrimSpace(string(driver)))
+	if driver == "" {
+		return string(RateLimiterDriverMemory)
+	}
+	return string(driver)
 }
 
 func storeDriverDefault(driver string) string {

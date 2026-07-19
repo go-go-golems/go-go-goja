@@ -37,6 +37,22 @@ func ResolveConfig(cfg Config, opts ResolveOptions) (ResolvedConfig, error) {
 	if err != nil {
 		return ResolvedConfig{}, configError("auth.mode", err)
 	}
+	deployment, err := resolveDeploymentProfile(cfg.Deployment)
+	if err != nil {
+		return ResolvedConfig{}, configError("auth.deployment.profile", err)
+	}
+	rateLimiter, err := resolveRateLimiterConfig(cfg.RateLimiter)
+	if err != nil {
+		return ResolvedConfig{}, configError("auth.rate-limiter.driver", err)
+	}
+	proxy, err := resolveProxyConfig(cfg.Proxy)
+	if err != nil {
+		return ResolvedConfig{}, configError("auth.proxy", err)
+	}
+	device, err := resolveDeviceConfig(cfg.Device)
+	if err != nil {
+		return ResolvedConfig{}, configError("auth.device", err)
+	}
 	session, err := resolveSessionConfig(cfg.Session)
 	if err != nil {
 		return ResolvedConfig{}, err
@@ -46,13 +62,22 @@ func ResolveConfig(cfg Config, opts ResolveOptions) (ResolvedConfig, error) {
 		if err != nil {
 			return ResolvedConfig{}, err
 		}
-		return ResolvedConfig{Mode: mode, Session: session, Stores: stores}, nil
+		resolved := ResolvedConfig{Mode: mode, Deployment: deployment, Session: session, Stores: stores, RateLimiter: rateLimiter, Proxy: proxy, Device: device}
+		if err := validateDeploymentPreflight(resolved); err != nil {
+			return ResolvedConfig{}, err
+		}
+		return resolved, nil
 	}
 	stores, err := resolveStoresConfig(cfg.Stores)
 	if err != nil {
 		return ResolvedConfig{}, err
 	}
-	resolved := ResolvedConfig{Mode: mode, Session: session, Stores: stores}
+	resolved := ResolvedConfig{Mode: mode, Deployment: deployment, Session: session, Stores: stores, RateLimiter: rateLimiter, Proxy: proxy, Device: device}
+	oauthResources, err := resolveOAuthResources(cfg.OAuthResources)
+	if err != nil {
+		return ResolvedConfig{}, err
+	}
+	resolved.OAuthResources = oauthResources
 	if mode == ModeOIDC {
 		oidc, err := resolveOIDCConfig(cfg.OIDC, session.Cookie.AllowInsecureHTTP)
 		if err != nil {
@@ -60,7 +85,31 @@ func ResolveConfig(cfg Config, opts ResolveOptions) (ResolvedConfig, error) {
 		}
 		resolved.OIDC = oidc
 	}
+	if err := validateDeploymentPreflight(resolved); err != nil {
+		return ResolvedConfig{}, err
+	}
 	return resolved, nil
+}
+
+func resolveOAuthResources(configs []OAuthResourceConfig) ([]ResolvedOAuthResourceConfig, error) {
+	out := make([]ResolvedOAuthResourceConfig, 0, len(configs))
+	seen := map[string]struct{}{}
+	for i, cfg := range configs {
+		issuer := strings.TrimRight(strings.TrimSpace(cfg.IssuerURL), "/")
+		parsed, err := url.ParseRequestURI(issuer)
+		if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+			return nil, configError(fmt.Sprintf("auth.oauth-resources[%d].issuer-url", i), fmt.Errorf("must be an absolute URL"))
+		}
+		if strings.TrimSpace(cfg.ClientID) == "" || strings.TrimSpace(cfg.ClientSecret) == "" {
+			return nil, configError(fmt.Sprintf("auth.oauth-resources[%d]", i), fmt.Errorf("client id and secret are required"))
+		}
+		if _, ok := seen[issuer]; ok {
+			return nil, configError("auth.oauth-resources", fmt.Errorf("duplicate issuer %q", issuer))
+		}
+		seen[issuer] = struct{}{}
+		out = append(out, ResolvedOAuthResourceConfig{IssuerURL: issuer, ClientID: strings.TrimSpace(cfg.ClientID), ClientSecret: cfg.ClientSecret})
+	}
+	return out, nil
 }
 
 func configError(path string, err error) error {
@@ -248,7 +297,11 @@ func resolveStoresConfig(cfg StoresConfig) (ResolvedStoresConfig, error) {
 	if err != nil {
 		return ResolvedStoresConfig{}, err
 	}
-	return ResolvedStoresConfig{Session: session, Audit: audit, AppAuth: appauth, Capability: capability, ProgramAuth: programauth}, nil
+	oidcTransaction, err := resolveStoreConfig("oidc-transaction", cfg.OIDCTransaction, defaults)
+	if err != nil {
+		return ResolvedStoresConfig{}, err
+	}
+	return ResolvedStoresConfig{Session: session, Audit: audit, AppAuth: appauth, Capability: capability, ProgramAuth: programauth, OIDCTransaction: oidcTransaction}, nil
 }
 
 func resolveStoreConfig(name string, specific StoreConfig, defaults StoreConfig) (ResolvedStoreConfig, error) {

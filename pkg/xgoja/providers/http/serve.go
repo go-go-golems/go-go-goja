@@ -474,6 +474,9 @@ func buildServeHandler(appHost stdhttp.Handler, authServices *hostauth.Services,
 		}
 	}
 	mux.Handle("/", appHost)
+	if authServices != nil {
+		return gojahttp.RequestIdentityMiddleware(authServices.RequestIdentity, mux), nil
+	}
 	return mux, nil
 }
 

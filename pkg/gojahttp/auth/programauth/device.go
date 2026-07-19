@@ -70,6 +70,16 @@ func (d DeviceAuthorization) Approved() bool             { return d.ApprovedAt !
 func (d DeviceAuthorization) Denied() bool               { return d.DeniedAt != nil }
 func (d DeviceAuthorization) Consumed() bool             { return d.ConsumedAt != nil }
 
+// PendingDeviceRequestView is the browser-safe projection used before a
+// session user approves or denies a request. It intentionally omits the raw
+// device code, user-code hash, token family, and subject identity.
+type PendingDeviceRequestView struct {
+	ClientName       string
+	RequestedActions []string
+	ExpiresAt        time.Time
+	Status           string
+}
+
 type DeviceAuthorizationView struct {
 	ID                      string
 	ClientName              string
@@ -288,6 +298,30 @@ func (s DeviceService) PollDeviceAuthorization(ctx context.Context, rawDeviceCod
 		return IssuedOAuthTokenPair{}, err
 	}
 	return s.OAuthTokens.IssueTokenPair(ctx, OAuthTokenIssueSpec{AgentID: consumed.AgentID, SubjectUserID: consumed.SubjectUserID, Grants: consumed.Grants.Clone()})
+}
+
+// InspectDeviceAuthorization returns the pending request a browser user is
+// about to decide. The caller's session is checked by the HTTP boundary.
+func (s DeviceService) InspectDeviceAuthorization(ctx context.Context, userCode string) (PendingDeviceRequestView, error) {
+	if s.Store == nil {
+		return PendingDeviceRequestView{}, fmt.Errorf("programauth device authorization store is required")
+	}
+	device, err := s.lookupDeviceByUserCode(ctx, userCode)
+	if err != nil {
+		return PendingDeviceRequestView{}, err
+	}
+	status := "pending"
+	switch {
+	case device.Expired(s.now()):
+		status = "expired"
+	case device.Denied():
+		status = "denied"
+	case device.Consumed():
+		status = "consumed"
+	case device.Approved():
+		status = "approved"
+	}
+	return PendingDeviceRequestView{ClientName: device.ClientName, RequestedActions: device.Grants.ScopeStrings(), ExpiresAt: device.ExpiresAt, Status: status}, nil
 }
 
 func (s DeviceService) DenyDeviceAuthorization(ctx context.Context, userCode string) (DeviceAuthorizationView, error) {

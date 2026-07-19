@@ -3,7 +3,6 @@ package gojahttp
 import (
 	"encoding/json"
 	"fmt"
-	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -65,11 +64,7 @@ func NewRequestDTO(r *http.Request, params map[string]string, session *SessionDT
 	for _, c := range r.Cookies() {
 		cookies[c.Name] = c.Value
 	}
-	ip, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		ip = r.RemoteAddr
-	}
-	return &RequestDTO{Method: r.Method, URL: r.URL.String(), Path: r.URL.Path, Query: query, Params: params, Headers: headers, Cookies: cookies, Session: session, IP: ip, Body: body, RawBody: raw}, nil
+	return &RequestDTO{Method: r.Method, URL: r.URL.String(), Path: r.URL.Path, Query: query, Params: params, Headers: headers, Cookies: cookies, Session: session, IP: RequestClientIP(r), Body: body, RawBody: raw}, nil
 }
 
 type Response struct {

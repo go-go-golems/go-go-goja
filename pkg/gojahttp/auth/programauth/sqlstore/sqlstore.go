@@ -184,21 +184,53 @@ func (s *Store) TouchAPIToken(ctx context.Context, id string, usedAt time.Time) 
 
 func (s *Store) CreateAccessToken(ctx context.Context, token programauth.AccessToken) (programauth.AccessToken, error) {
 	token = cloneAccessToken(token)
+	if err := s.insertAccessToken(ctx, s.db, token); err != nil {
+		return programauth.AccessToken{}, err
+	}
+	return token, nil
+}
+
+func (s *Store) insertAccessToken(ctx context.Context, exec sqlExecer, token programauth.AccessToken) error {
 	if token.ID == "" {
-		return programauth.AccessToken{}, fmt.Errorf("access token id is required")
+		return fmt.Errorf("access token id is required")
 	}
 	if token.TokenPrefix == "" || len(token.TokenHash) == 0 {
-		return programauth.AccessToken{}, fmt.Errorf("access token hash and prefix are required")
+		return fmt.Errorf("access token hash and prefix are required")
 	}
 	grantsJSON, err := marshalGrantSet(token.Grants)
 	if err != nil {
-		return programauth.AccessToken{}, err
+		return err
 	}
-	_, err = s.db.ExecContext(ctx, s.insertAccessTokenQuery(), token.ID, token.AgentID, token.SubjectUserID, token.FamilyID, append([]byte(nil), token.TokenHash...), token.TokenPrefix, token.CreatedAt, token.UpdatedAt, token.ExpiresAt, nullTime(token.LastUsedAt), nullTime(token.RevokedAt), grantsJSON)
+	_, err = exec.ExecContext(ctx, s.insertAccessTokenQuery(), token.ID, token.AgentID, token.SubjectUserID, token.FamilyID, append([]byte(nil), token.TokenHash...), token.TokenPrefix, token.CreatedAt, token.UpdatedAt, token.ExpiresAt, nullTime(token.LastUsedAt), nullTime(token.RevokedAt), grantsJSON)
 	if err != nil {
-		return programauth.AccessToken{}, fmt.Errorf("create programauth access token: %w", err)
+		return fmt.Errorf("create programauth access token: %w", err)
 	}
-	return token, nil
+	return nil
+}
+
+// CreateOAuthTokenPair persists both raw-token hashes in a single SQL
+// transaction. It is used by OAuthTokenService when the two stores are this
+// shared SQL Store, avoiding compensating deletes after partial writes.
+func (s *Store) CreateOAuthTokenPair(ctx context.Context, access programauth.AccessToken, refresh programauth.RefreshToken) (programauth.AccessToken, programauth.RefreshToken, error) {
+	access, refresh = cloneAccessToken(access), cloneRefreshToken(refresh)
+	if err := validateRefreshTokenForInsert(refresh); err != nil {
+		return programauth.AccessToken{}, programauth.RefreshToken{}, err
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return programauth.AccessToken{}, programauth.RefreshToken{}, fmt.Errorf("begin oauth token pair insert: %w", err)
+	}
+	defer rollback(tx)
+	if err := s.insertAccessToken(ctx, tx, access); err != nil {
+		return programauth.AccessToken{}, programauth.RefreshToken{}, err
+	}
+	if err := s.insertRefreshToken(ctx, tx, refresh); err != nil {
+		return programauth.AccessToken{}, programauth.RefreshToken{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return programauth.AccessToken{}, programauth.RefreshToken{}, fmt.Errorf("commit oauth token pair insert: %w", err)
+	}
+	return access, refresh, nil
 }
 
 func (s *Store) DeleteAccessToken(ctx context.Context, id string) error {
@@ -207,6 +239,15 @@ func (s *Store) DeleteAccessToken(ctx context.Context, id string) error {
 		return fmt.Errorf("delete programauth access token: %w", err)
 	}
 	return requireAffected(res, programauth.ErrAccessTokenNotFound)
+}
+
+func (s *Store) PurgeExpiredAccessTokens(ctx context.Context, before time.Time) (int, error) {
+	result, err := s.db.ExecContext(ctx, s.rebind(`DELETE FROM auth_program_access_tokens WHERE expires_at <= ? OR revoked_at <= ?`), before, before)
+	if err != nil {
+		return 0, err
+	}
+	n, err := result.RowsAffected()
+	return int(n), err
 }
 
 func (s *Store) FindAccessTokenByPrefix(ctx context.Context, prefix string) ([]programauth.AccessToken, error) {
@@ -235,6 +276,33 @@ func (s *Store) CreateRefreshToken(ctx context.Context, token programauth.Refres
 		return programauth.RefreshToken{}, err
 	}
 	return token, nil
+}
+
+func (s *Store) ListRefreshTokens(ctx context.Context, query programauth.RefreshTokenQuery) ([]programauth.RefreshToken, error) {
+	if strings.TrimSpace(query.SubjectUserID) == "" {
+		return nil, fmt.Errorf("subject user id is required")
+	}
+	where := "subject_user_id = " + s.placeholder(1)
+	args := []any{query.SubjectUserID}
+	if query.FamilyID != "" {
+		where += " AND family_id = " + s.placeholder(2)
+		args = append(args, query.FamilyID)
+	}
+	rows, err := s.db.QueryContext(ctx, s.rebind(`SELECT id, agent_id, subject_user_id, family_id, generation, token_hash, token_prefix, created_at, updated_at, expires_at, used_at, revoked_at, replaced_by_id, grants_json FROM auth_program_refresh_tokens WHERE `+where+` ORDER BY created_at DESC`), args...)
+	if err != nil {
+		return nil, fmt.Errorf("list programauth refresh tokens: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	return scanRefreshTokenRows(rows)
+}
+
+func (s *Store) PurgeExpiredRefreshTokens(ctx context.Context, before time.Time) (int, error) {
+	result, err := s.db.ExecContext(ctx, s.rebind(`DELETE FROM auth_program_refresh_tokens WHERE expires_at <= ? OR revoked_at <= ?`), before, before)
+	if err != nil {
+		return 0, err
+	}
+	n, err := result.RowsAffected()
+	return int(n), err
 }
 
 func (s *Store) FindRefreshTokenByPrefix(ctx context.Context, prefix string) ([]programauth.RefreshToken, error) {
@@ -285,6 +353,52 @@ func (s *Store) RotateRefreshToken(ctx context.Context, currentID string, next p
 		return programauth.RefreshToken{}, programauth.RefreshToken{}, fmt.Errorf("commit refresh token rotation: %w", err)
 	}
 	return cloneRefreshToken(current), cloneRefreshToken(next), nil
+}
+
+// RotateOAuthTokenPair atomically creates an access token, creates the next
+// refresh token, and consumes the presented refresh token. A conflict or
+// insert failure rolls back every write, so the caller never needs a
+// compensating access-token delete.
+func (s *Store) RotateOAuthTokenPair(ctx context.Context, currentID string, access programauth.AccessToken, next programauth.RefreshToken, usedAt time.Time) (programauth.AccessToken, programauth.RefreshToken, error) {
+	currentID = strings.TrimSpace(currentID)
+	access, next = cloneAccessToken(access), cloneRefreshToken(next)
+	if err := validateRefreshTokenForInsert(next); err != nil {
+		return programauth.AccessToken{}, programauth.RefreshToken{}, err
+	}
+	usedAt = usedAt.UTC()
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return programauth.AccessToken{}, programauth.RefreshToken{}, fmt.Errorf("begin oauth token pair rotation: %w", err)
+	}
+	defer rollback(tx)
+	current, err := scanRefreshToken(tx.QueryRowContext(ctx, s.refreshTokenByIDQuery(), currentID))
+	if err != nil {
+		return programauth.AccessToken{}, programauth.RefreshToken{}, err
+	}
+	if current.Revoked() {
+		return programauth.AccessToken{}, programauth.RefreshToken{}, programauth.ErrRefreshTokenRevoked
+	}
+	if current.Used() {
+		return programauth.AccessToken{}, programauth.RefreshToken{}, programauth.ErrRefreshTokenUsed
+	}
+	access.FamilyID, next.FamilyID = current.FamilyID, current.FamilyID
+	if err := s.insertAccessToken(ctx, tx, access); err != nil {
+		return programauth.AccessToken{}, programauth.RefreshToken{}, err
+	}
+	if err := s.insertRefreshToken(ctx, tx, next); err != nil {
+		return programauth.AccessToken{}, programauth.RefreshToken{}, err
+	}
+	res, err := tx.ExecContext(ctx, s.rotateRefreshTokenQuery(), usedAt, next.ID, usedAt, currentID)
+	if err != nil {
+		return programauth.AccessToken{}, programauth.RefreshToken{}, fmt.Errorf("rotate programauth refresh token: %w", err)
+	}
+	if err := requireAffected(res, programauth.ErrRefreshTokenUsed); err != nil {
+		return programauth.AccessToken{}, programauth.RefreshToken{}, err
+	}
+	if err := tx.Commit(); err != nil {
+		return programauth.AccessToken{}, programauth.RefreshToken{}, fmt.Errorf("commit oauth token pair rotation: %w", err)
+	}
+	return access, next, nil
 }
 
 func (s *Store) RevokeRefreshTokenFamily(ctx context.Context, familyID string, revokedAt time.Time) error {
@@ -946,4 +1060,5 @@ var _ programauth.AgentStore = (*Store)(nil)
 var _ programauth.APITokenStore = (*Store)(nil)
 var _ programauth.AccessTokenStore = (*Store)(nil)
 var _ programauth.RefreshTokenStore = (*Store)(nil)
+var _ programauth.OAuthTokenPairStore = (*Store)(nil)
 var _ programauth.DeviceAuthorizationStore = (*Store)(nil)

@@ -11,6 +11,13 @@ CREATE TABLE IF NOT EXISTS auth_app_users (
     disabled_at TIMESTAMP NULL
 );
 
+CREATE TABLE IF NOT EXISTS auth_app_external_identities (
+    issuer TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    user_id TEXT NOT NULL REFERENCES auth_app_users(id),
+    PRIMARY KEY (issuer, subject)
+);
+
 CREATE TABLE IF NOT EXISTS auth_app_tenants (
     id TEXT PRIMARY KEY,
     slug TEXT UNIQUE,
@@ -54,6 +61,13 @@ CREATE TABLE IF NOT EXISTS auth_app_users (
     display_name TEXT NOT NULL DEFAULT '',
     email_verified BOOLEAN NOT NULL DEFAULT false,
     disabled_at TIMESTAMPTZ NULL
+);
+
+CREATE TABLE IF NOT EXISTS auth_app_external_identities (
+    issuer TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    user_id TEXT NOT NULL REFERENCES auth_app_users(id),
+    PRIMARY KEY (issuer, subject)
 );
 
 CREATE TABLE IF NOT EXISTS auth_app_tenants (

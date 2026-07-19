@@ -2,7 +2,10 @@ package hostauth
 
 import (
 	"net/http"
+	"net/netip"
 	"time"
+
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp"
 )
 
 // Mode selects the generated-host authentication infrastructure shape.
@@ -12,6 +15,25 @@ const (
 	ModeNone Mode = "none"
 	ModeDev  Mode = "dev"
 	ModeOIDC Mode = "oidc"
+)
+
+// DeploymentProfile states the operational contract under which a generated
+// host is started. Development keeps tutorial-friendly defaults. SingleNode is
+// an explicit production contract for exactly one serving process.
+type DeploymentProfile string
+
+const (
+	DeploymentProfileDevelopment DeploymentProfile = "development"
+	DeploymentProfileSingleNode  DeploymentProfile = "single-node"
+)
+
+// RateLimiterDriver selects the host-wide limiter implementation. Memory is
+// safe only for DeploymentProfileSingleNode because its counters are local to
+// one process.
+type RateLimiterDriver string
+
+const (
+	RateLimiterDriverMemory RateLimiterDriver = "memory"
 )
 
 // StoreDriver selects the persistence backend for a host auth store.
@@ -26,10 +48,48 @@ const (
 // Config is the generated-host auth infrastructure configuration. It is host
 // config, not JavaScript route config and not an authorization policy DSL.
 type Config struct {
-	Mode    Mode          `yaml:"mode" json:"mode"`
-	Session SessionConfig `yaml:"session" json:"session"`
-	Stores  StoresConfig  `yaml:"stores" json:"stores"`
-	OIDC    OIDCConfig    `yaml:"oidc" json:"oidc"`
+	Mode           Mode                  `yaml:"mode" json:"mode"`
+	Deployment     DeploymentConfig      `yaml:"deployment" json:"deployment"`
+	Session        SessionConfig         `yaml:"session" json:"session"`
+	Stores         StoresConfig          `yaml:"stores" json:"stores"`
+	OIDC           OIDCConfig            `yaml:"oidc" json:"oidc"`
+	RateLimiter    RateLimiterConfig     `yaml:"rate-limiter" json:"rate-limiter"`
+	Proxy          ProxyConfig           `yaml:"proxy" json:"proxy"`
+	Device         DeviceConfig          `yaml:"device" json:"device"`
+	OAuthResources []OAuthResourceConfig `yaml:"oauth-resources" json:"oauth-resources"`
+}
+
+// DeploymentConfig controls the explicit operational profile of the host.
+type DeploymentConfig struct {
+	Profile DeploymentProfile `yaml:"profile" json:"profile"`
+}
+
+// RateLimiterConfig controls the host-wide limiter. A future distributed
+// implementation must use a distinct driver rather than silently changing the
+// semantics of memory.
+type RateLimiterConfig struct {
+	Driver RateLimiterDriver `yaml:"driver" json:"driver"`
+}
+
+// ProxyConfig defines the only forwarding-header trust policy supported by a
+// generated host. Trusted CIDRs describe direct reverse-proxy peers, never
+// client addresses advertised in a header.
+type ProxyConfig struct {
+	Mode         gojahttp.ProxyMode `yaml:"mode" json:"mode"`
+	TrustedCIDRs []string           `yaml:"trusted-cidrs" json:"trusted-cidrs"`
+}
+
+// OAuthResourceConfig configures one external issuer resource-server profile.
+type OAuthResourceConfig struct {
+	IssuerURL    string `yaml:"issuer-url" json:"issuer-url"`
+	ClientID     string `yaml:"client-id" json:"client-id"`
+	ClientSecret string `yaml:"client-secret" json:"client-secret"`
+}
+
+type DeviceConfig struct {
+	AllowedActions  []string `yaml:"allowed-actions" json:"allowed-actions"`
+	MaxActions      int      `yaml:"max-actions" json:"max-actions"`
+	VerificationURI string   `yaml:"verification-uri" json:"verification-uri"`
 }
 
 // OIDCConfig controls generated-host browser login when Mode is oidc.
@@ -71,6 +131,9 @@ type StoresConfig struct {
 	AppAuth     StoreConfig `yaml:"appauth" json:"appauth"`
 	Capability  StoreConfig `yaml:"capability" json:"capability"`
 	ProgramAuth StoreConfig `yaml:"programauth" json:"programauth"`
+	// OIDCTransaction stores short-lived state, nonce, and PKCE verifier
+	// material. It is intentionally separate from durable application sessions.
+	OIDCTransaction StoreConfig `yaml:"oidc-transaction" json:"oidc-transaction"`
 }
 
 // StoreConfig configures one store. ApplySchema is a pointer so inheritance can
@@ -84,10 +147,36 @@ type StoreConfig struct {
 // ResolvedConfig is the fully parsed and defaulted configuration used by
 // builders. It contains no unresolved env references.
 type ResolvedConfig struct {
-	Mode    Mode
-	Session ResolvedSessionConfig
-	Stores  ResolvedStoresConfig
-	OIDC    ResolvedOIDCConfig
+	Mode           Mode
+	Deployment     ResolvedDeploymentConfig
+	Session        ResolvedSessionConfig
+	Stores         ResolvedStoresConfig
+	OIDC           ResolvedOIDCConfig
+	RateLimiter    ResolvedRateLimiterConfig
+	Proxy          ResolvedProxyConfig
+	Device         ResolvedDeviceConfig
+	OAuthResources []ResolvedOAuthResourceConfig
+}
+
+type ResolvedDeploymentConfig struct {
+	Profile DeploymentProfile
+}
+
+type ResolvedRateLimiterConfig struct {
+	Driver RateLimiterDriver
+}
+
+type ResolvedProxyConfig struct {
+	Mode            gojahttp.ProxyMode
+	TrustedPrefixes []netip.Prefix
+}
+
+type ResolvedOAuthResourceConfig struct{ IssuerURL, ClientID, ClientSecret string }
+
+type ResolvedDeviceConfig struct {
+	AllowedActions  map[string]struct{}
+	MaxActions      int
+	VerificationURI string
 }
 
 // ResolvedOIDCConfig contains validated OIDC settings. RedirectURL is always
@@ -116,11 +205,12 @@ type ResolvedCookieConfig struct {
 }
 
 type ResolvedStoresConfig struct {
-	Session     ResolvedStoreConfig
-	Audit       ResolvedStoreConfig
-	AppAuth     ResolvedStoreConfig
-	Capability  ResolvedStoreConfig
-	ProgramAuth ResolvedStoreConfig
+	Session         ResolvedStoreConfig
+	Audit           ResolvedStoreConfig
+	AppAuth         ResolvedStoreConfig
+	Capability      ResolvedStoreConfig
+	ProgramAuth     ResolvedStoreConfig
+	OIDCTransaction ResolvedStoreConfig
 }
 
 type ResolvedStoreConfig struct {

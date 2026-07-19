@@ -8,6 +8,7 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/appauth"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/audit"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/capability"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/oidcauth"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth"
 )
 
@@ -22,7 +23,7 @@ func TestBuildStoresMemory(t *testing.T) {
 			t.Fatalf("Close: %v", err)
 		}
 	}()
-	if stores.Session == nil || stores.Audit == nil || stores.Capability == nil {
+	if stores.Session == nil || stores.Audit == nil || stores.Capability == nil || stores.OIDCTransaction == nil {
 		t.Fatalf("stores missing: %#v", stores)
 	}
 	if stores.ProgramAuth.Agents == nil || stores.ProgramAuth.APITokens == nil || stores.ProgramAuth.AccessTokens == nil || stores.ProgramAuth.RefreshTokens == nil || stores.ProgramAuth.Devices == nil {
@@ -147,6 +148,18 @@ func exerciseStores(t *testing.T, ctx context.Context, stores *StoreBundle) {
 	}
 	if redeemed.ID != issued.Capability.ID {
 		t.Fatalf("redeemed = %#v", redeemed)
+	}
+
+	oidcTx := oidcauth.Transaction{State: "state-1", Nonce: "nonce-1", PKCEVerifier: "verifier-1", CreatedAt: time.Now().UTC(), RedirectURL: "/after"}
+	if err := stores.OIDCTransaction.Put(ctx, oidcTx); err != nil {
+		t.Fatalf("Put OIDC transaction: %v", err)
+	}
+	redeemedOIDCTx, err := stores.OIDCTransaction.Take(ctx, oidcTx.State)
+	if err != nil {
+		t.Fatalf("Take OIDC transaction: %v", err)
+	}
+	if redeemedOIDCTx != oidcTx {
+		t.Fatalf("redeemed OIDC transaction = %#v", redeemedOIDCTx)
 	}
 }
 

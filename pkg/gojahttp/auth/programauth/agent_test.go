@@ -41,6 +41,23 @@ func TestAgentServiceCreatesNormalizesAndProjectsActor(t *testing.T) {
 	}
 }
 
+func TestAgentServiceRestrictsOwnerManagement(t *testing.T) {
+	service := programauth.AgentService{Store: programauth.NewMemoryAgentStore(), NewID: func() (string, error) { return "agt_owner", nil }}
+	if _, err := service.CreateAgent(context.Background(), programauth.AgentCreateSpec{Name: "owner agent", OwnerUserID: "u1", Policy: mustGrantSet(t, gojahttp.Grant{Action: "report.read"})}); err != nil {
+		t.Fatalf("CreateAgent: %v", err)
+	}
+	if _, err := service.DisableOwnedAgent(context.Background(), "u2", "agt_owner"); !errors.Is(err, programauth.ErrAgentNotFound) {
+		t.Fatalf("cross-owner disable error = %v", err)
+	}
+	agents, err := service.ListOwnedAgents(context.Background(), "u1")
+	if err != nil || len(agents) != 1 {
+		t.Fatalf("ListOwnedAgents = %#v, %v", agents, err)
+	}
+	if _, err := service.DisableOwnedAgent(context.Background(), "u1", "agt_owner"); err != nil {
+		t.Fatalf("DisableOwnedAgent: %v", err)
+	}
+}
+
 func TestMemoryAgentStoreClonesStoredAgents(t *testing.T) {
 	store := programauth.NewMemoryAgentStore()
 	service := programauth.AgentService{Store: store, NewID: func() (string, error) { return "agt_clone", nil }}

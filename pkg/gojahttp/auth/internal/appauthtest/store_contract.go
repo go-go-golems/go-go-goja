@@ -45,7 +45,7 @@ func RunStoreContract(t *testing.T, newHarness NewHarness) {
 		if byID.OIDCSubject != "kc-u1" {
 			t.Fatalf("unexpected user by id: %#v", byID)
 		}
-		bySub, err := h.Users.ByOIDCIdentity(ctx, "https://issuer.example.test", "kc-u1")
+		bySub, err := h.Users.ByExternalIdentity(ctx, "https://issuer.example.test", "kc-u1")
 		if err != nil {
 			t.Fatalf("by sub: %v", err)
 		}

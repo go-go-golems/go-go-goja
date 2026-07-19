@@ -69,8 +69,10 @@ type Resource struct {
 // UserStore loads app users.
 type UserStore interface {
 	ByID(ctx context.Context, id string) (*User, error)
-	ByOIDCIdentity(ctx context.Context, issuer, subject string) (*User, error)
+	ByExternalIdentity(ctx context.Context, issuer, subject string) (*User, error)
+	BindExternalIdentity(ctx context.Context, userID, issuer, subject string) error
 	UpsertFromOIDC(ctx context.Context, issuer, subject, email string, emailVerified bool) (*User, error)
+	DisableUser(ctx context.Context, id string, disabledAt time.Time) error
 }
 
 // MembershipStore answers tenant membership/role questions.
@@ -215,13 +217,13 @@ func deny(reason string) gojahttp.AuthorizationDecision {
 type MemoryStore struct {
 	mu          sync.Mutex
 	users       map[string]User
-	usersBySub  map[string]string
+	usersByOIDC map[string]string
 	memberships []Membership
 	resources   map[string]Resource
 }
 
 func NewMemoryStore() *MemoryStore {
-	return &MemoryStore{users: map[string]User{}, usersBySub: map[string]string{}, resources: map[string]Resource{}}
+	return &MemoryStore{users: map[string]User{}, usersByOIDC: map[string]string{}, resources: map[string]Resource{}}
 }
 
 func (s *MemoryStore) AddUser(user User) {
@@ -230,7 +232,7 @@ func (s *MemoryStore) AddUser(user User) {
 	user = cloneUser(user)
 	s.users[user.ID] = user
 	if user.OIDCIssuer != "" && user.OIDCSubject != "" {
-		s.usersBySub[oidcIdentityKey(user.OIDCIssuer, user.OIDCSubject)] = user.ID
+		s.usersByOIDC[oidcIdentityKey(user.OIDCIssuer, user.OIDCSubject)] = user.ID
 	}
 }
 
@@ -258,14 +260,40 @@ func (s *MemoryStore) ByID(_ context.Context, id string) (*User, error) {
 	return &user, nil
 }
 
-func (s *MemoryStore) ByOIDCIdentity(ctx context.Context, issuer, subject string) (*User, error) {
+func (s *MemoryStore) ByExternalIdentity(ctx context.Context, issuer, subject string) (*User, error) {
 	s.mu.Lock()
-	id, ok := s.usersBySub[oidcIdentityKey(issuer, subject)]
+	id, ok := s.usersByOIDC[oidcIdentityKey(issuer, subject)]
 	s.mu.Unlock()
 	if !ok {
 		return nil, gojahttp.ErrNotFound
 	}
 	return s.ByID(ctx, id)
+}
+
+func (s *MemoryStore) BindExternalIdentity(_ context.Context, userID, issuer, subject string) error {
+	if _, err := OIDCUserID(issuer, subject); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.users[userID]; !ok {
+		return gojahttp.ErrNotFound
+	}
+	s.usersByOIDC[oidcIdentityKey(issuer, subject)] = userID
+	return nil
+}
+
+func (s *MemoryStore) DisableUser(_ context.Context, id string, disabledAt time.Time) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	user, ok := s.users[id]
+	if !ok {
+		return gojahttp.ErrNotFound
+	}
+	disabledAt = disabledAt.UTC()
+	user.DisabledAt = &disabledAt
+	s.users[id] = user
+	return nil
 }
 
 func (s *MemoryStore) UpsertFromOIDC(_ context.Context, issuer, subject, email string, emailVerified bool) (*User, error) {
@@ -276,20 +304,20 @@ func (s *MemoryStore) UpsertFromOIDC(_ context.Context, issuer, subject, email s
 	identityKey := oidcIdentityKey(issuer, subject)
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if existingID, ok := s.usersBySub[identityKey]; ok {
+	if existingID, ok := s.usersByOIDC[identityKey]; ok {
 		user := s.users[existingID]
 		if user.DisabledAt != nil {
 			return nil, gojahttp.ErrNotFound
 		}
 		user.Email = email
 		user.EmailVerified = emailVerified
-		s.users[id] = user
+		s.users[existingID] = user
 		user = cloneUser(user)
 		return &user, nil
 	}
 	user := User{ID: id, OIDCIssuer: issuer, OIDCSubject: subject, Email: email, EmailVerified: emailVerified}
 	s.users[id] = user
-	s.usersBySub[identityKey] = id
+	s.usersByOIDC[identityKey] = id
 	return &user, nil
 }
 

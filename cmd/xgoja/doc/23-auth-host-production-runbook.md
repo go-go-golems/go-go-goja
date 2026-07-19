@@ -183,7 +183,6 @@ For generated `xgoja serve` binaries, the runtime command is normally:
   --auth-mode oidc \
   --auth-default-store-driver postgres \
   --auth-default-store-dsn "$DATABASE_URL" \
-  --auth-default-store-apply-schema \
   --auth-oidc-issuer-url "$KEYCLOAK_ISSUER" \
   --auth-oidc-client-id "$KEYCLOAK_CLIENT_ID" \
   --auth-oidc-client-secret "$KEYCLOAK_CLIENT_SECRET" \
@@ -209,6 +208,48 @@ args:
 
 Passing `serve` again crashes the process with `Too many arguments`.
 
+## Single-node hostauth hardening
+
+For a public single-replica host, apply database schema migrations in the
+bootstrap/migration Job before the Deployment starts. Do **not** pass
+`--auth-default-store-apply-schema` to a serving production process: the
+`single-node` preflight rejects runtime schema changes.
+
+The host must trust forwarded headers only from the actual Traefik source CIDR,
+not a broad cluster range. Configure the host with the deployed CIDR and retain
+it as an explicit reviewed value:
+
+```yaml
+args:
+  - --auth-deployment-profile
+  - single-node
+  - --auth-proxy-mode
+  - trusted-forwarded
+  - --auth-proxy-trusted-cidrs
+  - 10.42.0.0/16 # replace with the observed Traefik source range
+```
+
+A NetworkPolicy must permit the service port from Traefik and probes while
+denying direct workload traffic. The exact namespace labels and probe source
+vary by cluster; validate the rendered policy with the platform owner. Never
+copy the illustrative CIDR above without measuring the actual peer address
+seen by the pod.
+
+Configure `/healthz` as the liveness probe and `/auth/readyz` as the readiness
+probe. Readiness verifies required SQL dependencies on every request, so a SQL
+outage removes the pod from service without turning a responsive process into a
+liveness failure.
+
+### Backup, restore, and rollback
+
+Before a release, verify that a tested Postgres backup covers every configured
+hostauth store. Record the backup artifact/checksum and migration version. A
+restore rehearsal must use an isolated database, apply the same migration Job,
+restore the backup, start exactly one host replica, and verify browser login,
+device approval, refresh, and revocation. Do not roll back application code
+across an irreversible schema migration without an explicit database rollback
+plan.
+
 ## Runtime validation
 
 Check Argo and Kubernetes first:
@@ -222,6 +263,7 @@ Check public health:
 
 ```bash
 curl -fsS https://goja-auth.yolo.scapegoat.dev/healthz
+curl -fsS https://goja-auth.yolo.scapegoat.dev/auth/readyz
 ```
 
 Check login redirect with GET, not HEAD:
@@ -238,6 +280,13 @@ make -C examples/xgoja/21-generated-host-auth compose-smoke
 ```
 
 The compose smoke validates real Keycloak login, Postgres-backed auth stores, JavaScript-owned audit and invite routes, and `409 Conflict` behavior for reused single-use capability tokens.
+
+For ingress proof, run the strict smoke through the public Traefik URL while
+capturing the configured trusted proxy CIDR, pod peer address, and resulting
+audit/rate-limit client identity. Also verify direct pod access is denied by
+NetworkPolicy, SQL loss changes `/auth/readyz` to 503 while `/healthz` remains
+200, and readiness recovers after SQL returns. Store command output in the
+release evidence, never in a public issue if it includes credentials.
 
 ## Troubleshooting
 

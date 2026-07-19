@@ -198,6 +198,7 @@ func requestLogger(r *http.Request, requestID string) zerolog.Logger {
 		Str("path", r.URL.Path).
 		Str("query", r.URL.RawQuery).
 		Str("remote_addr", r.RemoteAddr).
+		Str("client_ip", RequestClientIP(r)).
 		Str("user_agent", r.UserAgent()).
 		Int64("request_content_length", r.ContentLength).
 		Logger()

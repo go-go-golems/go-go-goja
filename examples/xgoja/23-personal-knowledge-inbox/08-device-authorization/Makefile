@@ -15,8 +15,9 @@ TINYIDP_APP_ADDR ?= 127.0.0.1:19796
 TINYIDP_ISSUER := http://$(TINYIDP_ADDR)
 TINYIDP_BASE_URL := http://$(TINYIDP_APP_ADDR)
 TINYIDP_USERS_FILE ?= $(EXAMPLE_DIR)/../tinyidp-users.yaml
+STRICT_TINYIDP_FIXTURE := $(REPO_ROOT)/ttmp/2026/07/15/XGOJA-TINYIDP-PROD-AUTH--production-tiny-idp-integration-and-durable-xgoja-oidc-host-auth
 
-.PHONY: doctor build smoke direct-smoke keycloak-up keycloak-wait keycloak-down keycloak-smoke tinyidp-smoke clean
+.PHONY: doctor build smoke direct-smoke keycloak-up keycloak-wait keycloak-down keycloak-smoke tinyidp-smoke strict-tinyidp-smoke clean
 
 doctor:
 	$(XGOJA) doctor -f $(EXAMPLE_DIR)/xgoja.yaml
@@ -154,6 +155,17 @@ tinyidp-smoke: doctor build
 	test "$$status" = "401"; \
 	python3 $(EXAMPLE_DIR)/../06-browser-login-keycloak/scripts/tinyidp_device_capture_isolation_smoke.py --base-url $(TINYIDP_BASE_URL); \
 	echo 'ok tinyidp device authorization smoke'
+
+# This uses tiny-idp's serve-production command with TLS, registered exact
+# callback/logout URIs, durable OIDC login transactions, and seeded users. The
+# generated app remains on localhost HTTP for this disposable test only; see
+# README.md for the reverse-proxy HTTPS deployment contract.
+strict-tinyidp-smoke: doctor build
+	@set -eu; \
+	if [ ! -d "$(TINYIDP_ROOT)" ]; then echo "set TINYIDP_ROOT to the production tiny-idp checkout (got $(TINYIDP_ROOT))" >&2; exit 1; fi; \
+	TINYIDP_ROOT="$(TINYIDP_ROOT)" \
+	"$(STRICT_TINYIDP_FIXTURE)/scripts/01-strict-tinyidp-fixture.sh" \
+		"$(STRICT_TINYIDP_FIXTURE)/scripts/02-strict-personal-inbox-device-smoke.sh" "$(BIN)" "$(EXAMPLE_DIR)"
 
 clean:
 	rm -rf $(EXAMPLE_DIR)/dist

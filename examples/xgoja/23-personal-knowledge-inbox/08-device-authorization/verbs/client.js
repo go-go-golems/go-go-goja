@@ -168,6 +168,40 @@ async function deviceToken(deviceCode, api) {
   return JSON.stringify(result, null, 2);
 }
 
+__verb__("deviceRefresh", {
+  name: "device-refresh",
+  output: "text",
+  short: "Rotate a device refresh token for a new access/refresh token pair",
+  sections: ["api"],
+  fields: {
+    refreshToken: { type: "string", required: true, help: "ggrt refresh token returned by device-token" },
+    api: { bind: "api" }
+  }
+});
+
+async function deviceRefresh(refreshToken, api) {
+  const device = require("./lib/device_client");
+  const result = await device.refresh(api.baseUrl, refreshToken);
+  return JSON.stringify(result, null, 2);
+}
+
+__verb__("deviceRevoke", {
+  name: "device-revoke",
+  output: "text",
+  short: "Revoke a device refresh-token family",
+  sections: ["api"],
+  fields: {
+    refreshToken: { type: "string", required: true, help: "ggrt refresh token returned by device-token or device-refresh" },
+    api: { bind: "api" }
+  }
+});
+
+async function deviceRevoke(refreshToken, api) {
+  const device = require("./lib/device_client");
+  const result = await device.revoke(api.baseUrl, refreshToken);
+  return JSON.stringify(result, null, 2);
+}
+
 __verb__("tokenCapture", {
   name: "token-capture",
   output: "text",

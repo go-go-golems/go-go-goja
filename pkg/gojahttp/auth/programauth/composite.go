@@ -20,6 +20,8 @@ type CompositeAuthenticator struct {
 	Session      gojahttp.Authenticator
 	APITokens    BearerAuthenticator
 	AccessTokens BearerAuthenticator
+	// OAuthTokens is consulted exclusively for routes that declare an OAuth requirement.
+	OAuthTokens OAuthBearerAuthenticator
 }
 
 func (a CompositeAuthenticator) Authenticate(ctx context.Context, req *http.Request, session *gojahttp.SessionDTO, spec gojahttp.SecuritySpec) (*gojahttp.Actor, error) {
@@ -34,6 +36,12 @@ func (a CompositeAuthenticator) AuthenticateResult(ctx context.Context, req *htt
 	raw, ok, err := BearerFromHeader(req)
 	if err != nil {
 		return gojahttp.AuthResult{}, err
+	}
+	if requirement, oauthRoute := oauthRequirement(spec); oauthRoute {
+		if !ok {
+			return gojahttp.AuthResult{}, gojahttp.ErrUnauthenticated
+		}
+		return authenticateOAuthBearer(ctx, a.OAuthTokens, raw, *requirement)
 	}
 	if ok {
 		return a.authenticateBearer(ctx, raw, spec)
