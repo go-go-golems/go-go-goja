@@ -44,7 +44,11 @@ The evidence shows a concentrated merge: the generalized branch and PR 98 both c
 
 ### Prompt Context
 
-**User prompt (verbatim):** "ok, it's merged and on origin. Merge origin/main and resolve the conflicts as shown above, by creating a new docmgr ticket, Create  a detailed analysis / design / implementation guide that is for a new intern, explaining all the parts of the system needed to understand what it is, with prose paragraphs and bullet point sand pseudocode and diagrams and api references and file references. It should be very clear and technical. Store in the ticket and the nupload to remarkable.\n\nThen implement stpe by step, committing at appropriate intervals."
+**User prompt (verbatim):**
+
+> ok, it's merged and on origin. Merge origin/main and resolve the conflicts as shown above, by creating a new docmgr ticket, Create  a detailed analysis / design / implementation guide that is for a new intern, explaining all the parts of the system needed to understand what it is, with prose paragraphs and bullet point sand pseudocode and diagrams and api references and file references. It should be very clear and technical. Store in the ticket and the nupload to remarkable.
+>
+> Then implement stpe by step, committing at appropriate intervals.
 
 **Assistant interpretation:** Create a fresh ticket and teaching-quality design, merge the now-landed PR 98 from `origin/main`, resolve the previously identified semantic conflicts in phased commits, validate the repository, maintain this diary, and publish the docs to reMarkable.
 
@@ -360,4 +364,86 @@ The completed merge passed isolated packages, cross-layer authentication package
 design checkpoint: db007ad
 merge checkpoint:  fdfa96d
 origin/main merged: b5f41a1
+```
+
+## Step 5: Validate the ticket and deliver the documentation
+
+The ticket passed `docmgr doctor`, and the design guide plus this diary were rendered as one PDF with a two-level table of contents. The first upload command used a mistyped local ticket directory. The corrected command then exposed a literal `\\n` sequence in the verbatim prompt, which XeLaTeX interpreted as an undefined command. I changed only the Markdown representation of the prompt: its blank line is now an actual quoted paragraph break. The next render and upload succeeded.
+
+### Prompt Context
+
+**User prompt (verbatim):** “continue”
+
+**Assistant interpretation:** Resume the same ticketed merge task after the required debugging stop, complete reMarkable delivery, and close out the documentation trail.
+
+**Inferred user intent:** Leave both the code and its implementation handoff in a complete, reviewable state.
+
+### What I did
+
+- Ran `docmgr doctor --ticket XGOJA-PR98-INTEGRATION-2026-07-18 --stale-after 30` successfully before delivery.
+- Ran a safe `remarquee upload bundle --dry-run` for the two ordered Markdown inputs.
+- Retried the actual bundle after correcting the mistyped local path.
+- Replaced literal escaped newlines in the verbatim prompt with a Markdown blockquote containing a real paragraph break.
+- Uploaded `XGOJA PR98 OIDC Integration Guide.pdf` to `/ai/2026/07/18/XGOJA-PR98-INTEGRATION-2026-07-18`.
+
+### Why
+
+- The dry run verifies document order, bundle name, and remote destination before performing an external write.
+- Recording failed delivery attempts makes the diary a practical runbook for the next intern.
+- A final ticket validation catches malformed frontmatter, stale metadata, and broken relationships before closure.
+
+### What worked
+
+- The dry run selected the design guide first and the diary second.
+- The final renderer accepted the blockquoted prompt and generated the PDF.
+- The upload reported:
+
+```text
+OK: uploaded XGOJA PR98 OIDC Integration Guide.pdf -> /ai/2026/07/18/XGOJA-PR98-INTEGRATION-2026-07-18
+```
+
+### What didn't work
+
+- The first actual upload referenced a local directory name that omitted `with-`, so `remarquee` reported `path not found`.
+- The second actual upload reached Pandoc but XeLaTeX failed with:
+
+```text
+! Undefined control sequence.
+l.992 to remarkable.\n
+```
+
+The cause was documentation syntax, not application code or reMarkable connectivity.
+
+### What I learned
+
+- Verbatim text can still require a format-safe representation. A literal backslash sequence is not equivalent to a paragraph break when Markdown is translated to LaTeX.
+- Rendering is part of documentation validation; Markdown that looks correct in a terminal may still fail in the PDF toolchain.
+
+### What was tricky to build
+
+- The prompt had to remain verbatim, including its spelling, capitalization, and paragraph boundary. A blockquote preserved those semantics without feeding a LaTeX control sequence to the renderer.
+
+### What warrants a second pair of eyes
+
+- Open the delivered PDF and spot-check the architecture diagrams and long code blocks when reviewing on the device.
+- Confirm the remote folder naming convention is the desired stable location for future PR 98 follow-up material.
+
+### What should be done in the future
+
+- Prefer real Markdown paragraph breaks when capturing multiline prompts in future diaries.
+- Add a PDF-render check to documentation-heavy ticket workflows when reMarkable delivery is required.
+
+### Code review instructions
+
+- Begin with the design guide's system map and decision table.
+- Use this diary to connect each decision to the corresponding commit and validation command.
+- Review merge commit `fdfa96d` with combined diff display before approving deployment work.
+
+### Technical details
+
+```text
+bundle:     XGOJA PR98 OIDC Integration Guide.pdf
+contents:   design guide, then implementation diary
+toc depth:  2
+destination /ai/2026/07/18/XGOJA-PR98-INTEGRATION-2026-07-18
 ```

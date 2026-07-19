@@ -9,4 +9,4 @@
 - [x] Compose production hostauth device OAuth readiness and proxy features <!-- t:zii7 -->
 - [x] Preserve POST plus CSRF logout and actor-context route semantics <!-- t:u19q -->
 - [x] Run focused and full validation and commit checkpoints <!-- t:my4k -->
-- [ ] Complete diary docmgr validation and reMarkable upload <!-- t:m7i0 -->
+- [x] Complete diary docmgr validation and reMarkable upload <!-- t:m7i0 -->
