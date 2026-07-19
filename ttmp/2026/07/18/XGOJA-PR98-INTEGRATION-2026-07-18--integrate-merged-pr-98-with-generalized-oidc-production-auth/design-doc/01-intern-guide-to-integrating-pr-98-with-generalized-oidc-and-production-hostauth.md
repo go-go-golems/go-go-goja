@@ -393,6 +393,19 @@ Security regressions require explicit tests:
 
 ## 7. Risks and review guidance
 
+### Implemented result
+
+The design was implemented in merge commit `fdfa96d`. The final code has these review anchors:
+
+- `pkg/gojahttp/auth/appauth/appauth.go:70` defines the canonical external-identity user-store API.
+- `pkg/gojahttp/auth/appauth/sqlstore/sqlstore.go:75` transactionally inserts fixture users and their issuer-scoped identity binding.
+- `pkg/gojahttp/auth/oidcauth/oidcauth.go:23` combines durable transactions, audit/security observers, and the injectable OIDC client.
+- `pkg/gojahttp/auth/oidcauth/oidcauth.go:294` implements POST-only CSRF-protected logout.
+- `pkg/xgoja/hostauth/builder.go:160` composes health, readiness, device lifecycle, OAuth verification, observability, rate limiting, and the injected OIDC transport.
+- `pkg/xgoja/hostauth/builder.go:273` normalizes the complete issuer and subject into the application user.
+
+The old Go package/API names were removed rather than adapted. Repository-wide search finds no `keycloakauth`, `ByKeycloakSub`, or `ByOIDCIdentity` Go references.
+
 The largest risk is not compilation. It is leaving two identity models active. Search for `KeycloakSub`, `ByKeycloakSub`, `keycloak_sub`, and `keycloakauth` after the port. Any remaining production use needs an explicit explanation.
 
 The second risk is a silently split service graph. Review `BuildHostAuthServices` from store creation to the final `Services` literal and trace each concrete object into `AuthOptions`, native handlers, readiness, and maintenance.

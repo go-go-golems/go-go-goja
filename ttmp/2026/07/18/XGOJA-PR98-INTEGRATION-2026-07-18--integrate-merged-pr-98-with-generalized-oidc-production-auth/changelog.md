@@ -12,3 +12,12 @@ Created the pre-merge intern architecture and implementation guide and recorded 
 ### Related Files
 
 - /home/manuel/workspaces/2026-07-07/prod-tiny-idp/go-go-goja/pkg/xgoja/hostauth/builder.go — Primary production composition conflict
+
+## 2026-07-18
+
+Integrated merged PR 98 with generalized issuer-scoped OIDC, durable transactions, strict logout, and production hostauth in commit fdfa96d; focused/full tests, build, lint, and generation passed.
+
+### Related Files
+
+- /home/manuel/workspaces/2026-07-07/prod-tiny-idp/go-go-goja/pkg/gojahttp/auth/oidcauth/oidcauth.go — Canonical integrated browser OIDC implementation
+- /home/manuel/workspaces/2026-07-07/prod-tiny-idp/go-go-goja/pkg/xgoja/hostauth/builder.go — Canonical integrated host composition
