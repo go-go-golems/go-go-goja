@@ -1,7 +1,7 @@
-// Package keycloakauth provides an opinionated OIDC browser-login adapter
-// intended for Keycloak-backed gojahttp hosts. It keeps IdP tokens server-side
-// and creates an opaque application session for planned route authentication.
-package keycloakauth
+// Package oidcauth provides an opinionated OIDC browser-login adapter for
+// gojahttp hosts. It keeps identity-provider tokens server-side and creates an
+// opaque application session for planned route authentication.
+package oidcauth
 
 import (
 	"context"
@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -35,11 +34,15 @@ type Config struct {
 	TransactionStore TransactionStore
 	Audit            gojahttp.AuditSink
 	SecurityEvents   gojahttp.SecurityEventObserver
+	// HTTPClient is used for OIDC discovery, token exchange, and remote key
+	// retrieval. When nil, the standard context HTTP client is used.
+	HTTPClient *http.Client
 }
 
 // OIDCClaims is the normalized identity material extracted from the verified ID
 // token. Subject is the stable identity key; email is not treated as stable.
 type OIDCClaims struct {
+	Issuer            string
 	Subject           string
 	Email             string
 	EmailVerified     bool
@@ -100,67 +103,69 @@ type TransactionCleanup interface {
 
 // Handlers owns OIDC login/callback/logout HTTP handlers.
 type Handlers struct {
-	oauth2Config       oauth2.Config
-	verifier           *oidc.IDTokenVerifier
-	sessionManager     *sessionauth.Manager
-	normalizer         UserNormalizer
-	transactions       TransactionStore
-	afterLoginURL      string
-	afterLogoutURL     string
-	endSessionEndpoint string
-	audit              gojahttp.AuditSink
-	securityEvents     gojahttp.SecurityEventObserver
+	oauth2Config   oauth2.Config
+	verifier       *oidc.IDTokenVerifier
+	sessionManager *sessionauth.Manager
+	normalizer     UserNormalizer
+	transactions   TransactionStore
+	afterLoginURL  string
+	afterLogoutURL string
+	audit          gojahttp.AuditSink
+	securityEvents gojahttp.SecurityEventObserver
+	httpClient     *http.Client
 }
 
 // New discovers the OIDC provider and returns login/callback/logout handlers.
 func New(ctx context.Context, cfg Config) (*Handlers, error) {
 	if cfg.IssuerURL == "" {
-		return nil, fmt.Errorf("keycloakauth: issuer URL is required")
+		return nil, fmt.Errorf("oidcauth: issuer URL is required")
 	}
 	if cfg.ClientID == "" {
-		return nil, fmt.Errorf("keycloakauth: client ID is required")
+		return nil, fmt.Errorf("oidcauth: client ID is required")
 	}
 	if cfg.RedirectURL == "" {
-		return nil, fmt.Errorf("keycloakauth: redirect URL is required")
+		return nil, fmt.Errorf("oidcauth: redirect URL is required")
 	}
 	if cfg.SessionManager == nil {
-		return nil, fmt.Errorf("keycloakauth: session manager is required")
+		return nil, fmt.Errorf("oidcauth: session manager is required")
 	}
 	if cfg.UserNormalizer == nil {
-		return nil, fmt.Errorf("keycloakauth: user normalizer is required")
+		return nil, fmt.Errorf("oidcauth: user normalizer is required")
 	}
 	if cfg.TransactionStore == nil {
 		cfg.TransactionStore = NewMemoryTransactionStore(10 * time.Minute)
 	}
-	provider, err := oidc.NewProvider(ctx, cfg.IssuerURL)
+	discoveryCtx := withHTTPClient(ctx, cfg.HTTPClient)
+	provider, err := oidc.NewProvider(discoveryCtx, cfg.IssuerURL)
 	if err != nil {
-		return nil, fmt.Errorf("keycloakauth: discover provider: %w", err)
-	}
-	var discovery struct {
-		EndSessionEndpoint string `json:"end_session_endpoint"`
-	}
-	if err := provider.Claims(&discovery); err != nil {
-		return nil, fmt.Errorf("keycloakauth: read provider metadata: %w", err)
+		return nil, fmt.Errorf("oidcauth: discover provider: %w", err)
 	}
 	scopes := ensureOpenIDScope(cfg.Scopes)
+	endpoint := provider.Endpoint()
+	// A public PKCE client has no secret and must send client_id in the token
+	// request body. Avoid auth-style probing because a strict provider may
+	// consume the one-time code before oauth2 retries with another style.
+	if cfg.ClientSecret == "" {
+		endpoint.AuthStyle = oauth2.AuthStyleInParams
+	}
 	oauth2Config := oauth2.Config{
 		ClientID:     cfg.ClientID,
 		ClientSecret: cfg.ClientSecret,
-		Endpoint:     provider.Endpoint(),
+		Endpoint:     endpoint,
 		RedirectURL:  cfg.RedirectURL,
 		Scopes:       scopes,
 	}
 	return &Handlers{
-		oauth2Config:       oauth2Config,
-		verifier:           provider.Verifier(&oidc.Config{ClientID: cfg.ClientID}),
-		sessionManager:     cfg.SessionManager,
-		normalizer:         cfg.UserNormalizer,
-		transactions:       cfg.TransactionStore,
-		afterLoginURL:      defaultIfEmpty(cfg.AfterLoginURL, "/"),
-		afterLogoutURL:     defaultIfEmpty(cfg.AfterLogoutURL, "/"),
-		endSessionEndpoint: strings.TrimSpace(discovery.EndSessionEndpoint),
-		audit:              cfg.Audit,
-		securityEvents:     cfg.SecurityEvents,
+		oauth2Config:   oauth2Config,
+		verifier:       provider.Verifier(&oidc.Config{ClientID: cfg.ClientID}),
+		sessionManager: cfg.SessionManager,
+		normalizer:     cfg.UserNormalizer,
+		transactions:   cfg.TransactionStore,
+		afterLoginURL:  defaultIfEmpty(cfg.AfterLoginURL, "/"),
+		afterLogoutURL: defaultIfEmpty(cfg.AfterLogoutURL, "/"),
+		audit:          cfg.Audit,
+		securityEvents: cfg.SecurityEvents,
+		httpClient:     cfg.HTTPClient,
 	}, nil
 }
 
@@ -230,7 +235,8 @@ func (h *Handlers) handleCallback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid oidc state", http.StatusUnauthorized)
 		return
 	}
-	token, err := h.oauth2Config.Exchange(r.Context(), code, oauth2.VerifierOption(tx.PKCEVerifier))
+	callbackCtx := withHTTPClient(r.Context(), h.httpClient)
+	token, err := h.oauth2Config.Exchange(callbackCtx, code, oauth2.VerifierOption(tx.PKCEVerifier))
 	if err != nil {
 		h.observe(r.Context(), "oidc.callback", "rejected", "token_exchange")
 		http.Error(w, "oidc token exchange failed", http.StatusUnauthorized)
@@ -242,7 +248,7 @@ func (h *Handlers) handleCallback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "oidc response missing id_token", http.StatusUnauthorized)
 		return
 	}
-	idToken, err := h.verifier.Verify(r.Context(), rawIDToken)
+	idToken, err := h.verifier.Verify(callbackCtx, rawIDToken)
 	if err != nil {
 		h.observe(r.Context(), "oidc.callback", "rejected", "id_token_verification")
 		http.Error(w, "oidc id_token verification failed", http.StatusUnauthorized)
@@ -286,25 +292,31 @@ func (h *Handlers) handleCallback(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handlers) handleLogout(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost && r.Method != http.MethodGet {
+	if r.Method != http.MethodPost {
 		h.observe(r.Context(), "oidc.logout", "rejected", "method")
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-	err := h.sessionManager.RevokeRequestSession(r.Context(), r)
-	if err != nil && !errors.Is(err, gojahttp.ErrUnauthenticated) {
+	if err := h.sessionManager.VerifyCSRF(r.Context(), gojahttp.CSRFRequest{HTTPRequest: r}); err != nil {
+		h.observe(r.Context(), "oidc.logout", "rejected", "csrf")
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if err := h.sessionManager.RevokeRequestSession(r.Context(), r); err != nil {
 		h.observe(r.Context(), "oidc.logout", "failed", "session_revoke")
-		h.sessionManager.ClearCookie(w)
-		http.Error(w, "logout unavailable", http.StatusInternalServerError)
+		http.Error(w, "revoke application session", http.StatusInternalServerError)
 		return
 	}
 	h.observe(r.Context(), "oidc.logout", "accepted", "")
 	h.sessionManager.ClearCookie(w)
-	if r.Method == http.MethodGet {
-		http.Redirect(w, r, h.logoutRedirectURL(r), http.StatusFound)
-		return
-	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func withHTTPClient(ctx context.Context, client *http.Client) context.Context {
+	if client == nil {
+		return ctx
+	}
+	return oidc.ClientContext(ctx, client)
 }
 
 func (h *Handlers) observe(ctx context.Context, event, outcome, reason string) {
@@ -316,68 +328,12 @@ func (h *Handlers) observe(ctx context.Context, event, outcome, reason string) {
 	}
 }
 
-func (h *Handlers) logoutRedirectURL(r *http.Request) string {
-	fallback := h.afterLogoutURL
-	if fallback == "" {
-		fallback = "/"
-	}
-	if h.endSessionEndpoint == "" {
-		return fallback
-	}
-	logoutURL, err := url.Parse(h.endSessionEndpoint)
-	if err != nil {
-		return fallback
-	}
-	postLogout := absoluteRedirectURL(r, h.oauth2Config.RedirectURL, fallback)
-	q := logoutURL.Query()
-	q.Set("client_id", h.oauth2Config.ClientID)
-	q.Set("post_logout_redirect_uri", postLogout)
-	logoutURL.RawQuery = q.Encode()
-	return logoutURL.String()
-}
-
-func absoluteRedirectURL(r *http.Request, redirectURL, target string) string {
-	target = localRedirectPath(target)
-	base, err := url.Parse(redirectURL)
-	if err != nil || !base.IsAbs() {
-		scheme := "http"
-		if r != nil && r.TLS != nil {
-			scheme = "https"
-		}
-		host := "localhost"
-		if r != nil && r.Host != "" {
-			host = r.Host
-		}
-		base = &url.URL{Scheme: scheme, Host: host}
-	}
-	base.Path = target
-	base.RawQuery = ""
-	base.Fragment = ""
-	return base.String()
-}
-
-// localRedirectPath normalizes configured post-login/logout destinations to a
-// same-origin path. The generated host configuration documents these values as
-// relative URLs, so accepting an absolute URL or an authority-style // or /\
-// prefix would turn a configuration mistake into an open redirect.
-func localRedirectPath(value string) string {
-	value = strings.TrimSpace(value)
-	if value == "" || !strings.HasPrefix(value, "/") || strings.HasPrefix(value, "//") || strings.HasPrefix(value, "/\\") {
-		return "/"
-	}
-	parsed, err := url.Parse(value)
-	if err != nil || parsed.IsAbs() || parsed.Host != "" {
-		return "/"
-	}
-	return value
-}
-
 func claimsFromIDToken(idToken *oidc.IDToken) (OIDCClaims, error) {
 	var raw map[string]any
 	if err := idToken.Claims(&raw); err != nil {
 		return OIDCClaims{}, err
 	}
-	claims := OIDCClaims{Subject: idToken.Subject, Raw: raw}
+	claims := OIDCClaims{Issuer: idToken.Issuer, Subject: idToken.Subject, Raw: raw}
 	if email, _ := raw["email"].(string); email != "" {
 		claims.Email = email
 	}

@@ -89,8 +89,19 @@ function setDeviceFormEnabled(enabled) {
   }
 }
 
-function logout() {
-  window.location.href = "/auth/logout";
+async function logout() {
+  try {
+    const res = await fetch("/auth/logout", {
+      method: "POST",
+      headers: csrfHeaders()
+    });
+    const body = await readResponse(res);
+    if (!res.ok) throw new Error(body.error || body.message || `HTTP ${res.status}`);
+    setLoggedOut();
+    window.location.href = "/";
+  } catch (err) {
+    setStatus(`Logout failed: ${String(err.message || err)}`, true);
+  }
 }
 
 async function approveDevice(userCode) {

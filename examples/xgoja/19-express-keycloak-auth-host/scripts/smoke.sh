@@ -139,7 +139,7 @@ if [[ -z "${audit_count}" || "${audit_count}" -lt 5 ]]; then
 fi
 echo "ok persisted audit records ${audit_count}"
 
-appauth_count="$(docker compose -f "${EXAMPLE_DIR}/docker-compose.yml" exec -T postgres psql -U goja -d goja_auth -tAc "SELECT count(*) FROM auth_app_users WHERE keycloak_sub IS NOT NULL; SELECT count(*) FROM auth_app_resources WHERE type = 'project' AND id = 'p1';")"
+appauth_count="$(docker compose -f "${EXAMPLE_DIR}/docker-compose.yml" exec -T postgres psql -U goja -d goja_auth -tAc "SELECT count(*) FROM auth_app_users WHERE oidc_subject IS NOT NULL; SELECT count(*) FROM auth_app_resources WHERE type = 'project' AND id = 'p1';")"
 appauth_count="${appauth_count//$'\n'/ }"
 if [[ "${appauth_count}" != *"1 1"* ]]; then
   echo "expected persisted appauth user/resource rows, got ${appauth_count:-<empty>}" >&2

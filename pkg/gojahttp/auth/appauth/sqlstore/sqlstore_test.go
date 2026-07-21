@@ -45,15 +45,15 @@ func TestSQLiteStoreContract(t *testing.T) {
 func TestUpsertFromOIDCIsIdempotent(t *testing.T) {
 	ctx := context.Background()
 	store := newSQLiteStore(t)
-	created, err := store.UpsertFromOIDC(ctx, "kc-race", "first@example.test", true)
+	created, err := store.UpsertFromOIDC(ctx, "https://issuer.example.test", "kc-race", "first@example.test", true)
 	if err != nil {
 		t.Fatalf("first UpsertFromOIDC: %v", err)
 	}
-	updated, err := store.UpsertFromOIDC(ctx, "kc-race", "second@example.test", false)
+	updated, err := store.UpsertFromOIDC(ctx, "https://issuer.example.test", "kc-race", "second@example.test", false)
 	if err != nil {
 		t.Fatalf("second UpsertFromOIDC: %v", err)
 	}
-	if updated.ID != created.ID || updated.KeycloakSub != "kc-race" || updated.Email != "second@example.test" || updated.EmailVerified {
+	if updated.ID != created.ID || updated.OIDCSubject != "kc-race" || updated.Email != "second@example.test" || updated.EmailVerified {
 		t.Fatalf("unexpected updated user: %#v created=%#v", updated, created)
 	}
 }
@@ -61,15 +61,31 @@ func TestUpsertFromOIDCIsIdempotent(t *testing.T) {
 func TestUpsertFromOIDCUpdatesExistingSubID(t *testing.T) {
 	ctx := context.Background()
 	store := newSQLiteStore(t)
-	if err := store.AddUser(ctx, appauth.User{ID: "user:existing", KeycloakSub: "kc-existing", Email: "old@example.test", EmailVerified: false}); err != nil {
+	if err := store.AddUser(ctx, appauth.User{ID: "user:existing", OIDCIssuer: "https://issuer.example.test", OIDCSubject: "kc-existing", Email: "old@example.test", EmailVerified: false}); err != nil {
 		t.Fatalf("AddUser: %v", err)
 	}
-	updated, err := store.UpsertFromOIDC(ctx, "kc-existing", "new@example.test", true)
+	updated, err := store.UpsertFromOIDC(ctx, "https://issuer.example.test", "kc-existing", "new@example.test", true)
 	if err != nil {
 		t.Fatalf("UpsertFromOIDC: %v", err)
 	}
 	if updated.ID != "user:existing" || updated.Email != "new@example.test" || !updated.EmailVerified {
 		t.Fatalf("unexpected user: %#v", updated)
+	}
+}
+
+func TestSQLiteOIDCIdentityScopesSubjectByIssuer(t *testing.T) {
+	ctx := context.Background()
+	store := newSQLiteStore(t)
+	first, err := store.UpsertFromOIDC(ctx, "https://issuer-a.example.test", "shared-subject", "a@example.test", true)
+	if err != nil {
+		t.Fatalf("first issuer: %v", err)
+	}
+	second, err := store.UpsertFromOIDC(ctx, "https://issuer-b.example.test", "shared-subject", "b@example.test", true)
+	if err != nil {
+		t.Fatalf("second issuer: %v", err)
+	}
+	if first.ID == second.ID {
+		t.Fatalf("issuer-scoped identities collided: %#v %#v", first, second)
 	}
 }
 

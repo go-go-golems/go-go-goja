@@ -4,7 +4,7 @@ const SQLiteSchema = `
 CREATE TABLE IF NOT EXISTS auth_sessions (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,
-    keycloak_sub TEXT,
+    oidc_subject TEXT,
     email TEXT,
     email_verified BOOLEAN NOT NULL DEFAULT 0,
     tenant_ids_json TEXT NOT NULL DEFAULT '[]',
@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_auth_sessions_user_id ON auth_sessions(user_id);
-CREATE INDEX IF NOT EXISTS idx_auth_sessions_keycloak_sub ON auth_sessions(keycloak_sub);
+CREATE INDEX IF NOT EXISTS idx_auth_sessions_oidc_subject ON auth_sessions(oidc_subject);
 CREATE INDEX IF NOT EXISTS idx_auth_sessions_idle_expires_at ON auth_sessions(idle_expires_at);
 CREATE INDEX IF NOT EXISTS idx_auth_sessions_absolute_expires_at ON auth_sessions(absolute_expires_at);
 CREATE INDEX IF NOT EXISTS idx_auth_sessions_revoked_at ON auth_sessions(revoked_at);
@@ -29,7 +29,7 @@ const PostgresSchema = `
 CREATE TABLE IF NOT EXISTS auth_sessions (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,
-    keycloak_sub TEXT,
+    oidc_subject TEXT,
     email TEXT,
     email_verified BOOLEAN NOT NULL DEFAULT false,
     tenant_ids_json JSONB NOT NULL DEFAULT '[]'::jsonb,
@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_auth_sessions_user_id ON auth_sessions(user_id);
-CREATE INDEX IF NOT EXISTS idx_auth_sessions_keycloak_sub ON auth_sessions(keycloak_sub);
+CREATE INDEX IF NOT EXISTS idx_auth_sessions_oidc_subject ON auth_sessions(oidc_subject);
 CREATE INDEX IF NOT EXISTS idx_auth_sessions_idle_expires_at ON auth_sessions(idle_expires_at);
 CREATE INDEX IF NOT EXISTS idx_auth_sessions_absolute_expires_at ON auth_sessions(absolute_expires_at);
 CREATE INDEX IF NOT EXISTS idx_auth_sessions_revoked_at ON auth_sessions(revoked_at);

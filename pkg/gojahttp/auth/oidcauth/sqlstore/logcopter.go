@@ -4,4 +4,4 @@ package sqlstore
 
 import logcopter "github.com/go-go-golems/logcopter/pkg/logcopter"
 
-var log = logcopter.Package("go-go-golems.go-go-goja.pkg.gojahttp.auth.keycloakauth.sqlstore")
+var log = logcopter.Package("go-go-golems.go-go-goja.pkg.gojahttp.auth.oidcauth.sqlstore")

@@ -41,7 +41,8 @@ func (h *Host) servePlannedRoute(w http.ResponseWriter, r *http.Request, route R
 		return
 	}
 	h.recordAudit(r.Context(), r, req, route.Plan, envelope, "allowed", 0, nil)
-	ret, err := h.owner.Call(r.Context(), "http-planned-handler", func(ctx context.Context, vm *goja.Runtime) (any, error) {
+	actorCtx := ContextWithActor(r.Context(), envelope.Actor)
+	ret, err := h.owner.Call(actorCtx, "http-planned-handler", func(ctx context.Context, vm *goja.Runtime) (any, error) {
 		result, err := route.GojaHandler(goja.Undefined(), envelope.JSObject(vm), res.JSObject(vm))
 		if err != nil {
 			return nil, err
@@ -53,7 +54,7 @@ func (h *Host) servePlannedRoute(w http.ResponseWriter, r *http.Request, route R
 	})
 	if err == nil {
 		if promise, ok := ret.(*goja.Promise); ok {
-			err = h.awaitAndFinishPromise(r.Context(), res, promise)
+			err = h.awaitAndFinishPromise(actorCtx, res, promise)
 		}
 	}
 	if err != nil {

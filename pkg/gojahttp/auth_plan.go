@@ -137,6 +137,30 @@ type Actor struct {
 	Claims    map[string]any `json:"claims,omitempty"`
 }
 
+type actorContextKey struct{}
+
+// ContextWithActor returns a child context carrying the authenticated actor for
+// trusted Go and native-module code invoked by a planned route. The actor is
+// only installed after host-side enforcement succeeds.
+func ContextWithActor(ctx context.Context, actor *Actor) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if actor == nil {
+		return ctx
+	}
+	return context.WithValue(ctx, actorContextKey{}, actor)
+}
+
+// ActorFromContext returns the authenticated planned-route actor, if present.
+func ActorFromContext(ctx context.Context) (*Actor, bool) {
+	if ctx == nil {
+		return nil, false
+	}
+	actor, ok := ctx.Value(actorContextKey{}).(*Actor)
+	return actor, ok && actor != nil
+}
+
 // ResourceRef is the minimal host-owned resource handle exposed to planned
 // route handlers after resolution and authorization.
 type ResourceRef struct {

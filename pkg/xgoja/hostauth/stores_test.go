@@ -8,7 +8,7 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/appauth"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/audit"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/capability"
-	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/keycloakauth"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/oidcauth"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth"
 )
 
@@ -125,7 +125,7 @@ func exerciseStores(t *testing.T, ctx context.Context, stores *StoreBundle) {
 		t.Fatalf("InsertAuditRecord: %v", err)
 	}
 
-	user, err := stores.AppAuth.Users.UpsertFromOIDC(ctx, "sub-1", "demo@example.test", true)
+	user, err := stores.AppAuth.Users.UpsertFromOIDC(ctx, "https://issuer.example.test", "sub-1", "demo@example.test", true)
 	if err != nil {
 		t.Fatalf("UpsertFromOIDC: %v", err)
 	}
@@ -150,7 +150,7 @@ func exerciseStores(t *testing.T, ctx context.Context, stores *StoreBundle) {
 		t.Fatalf("redeemed = %#v", redeemed)
 	}
 
-	oidcTx := keycloakauth.Transaction{State: "state-1", Nonce: "nonce-1", PKCEVerifier: "verifier-1", CreatedAt: time.Now().UTC(), RedirectURL: "/after"}
+	oidcTx := oidcauth.Transaction{State: "state-1", Nonce: "nonce-1", PKCEVerifier: "verifier-1", CreatedAt: time.Now().UTC(), RedirectURL: "/after"}
 	if err := stores.OIDCTransaction.Put(ctx, oidcTx); err != nil {
 		t.Fatalf("Put OIDC transaction: %v", err)
 	}

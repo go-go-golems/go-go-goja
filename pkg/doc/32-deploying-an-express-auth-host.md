@@ -29,7 +29,7 @@ The current live deployment image was built from `examples/xgoja/19-express-keyc
 
 ```text
 Public URL:          https://goja-auth.yolo.scapegoat.dev
-Image:               ghcr.io/go-go-golems/go-goja-auth-host:sha-ba77afc
+Image:               ghcr.io/go-go-golems/go-go-goja-auth-host:sha-ba77afc
 Argo app:            goja-auth-host-demo
 Namespace:           goja-auth-host-demo
 Keycloak issuer:     https://auth.yolo.scapegoat.dev/realms/goja-auth-host-demo
@@ -146,8 +146,8 @@ Build and push:
 
 ```bash
 docker build -f Dockerfile.auth-host \
-  -t ghcr.io/go-go-golems/go-goja-auth-host:sha-<short-sha> .
-docker push ghcr.io/go-go-golems/go-goja-auth-host:sha-<short-sha>
+  -t ghcr.io/go-go-golems/go-go-goja-auth-host:sha-<short-sha> .
+docker push ghcr.io/go-go-golems/go-go-goja-auth-host:sha-<short-sha>
 ```
 
 The workflow `.github/workflows/publish-auth-host-image.yaml` performs the same build in CI and can open a GitOps PR through `deploy/gitops-targets.json`.
@@ -177,7 +177,7 @@ gitops/kustomize/goja-auth-host-demo/
 The Deployment uses the pushed image and reads runtime settings from the VSO-rendered Secret:
 
 ```yaml
-image: ghcr.io/go-go-golems/go-goja-auth-host:sha-ba77afc
+image: ghcr.io/go-go-golems/go-go-goja-auth-host:sha-ba77afc
 args:
   - --listen
   - :8080

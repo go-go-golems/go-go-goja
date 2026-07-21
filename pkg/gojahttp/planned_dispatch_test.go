@@ -11,6 +11,7 @@ import (
 	"github.com/dop251/goja"
 	"github.com/go-go-golems/go-go-goja/pkg/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp"
+	"github.com/go-go-golems/go-go-goja/pkg/runtimebridge"
 )
 
 type authenticatorFunc func(context.Context, *http.Request, *gojahttp.SessionDTO, gojahttp.SecuritySpec) (*gojahttp.Actor, error)
@@ -153,6 +154,55 @@ func TestPlannedUserRouteAuthenticatesAndAuthorizes(t *testing.T) {
 	}
 	if !strings.Contains(rr.Body.String(), `"actor":"u1"`) || !strings.Contains(rr.Body.String(), `"action":"user.self.read"`) {
 		t.Fatalf("body=%s", rr.Body.String())
+	}
+}
+
+func TestPlannedUserRouteInstallsActorInOwnerContext(t *testing.T) {
+	host := gojahttp.NewHost(gojahttp.HostOptions{Dev: true, Auth: gojahttp.AuthOptions{
+		Authenticator: authenticatorFunc(func(context.Context, *http.Request, *gojahttp.SessionDTO, gojahttp.SecuritySpec) (*gojahttp.Actor, error) {
+			return &gojahttp.Actor{ID: "context-user", Kind: "user"}, nil
+		}),
+		Authorizer: authorizerFunc(func(context.Context, gojahttp.AuthorizationRequest) (gojahttp.AuthorizationDecision, error) {
+			return gojahttp.AuthorizationDecision{Allowed: true}, nil
+		}),
+	}})
+	factory, err := engine.NewRuntimeFactoryBuilder().Build()
+	if err != nil {
+		t.Fatalf("build factory: %v", err)
+	}
+	rt, err := factory.NewRuntime(engine.WithStartupContext(context.Background()), engine.WithLifetimeContext(context.Background()))
+	if err != nil {
+		t.Fatalf("new runtime: %v", err)
+	}
+	defer func() { _ = rt.Close(context.Background()) }()
+	host.SetRuntime(rt.Owner)
+	var observedActorID string
+	ret, err := rt.Owner.Call(context.Background(), "create actor-context handler", func(_ context.Context, vm *goja.Runtime) (any, error) {
+		return vm.ToValue(func(goja.FunctionCall) goja.Value {
+			actor, ok := gojahttp.ActorFromContext(runtimebridge.CurrentOwnerContext(vm))
+			if ok {
+				observedActorID = actor.ID
+			}
+			return goja.Undefined()
+		}), nil
+	})
+	if err != nil {
+		t.Fatalf("create handler: %v", err)
+	}
+	handler, ok := goja.AssertFunction(ret.(goja.Value))
+	if !ok {
+		t.Fatalf("handler type=%T", ret)
+	}
+	if err := host.RegisterPlanned(gojahttp.RoutePlan{Method: http.MethodGet, Pattern: "/context-actor", Security: gojahttp.SecuritySpec{Mode: gojahttp.SecurityModeUser}, Action: "actor.context.read"}, handler); err != nil {
+		t.Fatalf("RegisterPlanned: %v", err)
+	}
+	rr := httptest.NewRecorder()
+	host.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/context-actor", nil))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", rr.Code, rr.Body.String())
+	}
+	if observedActorID != "context-user" {
+		t.Fatalf("owner context actor=%q, want context-user", observedActorID)
 	}
 }
 

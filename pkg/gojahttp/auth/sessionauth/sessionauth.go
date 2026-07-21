@@ -39,7 +39,7 @@ var (
 type Session struct {
 	ID                string
 	UserID            string
-	KeycloakSub       string
+	OIDCSubject       string
 	Email             string
 	EmailVerified     bool
 	TenantIDs         []string

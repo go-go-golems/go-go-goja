@@ -73,9 +73,15 @@ func (s *Store) ApplySchema(ctx context.Context) error {
 // AddUser inserts or replaces a user fixture. It is primarily for tests,
 // examples, and simple bootstrap migrations.
 func (s *Store) AddUser(ctx context.Context, user appauth.User) error {
-	_, err := s.db.ExecContext(ctx, s.upsertUserQuery(),
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin add appauth user: %w", err)
+	}
+	defer rollback(tx)
+	_, err = tx.ExecContext(ctx, s.upsertUserQuery(),
 		user.ID,
-		nullString(user.KeycloakSub),
+		nullString(user.OIDCIssuer),
+		nullString(user.OIDCSubject),
 		user.Email,
 		user.DisplayName,
 		user.EmailVerified,
@@ -83,6 +89,17 @@ func (s *Store) AddUser(ctx context.Context, user appauth.User) error {
 	)
 	if err != nil {
 		return fmt.Errorf("add appauth user: %w", err)
+	}
+	if user.OIDCIssuer != "" || user.OIDCSubject != "" {
+		if _, err := appauth.OIDCUserID(user.OIDCIssuer, user.OIDCSubject); err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, s.bindExternalIdentityQuery(), user.OIDCIssuer, user.OIDCSubject, user.ID); err != nil {
+			return fmt.Errorf("bind added appauth user identity: %w", err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit add appauth user: %w", err)
 	}
 	return nil
 }
@@ -129,14 +146,6 @@ func (s *Store) ByID(ctx context.Context, id string) (*appauth.User, error) {
 	return user, nil
 }
 
-func (s *Store) BindExternalIdentity(ctx context.Context, userID, issuer, subject string) error {
-	_, err := s.db.ExecContext(ctx, s.bindExternalIdentityQuery(), issuer, subject, userID)
-	if err != nil {
-		return fmt.Errorf("bind appauth external identity: %w", err)
-	}
-	return nil
-}
-
 func (s *Store) ByExternalIdentity(ctx context.Context, issuer, subject string) (*appauth.User, error) {
 	user, err := scanUser(s.db.QueryRowContext(ctx, s.externalIdentityQuery(), issuer, subject))
 	if err != nil {
@@ -148,15 +157,17 @@ func (s *Store) ByExternalIdentity(ctx context.Context, issuer, subject string) 
 	return user, nil
 }
 
-func (s *Store) ByKeycloakSub(ctx context.Context, sub string) (*appauth.User, error) {
-	user, err := scanUser(s.db.QueryRowContext(ctx, s.userBySubQuery(), sub))
-	if err != nil {
-		return nil, err
+func (s *Store) BindExternalIdentity(ctx context.Context, userID, issuer, subject string) error {
+	if _, err := appauth.OIDCUserID(issuer, subject); err != nil {
+		return err
 	}
-	if user.DisabledAt != nil {
-		return nil, gojahttp.ErrNotFound
+	if _, err := s.ByID(ctx, userID); err != nil {
+		return err
 	}
-	return user, nil
+	if _, err := s.db.ExecContext(ctx, s.bindExternalIdentityQuery(), issuer, subject, userID); err != nil {
+		return fmt.Errorf("bind appauth external identity: %w", err)
+	}
+	return nil
 }
 
 func (s *Store) DisableUser(ctx context.Context, id string, disabledAt time.Time) error {
@@ -166,7 +177,7 @@ func (s *Store) DisableUser(ctx context.Context, id string, disabledAt time.Time
 	}
 	n, err := result.RowsAffected()
 	if err != nil {
-		return err
+		return fmt.Errorf("read disabled appauth user rows: %w", err)
 	}
 	if n == 0 {
 		return gojahttp.ErrNotFound
@@ -174,23 +185,30 @@ func (s *Store) DisableUser(ctx context.Context, id string, disabledAt time.Time
 	return nil
 }
 
-func (s *Store) UpsertFromOIDC(ctx context.Context, sub, email string, emailVerified bool) (*appauth.User, error) {
+func (s *Store) UpsertFromOIDC(ctx context.Context, issuer, subject, email string, emailVerified bool) (*appauth.User, error) {
+	userID, err := appauth.OIDCUserID(issuer, subject)
+	if err != nil {
+		return nil, err
+	}
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("begin oidc user upsert: %w", err)
 	}
 	defer rollback(tx)
 
-	candidate := appauth.User{ID: "user:" + sub, KeycloakSub: sub, Email: email, EmailVerified: emailVerified}
-	if _, err := tx.ExecContext(ctx, s.upsertOIDCUserQuery(), candidate.ID, candidate.KeycloakSub, candidate.Email, candidate.DisplayName, candidate.EmailVerified, nullTime(candidate.DisabledAt)); err != nil {
+	candidate := appauth.User{ID: userID, OIDCIssuer: issuer, OIDCSubject: subject, Email: email, EmailVerified: emailVerified}
+	if _, err := tx.ExecContext(ctx, s.upsertOIDCUserQuery(), candidate.ID, candidate.OIDCIssuer, candidate.OIDCSubject, candidate.Email, candidate.DisplayName, candidate.EmailVerified, nullTime(candidate.DisabledAt)); err != nil {
 		return nil, fmt.Errorf("upsert oidc user: %w", err)
 	}
-	user, err := scanUser(tx.QueryRowContext(ctx, s.userBySubQuery(), sub))
+	user, err := scanUser(tx.QueryRowContext(ctx, s.userByIdentityQuery(), issuer, subject))
 	if err != nil {
 		return nil, err
 	}
 	if user.DisabledAt != nil {
 		return nil, gojahttp.ErrNotFound
+	}
+	if _, err := tx.ExecContext(ctx, s.bindExternalIdentityQuery(), issuer, subject, user.ID); err != nil {
+		return nil, fmt.Errorf("bind oidc identity: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit oidc user upsert: %w", err)
@@ -246,15 +264,17 @@ func (s *Store) exists(ctx context.Context, query string, args ...any) (bool, er
 
 func scanUser(row scanner) (*appauth.User, error) {
 	var user appauth.User
-	var keycloakSub sql.NullString
+	var oidcIssuer sql.NullString
+	var oidcSubject sql.NullString
 	var disabledAt sql.NullTime
-	if err := row.Scan(&user.ID, &keycloakSub, &user.Email, &user.DisplayName, &user.EmailVerified, &disabledAt); err != nil {
+	if err := row.Scan(&user.ID, &oidcIssuer, &oidcSubject, &user.Email, &user.DisplayName, &user.EmailVerified, &disabledAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, gojahttp.ErrNotFound
 		}
 		return nil, fmt.Errorf("scan appauth user: %w", err)
 	}
-	user.KeycloakSub = keycloakSub.String
+	user.OIDCIssuer = oidcIssuer.String
+	user.OIDCSubject = oidcSubject.String
 	if disabledAt.Valid {
 		user.DisabledAt = &disabledAt.Time
 	}
@@ -292,20 +312,20 @@ func scanResource(row scanner) (*appauth.Resource, error) {
 }
 
 const (
-	userColumns       = `id, keycloak_sub, email, display_name, email_verified, disabled_at`
+	userColumns       = `id, oidc_issuer, oidc_subject, email, display_name, email_verified, disabled_at`
 	membershipColumns = `user_id, tenant_id, role, revoked_at`
 	resourceColumns   = `type, id, name, tenant_id, owner_id, claims_json`
 )
 
 const (
-	upsertUserSQLite             = `INSERT INTO auth_app_users (` + userColumns + `) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET keycloak_sub = excluded.keycloak_sub, email = excluded.email, display_name = excluded.display_name, email_verified = excluded.email_verified, disabled_at = excluded.disabled_at`
-	upsertUserPostgres           = `INSERT INTO auth_app_users (` + userColumns + `) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT(id) DO UPDATE SET keycloak_sub = excluded.keycloak_sub, email = excluded.email, display_name = excluded.display_name, email_verified = excluded.email_verified, disabled_at = excluded.disabled_at`
-	upsertOIDCUserSQLite         = `INSERT INTO auth_app_users (` + userColumns + `) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(keycloak_sub) DO UPDATE SET email = excluded.email, email_verified = excluded.email_verified WHERE auth_app_users.disabled_at IS NULL`
-	upsertOIDCUserPostgres       = `INSERT INTO auth_app_users (` + userColumns + `) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT(keycloak_sub) DO UPDATE SET email = excluded.email, email_verified = excluded.email_verified WHERE auth_app_users.disabled_at IS NULL`
+	upsertUserSQLite             = `INSERT INTO auth_app_users (` + userColumns + `) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET oidc_issuer = excluded.oidc_issuer, oidc_subject = excluded.oidc_subject, email = excluded.email, display_name = excluded.display_name, email_verified = excluded.email_verified, disabled_at = excluded.disabled_at`
+	upsertUserPostgres           = `INSERT INTO auth_app_users (` + userColumns + `) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT(id) DO UPDATE SET oidc_issuer = excluded.oidc_issuer, oidc_subject = excluded.oidc_subject, email = excluded.email, display_name = excluded.display_name, email_verified = excluded.email_verified, disabled_at = excluded.disabled_at`
+	upsertOIDCUserSQLite         = `INSERT INTO auth_app_users (` + userColumns + `) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(oidc_issuer, oidc_subject) DO UPDATE SET email = excluded.email, email_verified = excluded.email_verified WHERE auth_app_users.disabled_at IS NULL`
+	upsertOIDCUserPostgres       = `INSERT INTO auth_app_users (` + userColumns + `) VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT(oidc_issuer, oidc_subject) DO UPDATE SET email = excluded.email, email_verified = excluded.email_verified WHERE auth_app_users.disabled_at IS NULL`
 	userByIDSQLite               = `SELECT ` + userColumns + ` FROM auth_app_users WHERE id = ?`
 	userByIDPostgres             = `SELECT ` + userColumns + ` FROM auth_app_users WHERE id = $1`
-	userBySubSQLite              = `SELECT ` + userColumns + ` FROM auth_app_users WHERE keycloak_sub = ?`
-	userBySubPostgres            = `SELECT ` + userColumns + ` FROM auth_app_users WHERE keycloak_sub = $1`
+	userByIdentitySQLite         = `SELECT ` + userColumns + ` FROM auth_app_users WHERE oidc_issuer = ? AND oidc_subject = ?`
+	userByIdentityPostgres       = `SELECT ` + userColumns + ` FROM auth_app_users WHERE oidc_issuer = $1 AND oidc_subject = $2`
 	externalIdentitySQLite       = `SELECT ` + userColumns + ` FROM auth_app_users u JOIN auth_app_external_identities e ON e.user_id = u.id WHERE e.issuer = ? AND e.subject = ?`
 	externalIdentityPostgres     = `SELECT ` + userColumns + ` FROM auth_app_users u JOIN auth_app_external_identities e ON e.user_id = u.id WHERE e.issuer = $1 AND e.subject = $2`
 	bindExternalIdentitySQLite   = `INSERT INTO auth_app_external_identities (issuer, subject, user_id) VALUES (?, ?, ?) ON CONFLICT(issuer, subject) DO UPDATE SET user_id = excluded.user_id`
@@ -331,27 +351,6 @@ const (
 	resourceByIDPostgres   = `SELECT ` + resourceColumns + ` FROM auth_app_resources WHERE type = $1 AND id = $2`
 )
 
-func (s *Store) externalIdentityQuery() string {
-	if s.dialect == DialectPostgres {
-		return externalIdentityPostgres
-	}
-	return externalIdentitySQLite
-}
-
-func (s *Store) bindExternalIdentityQuery() string {
-	if s.dialect == DialectPostgres {
-		return bindExternalIdentityPostgres
-	}
-	return bindExternalIdentitySQLite
-}
-
-func (s *Store) disableUserQuery() string {
-	if s.dialect == DialectPostgres {
-		return disableUserPostgres
-	}
-	return disableUserSQLite
-}
-
 func (s *Store) upsertUserQuery() string {
 	if s.dialect == DialectPostgres {
 		return upsertUserPostgres
@@ -373,11 +372,32 @@ func (s *Store) userByIDQuery() string {
 	return userByIDSQLite
 }
 
-func (s *Store) userBySubQuery() string {
+func (s *Store) userByIdentityQuery() string {
 	if s.dialect == DialectPostgres {
-		return userBySubPostgres
+		return userByIdentityPostgres
 	}
-	return userBySubSQLite
+	return userByIdentitySQLite
+}
+
+func (s *Store) externalIdentityQuery() string {
+	if s.dialect == DialectPostgres {
+		return externalIdentityPostgres
+	}
+	return externalIdentitySQLite
+}
+
+func (s *Store) bindExternalIdentityQuery() string {
+	if s.dialect == DialectPostgres {
+		return bindExternalIdentityPostgres
+	}
+	return bindExternalIdentitySQLite
+}
+
+func (s *Store) disableUserQuery() string {
+	if s.dialect == DialectPostgres {
+		return disableUserPostgres
+	}
+	return disableUserSQLite
 }
 
 func (s *Store) upsertTenantQuery() string {

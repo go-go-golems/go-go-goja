@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/keycloakauth"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/oidcauth"
 )
 
 // Dialect selects SQL placeholder and schema syntax.
@@ -38,12 +38,12 @@ type Store struct {
 	now     func() time.Time
 }
 
-var _ keycloakauth.TransactionStore = (*Store)(nil)
+var _ oidcauth.TransactionStore = (*Store)(nil)
 
 // New constructs a transaction store.
 func New(cfg Config) (*Store, error) {
 	if cfg.DB == nil {
-		return nil, fmt.Errorf("keycloakauth/sqlstore: db is required")
+		return nil, fmt.Errorf("oidcauth/sqlstore: db is required")
 	}
 	if cfg.Dialect == "" {
 		cfg.Dialect = DialectPostgres
@@ -51,13 +51,13 @@ func New(cfg Config) (*Store, error) {
 	switch cfg.Dialect {
 	case DialectSQLite, DialectPostgres:
 	default:
-		return nil, fmt.Errorf("keycloakauth/sqlstore: unsupported dialect %q", cfg.Dialect)
+		return nil, fmt.Errorf("oidcauth/sqlstore: unsupported dialect %q", cfg.Dialect)
 	}
 	if cfg.TTL == 0 {
 		cfg.TTL = 10 * time.Minute
 	}
 	if cfg.TTL <= 0 {
-		return nil, fmt.Errorf("keycloakauth/sqlstore: ttl must be positive")
+		return nil, fmt.Errorf("oidcauth/sqlstore: ttl must be positive")
 	}
 	if cfg.Now == nil {
 		cfg.Now = time.Now
@@ -85,7 +85,7 @@ func (s *Store) ApplySchema(ctx context.Context) error {
 }
 
 // Put stores a transaction until its creation time plus the configured TTL.
-func (s *Store) Put(ctx context.Context, tx keycloakauth.Transaction) error {
+func (s *Store) Put(ctx context.Context, tx oidcauth.Transaction) error {
 	if tx.State == "" || tx.Nonce == "" || tx.PKCEVerifier == "" {
 		return fmt.Errorf("oidc transaction state, nonce, and PKCE verifier are required")
 	}
@@ -103,17 +103,17 @@ func (s *Store) Put(ctx context.Context, tx keycloakauth.Transaction) error {
 
 // Take atomically deletes and returns one unexpired transaction. The delete is
 // the claim operation: concurrent callbacks cannot both redeem the same state.
-func (s *Store) Take(ctx context.Context, state string) (keycloakauth.Transaction, error) {
+func (s *Store) Take(ctx context.Context, state string) (oidcauth.Transaction, error) {
 	if state == "" {
-		return keycloakauth.Transaction{}, fmt.Errorf("%w", keycloakauth.ErrTransactionUnavailable)
+		return oidcauth.Transaction{}, fmt.Errorf("%w", oidcauth.ErrTransactionUnavailable)
 	}
 	row := s.db.QueryRowContext(ctx, s.takeQuery(), state, s.now())
-	var tx keycloakauth.Transaction
+	var tx oidcauth.Transaction
 	if err := row.Scan(&tx.Nonce, &tx.PKCEVerifier, &tx.RedirectURL, &tx.CreatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return keycloakauth.Transaction{}, fmt.Errorf("%w", keycloakauth.ErrTransactionUnavailable)
+			return oidcauth.Transaction{}, fmt.Errorf("%w", oidcauth.ErrTransactionUnavailable)
 		}
-		return keycloakauth.Transaction{}, fmt.Errorf("take oidc transaction: %w", err)
+		return oidcauth.Transaction{}, fmt.Errorf("take oidc transaction: %w", err)
 	}
 	tx.State = state
 	return tx, nil

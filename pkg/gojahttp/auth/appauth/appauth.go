@@ -6,7 +6,10 @@ package appauth
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,12 +23,17 @@ const (
 	ActionProjectUpdate  = "project.update"
 	ActionOrgInvite      = "org.member.invite"
 	ActionAuditRead      = "audit.read"
+	ActionBBSRead        = "bbs.read"
+	ActionBBSPostCreate  = "bbs.post.create"
+	ActionBBSReplyCreate = "bbs.reply.create"
+	ActionBBSPostDelete  = "bbs.post.delete"
 )
 
 // User is the minimal app-owned user model used by helpers.
 type User struct {
 	ID            string
-	KeycloakSub   string
+	OIDCIssuer    string
+	OIDCSubject   string
 	Email         string
 	DisplayName   string
 	EmailVerified bool
@@ -61,10 +69,9 @@ type Resource struct {
 // UserStore loads app users.
 type UserStore interface {
 	ByID(ctx context.Context, id string) (*User, error)
-	ByKeycloakSub(ctx context.Context, sub string) (*User, error)
 	ByExternalIdentity(ctx context.Context, issuer, subject string) (*User, error)
 	BindExternalIdentity(ctx context.Context, userID, issuer, subject string) error
-	UpsertFromOIDC(ctx context.Context, sub, email string, emailVerified bool) (*User, error)
+	UpsertFromOIDC(ctx context.Context, issuer, subject, email string, emailVerified bool) (*User, error)
 	DisableUser(ctx context.Context, id string, disabledAt time.Time) error
 }
 
@@ -118,9 +125,23 @@ func (a Authorizer) Authorize(ctx context.Context, req gojahttp.AuthorizationReq
 	switch req.Action {
 	case ActionUserSelfRead:
 		return allow(), nil
+	case ActionBBSRead, ActionBBSPostCreate, ActionBBSReplyCreate, ActionBBSPostDelete:
+		// The BBS route selects one shared object after authorization, and the
+		// object performs post-level ownership checks. Do not accept a
+		// caller-selected resource reference at this coarse route boundary.
+		if req.Resource == nil {
+			return allow(), nil
+		}
+		return deny("BBS actions require a host-selected shared resource"), nil
 	case ActionUserSelfUpdate:
-		if req.Resource == nil || req.Resource.Type != "user" {
-			return deny("missing user resource"), nil
+		// A route with no caller-selected resource acts on the authenticated
+		// principal's implicit self. This is the safe form for actor-bound
+		// services whose physical resource ID is derived after authorization.
+		if req.Resource == nil {
+			return allow(), nil
+		}
+		if req.Resource.Type != "user" {
+			return deny("invalid user resource"), nil
 		}
 		if req.Resource.ID == req.Actor.ID {
 			return allow(), nil
@@ -194,16 +215,15 @@ func deny(reason string) gojahttp.AuthorizationDecision {
 
 // MemoryStore is a small in-memory store for tests and examples.
 type MemoryStore struct {
-	mu                      sync.Mutex
-	users                   map[string]User
-	usersBySub              map[string]string
-	usersByExternalIdentity map[string]string
-	memberships             []Membership
-	resources               map[string]Resource
+	mu          sync.Mutex
+	users       map[string]User
+	usersByOIDC map[string]string
+	memberships []Membership
+	resources   map[string]Resource
 }
 
 func NewMemoryStore() *MemoryStore {
-	return &MemoryStore{users: map[string]User{}, usersBySub: map[string]string{}, usersByExternalIdentity: map[string]string{}, resources: map[string]Resource{}}
+	return &MemoryStore{users: map[string]User{}, usersByOIDC: map[string]string{}, resources: map[string]Resource{}}
 }
 
 func (s *MemoryStore) AddUser(user User) {
@@ -211,8 +231,8 @@ func (s *MemoryStore) AddUser(user User) {
 	defer s.mu.Unlock()
 	user = cloneUser(user)
 	s.users[user.ID] = user
-	if user.KeycloakSub != "" {
-		s.usersBySub[user.KeycloakSub] = user.ID
+	if user.OIDCIssuer != "" && user.OIDCSubject != "" {
+		s.usersByOIDC[oidcIdentityKey(user.OIDCIssuer, user.OIDCSubject)] = user.ID
 	}
 }
 
@@ -240,36 +260,27 @@ func (s *MemoryStore) ByID(_ context.Context, id string) (*User, error) {
 	return &user, nil
 }
 
-func externalIdentityKey(issuer, subject string) string { return issuer + "\x00" + subject }
+func (s *MemoryStore) ByExternalIdentity(ctx context.Context, issuer, subject string) (*User, error) {
+	s.mu.Lock()
+	id, ok := s.usersByOIDC[oidcIdentityKey(issuer, subject)]
+	s.mu.Unlock()
+	if !ok {
+		return nil, gojahttp.ErrNotFound
+	}
+	return s.ByID(ctx, id)
+}
 
-// BindExternalIdentity binds an existing local user to an issuer-scoped subject.
 func (s *MemoryStore) BindExternalIdentity(_ context.Context, userID, issuer, subject string) error {
+	if _, err := OIDCUserID(issuer, subject); err != nil {
+		return err
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if _, ok := s.users[userID]; !ok {
 		return gojahttp.ErrNotFound
 	}
-	s.usersByExternalIdentity[externalIdentityKey(issuer, subject)] = userID
+	s.usersByOIDC[oidcIdentityKey(issuer, subject)] = userID
 	return nil
-}
-func (s *MemoryStore) ByExternalIdentity(ctx context.Context, issuer, subject string) (*User, error) {
-	s.mu.Lock()
-	id, ok := s.usersByExternalIdentity[externalIdentityKey(issuer, subject)]
-	s.mu.Unlock()
-	if !ok {
-		return nil, gojahttp.ErrNotFound
-	}
-	return s.ByID(ctx, id)
-}
-
-func (s *MemoryStore) ByKeycloakSub(ctx context.Context, sub string) (*User, error) {
-	s.mu.Lock()
-	id, ok := s.usersBySub[sub]
-	s.mu.Unlock()
-	if !ok {
-		return nil, gojahttp.ErrNotFound
-	}
-	return s.ByID(ctx, id)
 }
 
 func (s *MemoryStore) DisableUser(_ context.Context, id string, disabledAt time.Time) error {
@@ -285,26 +296,48 @@ func (s *MemoryStore) DisableUser(_ context.Context, id string, disabledAt time.
 	return nil
 }
 
-func (s *MemoryStore) UpsertFromOIDC(_ context.Context, sub, email string, emailVerified bool) (*User, error) {
+func (s *MemoryStore) UpsertFromOIDC(_ context.Context, issuer, subject, email string, emailVerified bool) (*User, error) {
+	id, err := OIDCUserID(issuer, subject)
+	if err != nil {
+		return nil, err
+	}
+	identityKey := oidcIdentityKey(issuer, subject)
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if id, ok := s.usersBySub[sub]; ok {
-		user := s.users[id]
+	if existingID, ok := s.usersByOIDC[identityKey]; ok {
+		user := s.users[existingID]
 		if user.DisabledAt != nil {
 			return nil, gojahttp.ErrNotFound
 		}
 		user.Email = email
 		user.EmailVerified = emailVerified
-		s.users[id] = user
+		s.users[existingID] = user
 		user = cloneUser(user)
 		return &user, nil
 	}
-	id := "user:" + sub
-	user := User{ID: id, KeycloakSub: sub, Email: email, EmailVerified: emailVerified}
+	user := User{ID: id, OIDCIssuer: issuer, OIDCSubject: subject, Email: email, EmailVerified: emailVerified}
 	s.users[id] = user
-	s.usersBySub[sub] = id
+	s.usersByOIDC[identityKey] = id
 	return &user, nil
 }
+
+// OIDCUserID derives an opaque, stable application user ID from the complete
+// OIDC identity tuple. Subjects are scoped to an issuer and must never be used
+// as globally unique identifiers on their own.
+func OIDCUserID(issuer, subject string) (string, error) {
+	issuer = strings.TrimSpace(issuer)
+	subject = strings.TrimSpace(subject)
+	if issuer == "" || subject == "" {
+		return "", fmt.Errorf("appauth: OIDC issuer and subject are required")
+	}
+	if strings.ContainsRune(issuer, '\x00') || strings.ContainsRune(subject, '\x00') {
+		return "", fmt.Errorf("appauth: OIDC issuer and subject must not contain NUL")
+	}
+	sum := sha256.Sum256([]byte(oidcIdentityKey(issuer, subject)))
+	return "user:oidc:" + base64.RawURLEncoding.EncodeToString(sum[:]), nil
+}
+
+func oidcIdentityKey(issuer, subject string) string { return issuer + "\x00" + subject }
 
 func (s *MemoryStore) MembershipsForUser(_ context.Context, userID string) ([]Membership, error) {
 	s.mu.Lock()

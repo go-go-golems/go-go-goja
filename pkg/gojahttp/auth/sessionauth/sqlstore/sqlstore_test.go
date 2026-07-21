@@ -56,7 +56,7 @@ func TestSQLiteStorePersistsFullSessionProjection(t *testing.T) {
 	session := sessionauth.Session{
 		ID:                "full-session",
 		UserID:            "u1",
-		KeycloakSub:       "kc-u1",
+		OIDCSubject:       "kc-u1",
 		Email:             "u1@example.test",
 		EmailVerified:     true,
 		TenantIDs:         []string{"o1", "o2"},
@@ -76,7 +76,7 @@ func TestSQLiteStorePersistsFullSessionProjection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("get: %v", err)
 	}
-	if got.UserID != "u1" || got.KeycloakSub != "kc-u1" || got.Email != "u1@example.test" || !got.EmailVerified {
+	if got.UserID != "u1" || got.OIDCSubject != "kc-u1" || got.Email != "u1@example.test" || !got.EmailVerified {
 		t.Fatalf("unexpected identity fields: %#v", got)
 	}
 	if len(got.TenantIDs) != 2 || got.TenantIDs[0] != "o1" || got.TenantIDs[1] != "o2" {

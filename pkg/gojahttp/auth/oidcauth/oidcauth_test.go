@@ -1,4 +1,4 @@
-package keycloakauth
+package oidcauth
 
 import (
 	"context"
@@ -22,6 +22,7 @@ import (
 
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth"
+	"golang.org/x/oauth2"
 )
 
 func TestLoginCallbackCreatesSession(t *testing.T) {
@@ -87,16 +88,171 @@ func TestLoginCallbackCreatesSession(t *testing.T) {
 	}
 }
 
-func TestAbsoluteRedirectURLRejectsAuthorityStylePaths(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "https://app.example/auth/logout", nil)
-	base := "https://app.example/auth/callback"
-	for _, target := range []string{"//evil.example", "/\\evil.example", "https://evil.example", "relative"} {
-		if got := absoluteRedirectURL(req, base, target); got != "https://app.example/" {
-			t.Fatalf("target %q redirected to %q, want same-origin root", target, got)
+func TestInProcessIssuerClientCoversDiscoveryExchangeAndKeysWithoutDial(t *testing.T) {
+	ctx := context.Background()
+	provider := newInProcessFakeProvider(t, "https://identity.example.test/idp")
+	transport, err := NewInProcessIssuerTransport(provider.URL(), provider.Handler())
+	if err != nil {
+		t.Fatalf("transport: %v", err)
+	}
+	manager, err := sessionauth.New(sessionauth.Config{Store: sessionauth.NewMemoryStore(), AllowInsecureHTTP: true})
+	if err != nil {
+		t.Fatalf("session manager: %v", err)
+	}
+	var handlers *Handlers
+	app := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/auth/login":
+			handlers.LoginHandler().ServeHTTP(w, r)
+		case "/auth/callback":
+			handlers.CallbackHandler().ServeHTTP(w, r)
+		case "/after":
+			_, _ = w.Write([]byte("after login"))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer app.Close()
+	handlers, err = New(ctx, Config{
+		IssuerURL:      provider.URL(),
+		ClientID:       "goja-app",
+		RedirectURL:    app.URL + "/auth/callback",
+		AfterLoginURL:  "/after",
+		SessionManager: manager,
+		UserNormalizer: passthroughNormalizer(),
+		HTTPClient:     &http.Client{Transport: transport},
+	})
+	if err != nil {
+		t.Fatalf("handlers: %v", err)
+	}
+
+	client := clientWithJar(t)
+	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if req.URL.Host == "identity.example.test" {
+			return http.ErrUseLastResponse
+		}
+		return nil
+	}
+
+	loginResponse, err := client.Get(app.URL + "/auth/login?return_to=/after")
+	if err != nil {
+		t.Fatalf("login redirect: %v", err)
+	}
+	defer func() { _ = loginResponse.Body.Close() }()
+	if loginResponse.StatusCode != http.StatusFound {
+		t.Fatalf("login status=%d", loginResponse.StatusCode)
+	}
+
+	authorizeRequest, err := http.NewRequest(http.MethodGet, loginResponse.Header.Get("Location"), nil)
+	if err != nil {
+		t.Fatalf("authorize request: %v", err)
+	}
+	authorizeResponse, err := transport.RoundTrip(authorizeRequest)
+	if err != nil {
+		t.Fatalf("authorize: %v", err)
+	}
+	_ = authorizeResponse.Body.Close()
+	callback := authorizeResponse.Header.Get("Location")
+	if callback == "" {
+		t.Fatal("authorize response did not contain callback")
+	}
+	callbackResponse, err := client.Get(callback)
+	if err != nil {
+		t.Fatalf("callback: %v", err)
+	}
+	defer func() { _ = callbackResponse.Body.Close() }()
+	if callbackResponse.StatusCode != http.StatusOK || callbackResponse.Request.URL.Path != "/after" {
+		t.Fatalf("callback status/path=%d %s", callbackResponse.StatusCode, callbackResponse.Request.URL.Path)
+	}
+}
+
+func TestPublicClientUsesTokenEndpointParametersWithoutProbe(t *testing.T) {
+	provider := newInProcessFakeProvider(t, "https://identity.example.test/idp")
+	transport, err := NewInProcessIssuerTransport(provider.URL(), provider.Handler())
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager, err := sessionauth.New(sessionauth.Config{Store: sessionauth.NewMemoryStore(), AllowInsecureHTTP: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	handlers, err := New(context.Background(), Config{
+		IssuerURL:      provider.URL(),
+		ClientID:       "public-app",
+		RedirectURL:    "http://127.0.0.1:8787/auth/callback",
+		SessionManager: manager,
+		UserNormalizer: passthroughNormalizer(),
+		HTTPClient:     &http.Client{Transport: transport},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if handlers.oauth2Config.Endpoint.AuthStyle != oauth2.AuthStyleInParams {
+		t.Fatalf("auth style = %v, want body parameters", handlers.oauth2Config.Endpoint.AuthStyle)
+	}
+}
+
+func TestInProcessIssuerTransportFailsClosed(t *testing.T) {
+	t.Parallel()
+	handler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
+	transport, err := NewInProcessIssuerTransport("https://identity.example.test/idp", handler)
+	if err != nil {
+		t.Fatalf("transport: %v", err)
+	}
+	for _, rawURL := range []string{
+		"https://other.example.test/idp/keys",
+		"http://identity.example.test/idp/keys",
+		"https://identity.example.test/application",
+		"https://user@identity.example.test/idp/keys",
+		"/idp/keys",
+	} {
+		req, requestErr := http.NewRequest(http.MethodGet, rawURL, nil)
+		if requestErr != nil {
+			t.Fatalf("request %q: %v", rawURL, requestErr)
+		}
+		if _, roundTripErr := transport.RoundTrip(req); roundTripErr == nil {
+			t.Errorf("RoundTrip(%q) succeeded, want fail-closed error", rawURL)
 		}
 	}
-	if got := absoluteRedirectURL(req, base, "/logged-out"); got != "https://app.example/logged-out" {
-		t.Fatalf("safe target = %q", got)
+}
+
+func TestInProcessIssuerTransportProvidesServerRequestMetadata(t *testing.T) {
+	t.Parallel()
+	var remoteAddr string
+	var requestURI string
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		remoteAddr = r.RemoteAddr
+		requestURI = r.RequestURI
+		w.WriteHeader(http.StatusNoContent)
+	})
+	transport, err := NewInProcessIssuerTransport("https://identity.example.test/idp", handler)
+	if err != nil {
+		t.Fatal(err)
+	}
+	request, err := http.NewRequest(http.MethodPost, "https://identity.example.test/idp/token?trace=1", strings.NewReader("grant_type=authorization_code"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, err := transport.RoundTrip(request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = response.Body.Close()
+	if remoteAddr != "127.0.0.1:0" || requestURI != "/idp/token?trace=1" {
+		t.Fatalf("server metadata remote=%q requestURI=%q", remoteAddr, requestURI)
+	}
+}
+
+func TestNewInProcessIssuerTransportRejectsMalformedIssuer(t *testing.T) {
+	t.Parallel()
+	handler := http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})
+	for _, issuer := range []string{"", "/idp", "ftp://identity.example.test/idp", "https://user@identity.example.test/idp", "https://identity.example.test/idp?q=1", "https://identity.example.test/idp#fragment"} {
+		if _, err := NewInProcessIssuerTransport(issuer, handler); err == nil {
+			t.Errorf("issuer %q accepted, want error", issuer)
+		}
+	}
+	if _, err := NewInProcessIssuerTransport("https://identity.example.test/idp", nil); err == nil {
+		t.Error("nil handler accepted, want error")
 	}
 }
 
@@ -248,28 +404,80 @@ func TestCallbackRejectsNormalizerFailureAndLogoutClearsCookie(t *testing.T) {
 	if err != nil {
 		t.Fatalf("logout: %v", err)
 	}
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("logout without csrf status=%d", resp.StatusCode)
+	}
+	if _, err = manager.Authenticate(ctx, requestWithCookies(client.Jar.Cookies(mustURL(t, app.URL))), nil, gojahttp.SecuritySpec{}); err != nil {
+		t.Fatalf("csrf-rejected logout revoked session: %v", err)
+	}
+
+	getReq, err := http.NewRequest(http.MethodGet, app.URL+"/auth/logout", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	getResp, err := client.Do(getReq)
+	if err != nil {
+		t.Fatalf("GET logout: %v", err)
+	}
+	_ = getResp.Body.Close()
+	if getResp.StatusCode != http.StatusMethodNotAllowed {
+		t.Fatalf("GET logout status=%d", getResp.StatusCode)
+	}
+
+	req, err = http.NewRequest(http.MethodPost, app.URL+"/auth/logout", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set(sessionauth.CSRFHeaderName, session.CSRFToken)
+	resp, err = client.Do(req)
+	if err != nil {
+		t.Fatalf("csrf-authenticated logout: %v", err)
+	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusNoContent {
-		t.Fatalf("logout status=%d", resp.StatusCode)
+		t.Fatalf("csrf-authenticated logout status=%d", resp.StatusCode)
 	}
 	_, err = manager.Authenticate(ctx, requestWithCookies(client.Jar.Cookies(mustURL(t, app.URL))), nil, gojahttp.SecuritySpec{})
 	if err == nil {
 		t.Fatalf("expected session revoked after logout")
 	}
+}
 
-	session, err = manager.NewSession(ctx, "u2")
+func TestLogoutRevocationFailureDoesNotReportSuccessOrClearCookie(t *testing.T) {
+	ctx := context.Background()
+	baseStore := sessionauth.NewMemoryStore()
+	manager, err := sessionauth.New(sessionauth.Config{
+		Store:             revokeFailStore{Store: baseStore},
+		AllowInsecureHTTP: true,
+	})
 	if err != nil {
-		t.Fatalf("new session for get logout: %v", err)
+		t.Fatalf("session manager: %v", err)
 	}
-	client.Jar.SetCookies(mustURL(t, app.URL), []*http.Cookie{{Name: sessionauth.InsecureCookieName, Value: session.ID, Path: "/"}})
-	resp, err = client.Get(app.URL + "/auth/logout")
+	session, err := manager.NewSession(ctx, "u1")
 	if err != nil {
-		t.Fatalf("get logout: %v", err)
+		t.Fatalf("new session: %v", err)
 	}
-	defer func() { _ = resp.Body.Close() }()
-	if resp.Request.URL.Path != "/" {
-		t.Fatalf("GET logout did not return through provider logout, final URL=%s", resp.Request.URL.String())
+	req := httptest.NewRequest(http.MethodPost, "http://app.example.test/auth/logout", nil)
+	req.AddCookie(&http.Cookie{Name: sessionauth.InsecureCookieName, Value: session.ID, Path: "/"})
+	req.Header.Set(sessionauth.CSRFHeaderName, session.CSRFToken)
+	recorder := httptest.NewRecorder()
+	(&Handlers{sessionManager: manager}).LogoutHandler().ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusInternalServerError {
+		t.Fatalf("revocation failure status=%d body=%s", recorder.Code, recorder.Body.String())
 	}
+	if strings.Contains(recorder.Header().Get("Set-Cookie"), "Max-Age=0") {
+		t.Fatalf("revocation failure cleared browser cookie: %s", recorder.Header().Get("Set-Cookie"))
+	}
+	if _, err := manager.Authenticate(ctx, req, nil, gojahttp.SecuritySpec{}); err != nil {
+		t.Fatalf("revocation failure changed stored session: %v", err)
+	}
+}
+
+type revokeFailStore struct{ sessionauth.Store }
+
+func (revokeFailStore) Revoke(context.Context, string) error {
+	return fmt.Errorf("injected revoke failure")
 }
 
 func TestLogoutReportsSessionStoreFailure(t *testing.T) {
@@ -290,8 +498,13 @@ func TestLogoutReportsSessionStoreFailure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("handlers: %v", err)
 	}
+	session, err := manager.NewSession(context.Background(), "u1")
+	if err != nil {
+		t.Fatalf("new session: %v", err)
+	}
 	req := httptest.NewRequest(http.MethodPost, "http://app.example.test/auth/logout", nil)
-	req.AddCookie(&http.Cookie{Name: sessionauth.InsecureCookieName, Value: "valid-session-id-1234567890"})
+	req.AddCookie(&http.Cookie{Name: sessionauth.InsecureCookieName, Value: session.ID})
+	req.Header.Set(sessionauth.CSRFHeaderName, session.CSRFToken)
 	res := httptest.NewRecorder()
 	handlers.LogoutHandler().ServeHTTP(res, req)
 	if res.Code != http.StatusInternalServerError {
@@ -314,6 +527,7 @@ func passthroughNormalizer() UserNormalizer {
 
 type fakeProvider struct {
 	server     *httptest.Server
+	issuer     string
 	key        *rsa.PrivateKey
 	mu         sync.Mutex
 	codes      map[string]string
@@ -324,26 +538,44 @@ type fakeProvider struct {
 
 func newFakeProvider(t *testing.T) *fakeProvider {
 	t.Helper()
+	provider := newInProcessFakeProvider(t, "")
+	provider.server = httptest.NewServer(provider.Handler())
+	provider.issuer = provider.server.URL
+	return provider
+}
+
+func newInProcessFakeProvider(t *testing.T, issuer string) *fakeProvider {
+	t.Helper()
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		t.Fatal(err)
 	}
-	provider := &fakeProvider{key: key, codes: map[string]string{}, audience: "goja-app", expOffset: time.Hour}
-	mux := http.NewServeMux()
-	mux.HandleFunc("/.well-known/openid-configuration", provider.discovery)
-	mux.HandleFunc("/keys", provider.keys)
-	mux.HandleFunc("/auth", provider.auth)
-	mux.HandleFunc("/token", provider.token)
-	mux.HandleFunc("/logout", provider.logout)
-	provider.server = httptest.NewServer(mux)
-	return provider
+	return &fakeProvider{issuer: issuer, key: key, codes: map[string]string{}, audience: "goja-app", expOffset: time.Hour}
 }
 
-func (p *fakeProvider) URL() string { return p.server.URL }
-func (p *fakeProvider) Close()      { p.server.Close() }
+func (p *fakeProvider) Handler() http.Handler {
+	mux := http.NewServeMux()
+	issuer, err := url.Parse(p.URL())
+	if err != nil {
+		panic(err)
+	}
+	prefix := strings.TrimSuffix(issuer.Path, "/")
+	mux.HandleFunc(prefix+"/.well-known/openid-configuration", p.discovery)
+	mux.HandleFunc(prefix+"/keys", p.keys)
+	mux.HandleFunc(prefix+"/auth", p.auth)
+	mux.HandleFunc(prefix+"/token", p.token)
+	return mux
+}
+
+func (p *fakeProvider) URL() string { return p.issuer }
+func (p *fakeProvider) Close() {
+	if p.server != nil {
+		p.server.Close()
+	}
+}
 
 func (p *fakeProvider) discovery(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(tResponseWriter{w}, map[string]any{"issuer": p.URL(), "authorization_endpoint": p.URL() + "/auth", "token_endpoint": p.URL() + "/token", "jwks_uri": p.URL() + "/keys", "end_session_endpoint": p.URL() + "/logout"})
+	writeJSON(tResponseWriter{w}, map[string]any{"issuer": p.URL(), "authorization_endpoint": p.URL() + "/auth", "token_endpoint": p.URL() + "/token", "jwks_uri": p.URL() + "/keys"})
 }
 
 func (p *fakeProvider) keys(w http.ResponseWriter, _ *http.Request) {
@@ -365,15 +597,6 @@ func (p *fakeProvider) auth(w http.ResponseWriter, r *http.Request) {
 	q.Set("code", code)
 	callback.RawQuery = q.Encode()
 	http.Redirect(w, r, callback.String(), http.StatusFound)
-}
-
-func (p *fakeProvider) logout(w http.ResponseWriter, r *http.Request) {
-	redirectURI := r.URL.Query().Get("post_logout_redirect_uri")
-	if redirectURI == "" {
-		_, _ = w.Write([]byte("logged out"))
-		return
-	}
-	http.Redirect(w, r, redirectURI, http.StatusFound)
 }
 
 func (p *fakeProvider) token(w http.ResponseWriter, r *http.Request) {

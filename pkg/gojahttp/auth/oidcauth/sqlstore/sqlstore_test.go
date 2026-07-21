@@ -12,7 +12,7 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/keycloakauth"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/oidcauth"
 )
 
 func TestSQLiteStoreConsumesTransactionOnce(t *testing.T) {
@@ -30,7 +30,7 @@ func TestSQLiteStoreConsumesTransactionOnce(t *testing.T) {
 		t.Fatalf("transaction = %#v, want %#v", got, tx)
 	}
 	_, err = store.Take(context.Background(), tx.State)
-	if !errors.Is(err, keycloakauth.ErrTransactionUnavailable) {
+	if !errors.Is(err, oidcauth.ErrTransactionUnavailable) {
 		t.Fatalf("second Take error = %v, want ErrTransactionUnavailable", err)
 	}
 }
@@ -43,7 +43,7 @@ func TestSQLiteStoreRejectsExpiredTransactionWithoutCleanup(t *testing.T) {
 		t.Fatalf("Put: %v", err)
 	}
 	_, err := store.Take(context.Background(), tx.State)
-	if !errors.Is(err, keycloakauth.ErrTransactionUnavailable) {
+	if !errors.Is(err, oidcauth.ErrTransactionUnavailable) {
 		t.Fatalf("Take expired error = %v, want ErrTransactionUnavailable", err)
 	}
 	count, err := store.Cleanup(context.Background())
@@ -82,7 +82,7 @@ func TestSQLiteStoreConcurrentTakeHasOneWinner(t *testing.T) {
 			successes++
 			continue
 		}
-		if !errors.Is(err, keycloakauth.ErrTransactionUnavailable) {
+		if !errors.Is(err, oidcauth.ErrTransactionUnavailable) {
 			t.Fatalf("Take error = %v", err)
 		}
 	}
@@ -151,7 +151,7 @@ func TestPostgresSchemaAndQueries(t *testing.T) {
 
 func newSQLiteStore(t testing.TB, now func() time.Time) *Store {
 	t.Helper()
-	db, err := sql.Open("sqlite3", "file:keycloakauth-transaction-store?mode=memory&cache=shared")
+	db, err := sql.Open("sqlite3", "file:oidcauth-transaction-store?mode=memory&cache=shared")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -167,6 +167,6 @@ func newSQLiteStore(t testing.TB, now func() time.Time) *Store {
 	return store
 }
 
-func transaction(createdAt time.Time) keycloakauth.Transaction {
-	return keycloakauth.Transaction{State: "state-1", Nonce: "nonce-1", PKCEVerifier: "verifier-1", CreatedAt: createdAt, RedirectURL: "/after"}
+func transaction(createdAt time.Time) oidcauth.Transaction {
+	return oidcauth.Transaction{State: "state-1", Nonce: "nonce-1", PKCEVerifier: "verifier-1", CreatedAt: createdAt, RedirectURL: "/after"}
 }

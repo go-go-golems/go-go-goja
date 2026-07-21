@@ -1,20 +1,20 @@
-# keycloakauth
+# oidcauth
 
-`keycloakauth` is an opinionated OIDC browser-login adapter for `gojahttp` hosts. It is designed for Keycloak, but uses the standard OIDC discovery/token/JWKS flow through `github.com/coreos/go-oidc/v3/oidc` and `golang.org/x/oauth2`.
+`oidcauth` is a provider-neutral OIDC browser-login adapter for `gojahttp` hosts. It uses the standard OIDC discovery/token/JWKS flow through `github.com/coreos/go-oidc/v3/oidc` and `golang.org/x/oauth2`.
 
 ## Intended production shape
 
 ```text
 Browser -> Go /auth/login
-  -> Keycloak Authorization Code + PKCE
+  -> OIDC provider Authorization Code + PKCE
   -> Go /auth/callback
   -> verify state, code, ID token, nonce
-  -> normalize Keycloak sub into an app user
+  -> normalize issuer-scoped OIDC subject into an app user
   -> create server-side app session through sessionauth
   -> browser receives only the app session cookie
 ```
 
-Do not expose Keycloak access or refresh tokens to browser JavaScript. Planned routes authenticate using the opaque app session cookie through `sessionauth.Manager`.
+Do not expose identity-provider access or refresh tokens to browser JavaScript. Planned routes authenticate using the opaque app session cookie through `sessionauth.Manager`.
 
 ## Keycloak client settings
 
@@ -39,7 +39,7 @@ sessions, _ := sessionauth.New(sessionauth.Config{
     ActorLoader: appActorLoader,
 })
 
-handlers, _ := keycloakauth.New(ctx, keycloakauth.Config{
+handlers, _ := oidcauth.New(ctx, oidcauth.Config{
     IssuerURL:      "https://keycloak.example/realms/app",
     ClientID:       "goja-app",
     ClientSecret:   os.Getenv("KEYCLOAK_CLIENT_SECRET"),
@@ -47,21 +47,21 @@ handlers, _ := keycloakauth.New(ctx, keycloakauth.Config{
     AfterLoginURL:  "/",
     AfterLogoutURL: "/",
     SessionManager: sessions,
-    UserNormalizer: keycloakauth.UserNormalizerFunc(func(ctx context.Context, claims keycloakauth.OIDCClaims) (keycloakauth.UserSession, error) {
-        user, err := users.UpsertFromOIDC(ctx, claims.Subject, claims.Email, claims.EmailVerified)
+    UserNormalizer: oidcauth.UserNormalizerFunc(func(ctx context.Context, claims oidcauth.OIDCClaims) (oidcauth.UserSession, error) {
+        user, err := users.UpsertFromOIDC(ctx, claims.Issuer, claims.Subject, claims.Email, claims.EmailVerified)
         if err != nil {
-            return keycloakauth.UserSession{}, err
+            return oidcauth.UserSession{}, err
         }
         memberships, err := membershipStore.ForUser(ctx, user.ID)
         if err != nil {
-            return keycloakauth.UserSession{}, err
+            return oidcauth.UserSession{}, err
         }
-        return keycloakauth.UserSession{
+        return oidcauth.UserSession{
             UserID:        user.ID,
             Email:         user.Email,
             EmailVerified: user.EmailVerified,
             TenantIDs:     memberships.TenantIDs(),
-            Claims:        map[string]any{"keycloakSub": claims.Subject},
+            Claims:        map[string]any{"oidcIssuer": claims.Issuer, "oidcSubject": claims.Subject},
         }, nil
     }),
 })

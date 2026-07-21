@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp"
-	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/keycloakauth"
-	keycloakauthsql "github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/keycloakauth/sqlstore"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/oidcauth"
+	oidcauthsql "github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/oidcauth/sqlstore"
 	programauthsql "github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/programauth/sqlstore"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth"
 )
@@ -172,10 +172,13 @@ func TestServiceFactoryOIDCBuildsNativeHandlers(t *testing.T) {
 	for _, route := range services.NativeHandlers {
 		got[route.Method+" "+route.Path] = route.Handler != nil
 	}
-	for _, want := range []string{"GET /auth/readyz", "POST /auth/device/start", "POST /auth/device/token", "POST /auth/device/refresh", "POST /auth/device/revoke", "POST /auth/device/approve", "GET /auth/login", "GET /auth/callback", "POST /auth/logout", "GET /auth/logout", "GET /auth/session"} {
+	for _, want := range []string{"GET /auth/readyz", "POST /auth/device/start", "POST /auth/device/token", "POST /auth/device/refresh", "POST /auth/device/revoke", "POST /auth/device/approve", "GET /auth/login", "GET /auth/callback", "POST /auth/logout", "GET /auth/session"} {
 		if !got[want] {
 			t.Fatalf("native handlers missing %s: %#v", want, services.NativeHandlers)
 		}
+	}
+	if got["GET /auth/logout"] {
+		t.Fatalf("state-changing GET logout must not be registered: %#v", services.NativeHandlers)
 	}
 	for _, removed := range []string{"GET /auth/audit", "POST /orgs/o1/invites", "POST /org-invites/accept"} {
 		if got[removed] {
@@ -224,7 +227,7 @@ func TestServiceFactoryOIDCUsesConfiguredSQLTransactionStore(t *testing.T) {
 		t.Fatalf("BuildHostAuthServices: %v", err)
 	}
 	defer func() { _ = services.Close(context.Background()) }()
-	if _, ok := services.OIDCTransactionStore.(*keycloakauthsql.Store); !ok {
+	if _, ok := services.OIDCTransactionStore.(*oidcauthsql.Store); !ok {
 		t.Fatalf("OIDCTransactionStore type = %T", services.OIDCTransactionStore)
 	}
 }
@@ -246,7 +249,7 @@ func TestDefaultOIDCUserNormalizerUpsertsUserWithoutGrantingMemberships(t *testi
 	if len(session.TenantIDs) != 0 {
 		t.Fatalf("generic normalizer must not grant memberships, got %#v", session.TenantIDs)
 	}
-	if session.Claims["keycloakSub"] != "kc-sub-1" || session.Claims["preferredUsername"] != "demo" {
+	if session.Claims["oidcIssuer"] != "https://issuer.example.test" || session.Claims["oidcSubject"] != "kc-sub-1" || session.Claims["preferredUsername"] != "demo" {
 		t.Fatalf("claims = %#v", session.Claims)
 	}
 }
@@ -338,6 +341,6 @@ func newOIDCDiscoveryServer(t *testing.T) *httptest.Server {
 	return server
 }
 
-func fakeOIDCClaims(sub string, email string) keycloakauth.OIDCClaims {
-	return keycloakauth.OIDCClaims{Subject: sub, Email: email, EmailVerified: true, PreferredUsername: strings.TrimSuffix(email, "@example.test")}
+func fakeOIDCClaims(sub string, email string) oidcauth.OIDCClaims {
+	return oidcauth.OIDCClaims{Issuer: "https://issuer.example.test", Subject: sub, Email: email, EmailVerified: true, PreferredUsername: strings.TrimSuffix(email, "@example.test")}
 }

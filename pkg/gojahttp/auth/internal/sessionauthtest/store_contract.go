@@ -25,7 +25,7 @@ func RunStoreContract(t *testing.T, newStore NewStore) {
 		session := sessionauth.Session{
 			ID:                "session-create",
 			UserID:            "u1",
-			KeycloakSub:       "kc-u1",
+			OIDCSubject:       "kc-u1",
 			Email:             "u1@example.test",
 			EmailVerified:     true,
 			TenantIDs:         []string{"o1", "o2"},

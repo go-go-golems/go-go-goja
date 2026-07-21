@@ -16,8 +16,8 @@ import (
 	auditsql "github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/audit/sqlstore"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/capability"
 	capabilitysql "github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/capability/sqlstore"
-	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/keycloakauth"
-	keycloakauthsql "github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/keycloakauth/sqlstore"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/oidcauth"
+	oidcauthsql "github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/oidcauth/sqlstore"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/programauth"
 	programauthsql "github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/programauth/sqlstore"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth"
@@ -56,7 +56,7 @@ type StoreBundle struct {
 	AppAuth         AppAuthStores
 	Capability      capability.Store
 	ProgramAuth     ProgramAuthStores
-	OIDCTransaction keycloakauth.TransactionStore
+	OIDCTransaction oidcauth.TransactionStore
 
 	Closers []func(context.Context) error
 	Health  []DependencyHealth
@@ -248,16 +248,16 @@ func (b *storeBuilder) buildProgramAuthStores(ctx context.Context, cfg ResolvedS
 	}
 }
 
-func (b *storeBuilder) buildOIDCTransactionStore(ctx context.Context, cfg ResolvedStoreConfig) (keycloakauth.TransactionStore, error) {
+func (b *storeBuilder) buildOIDCTransactionStore(ctx context.Context, cfg ResolvedStoreConfig) (oidcauth.TransactionStore, error) {
 	switch cfg.Driver {
 	case StoreDriverMemory:
-		return keycloakauth.NewMemoryTransactionStore(10 * time.Minute), nil
+		return oidcauth.NewMemoryTransactionStore(10 * time.Minute), nil
 	case StoreDriverSQLite, StoreDriverPostgres:
 		db, err := b.openDB(cfg)
 		if err != nil {
 			return nil, fmt.Errorf("build oidc transaction store: %w", err)
 		}
-		store, err := keycloakauthsql.New(keycloakauthsql.Config{DB: db, Dialect: oidcTransactionDialect(cfg.Driver)})
+		store, err := oidcauthsql.New(oidcauthsql.Config{DB: db, Dialect: oidcTransactionDialect(cfg.Driver)})
 		if err != nil {
 			return nil, fmt.Errorf("build oidc transaction store: %w", err)
 		}
@@ -339,11 +339,11 @@ func programAuthDialect(driver StoreDriver) programauthsql.Dialect {
 	return programauthsql.DialectPostgres
 }
 
-func oidcTransactionDialect(driver StoreDriver) keycloakauthsql.Dialect {
+func oidcTransactionDialect(driver StoreDriver) oidcauthsql.Dialect {
 	if driver == StoreDriverSQLite {
-		return keycloakauthsql.DialectSQLite
+		return oidcauthsql.DialectSQLite
 	}
-	return keycloakauthsql.DialectPostgres
+	return oidcauthsql.DialectPostgres
 }
 
 func closeAll(ctx context.Context, closers []func(context.Context) error) error {
