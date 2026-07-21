@@ -117,6 +117,59 @@ func TestConcurrentAcceptanceHasOneWinner(t *testing.T) {
 	}
 }
 
+func TestPendingHandleCarriesInviteWithoutPersistingRawToken(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 7, 21, 12, 0, 0, 0, time.UTC)
+	db, apps, capabilities, acceptor := fixture(t)
+	seed(t, apps, appauth.User{ID: "u1", Email: "u@example.com", EmailVerified: true})
+	issued := issue(t, capabilities, now, "u@example.com", "viewer")
+	pending, err := acceptor.Begin(ctx, issued.Token, now)
+	if err != nil {
+		t.Fatalf("Begin: %v", err)
+	}
+	if pending.Handle == "" || pending.Handle == issued.Token || pending.TenantID != "o1" {
+		t.Fatalf("pending = %#v", pending)
+	}
+	var rawTokenRows int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM auth_pending_membership_invites WHERE CAST(handle_hash AS TEXT) = ?`, issued.Token).Scan(&rawTokenRows); err != nil {
+		t.Fatal(err)
+	}
+	if rawTokenRows != 0 {
+		t.Fatal("raw invitation token was persisted")
+	}
+	result, err := acceptor.AcceptPending(ctx, pending.Handle, "u1", now)
+	if err != nil {
+		t.Fatalf("AcceptPending: %v", err)
+	}
+	if result.Role != "viewer" {
+		t.Fatalf("result = %#v", result)
+	}
+	if _, err := acceptor.AcceptPending(ctx, pending.Handle, "u1", now); !errors.Is(err, capability.ErrUsed) {
+		t.Fatalf("pending replay error = %v, want ErrUsed", err)
+	}
+}
+
+func TestPendingAcceptanceFailureRemainsRetryable(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 7, 21, 12, 0, 0, 0, time.UTC)
+	_, apps, capabilities, acceptor := fixture(t)
+	seed(t, apps, appauth.User{ID: "u1", Email: "wrong@example.com", EmailVerified: true})
+	issued := issue(t, capabilities, now, "right@example.com", "member")
+	pending, err := acceptor.Begin(ctx, issued.Token, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := acceptor.AcceptPending(ctx, pending.Handle, "u1", now); !errors.Is(err, membershipinvite.ErrEmailMismatch) {
+		t.Fatalf("first accept: %v", err)
+	}
+	if err := apps.AddUser(ctx, appauth.User{ID: "u1", Email: "right@example.com", EmailVerified: true}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := acceptor.AcceptPending(ctx, pending.Handle, "u1", now); err != nil {
+		t.Fatalf("retry after correction: %v", err)
+	}
+}
+
 func fixture(t *testing.T) (*sql.DB, *appauthsql.Store, capability.Service, *invitesql.Store) {
 	t.Helper()
 	dsn := "file:" + filepath.Join(t.TempDir(), "auth.db") + "?_busy_timeout=5000&_journal_mode=WAL"
@@ -142,6 +195,9 @@ func fixture(t *testing.T) (*sql.DB, *appauthsql.Store, capability.Service, *inv
 	}
 	acceptor, err := invitesql.New(invitesql.Config{DB: db, Dialect: invitesql.DialectSQLite})
 	if err != nil {
+		t.Fatal(err)
+	}
+	if err := acceptor.ApplySchema(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 	return db, apps, capability.Service{Store: caps}, acceptor

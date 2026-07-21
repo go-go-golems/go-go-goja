@@ -169,11 +169,24 @@ func New(ctx context.Context, cfg Config) (*Handlers, error) {
 	}, nil
 }
 
-func (h *Handlers) LoginHandler() http.Handler    { return http.HandlerFunc(h.handleLogin) }
-func (h *Handlers) CallbackHandler() http.Handler { return http.HandlerFunc(h.handleCallback) }
-func (h *Handlers) LogoutHandler() http.Handler   { return http.HandlerFunc(h.handleLogout) }
+func (h *Handlers) LoginHandler() http.Handler { return http.HandlerFunc(h.handleLogin) }
+
+// RegistrationHandler starts the same secure OIDC code flow while explicitly
+// asking TinyIDP to present account creation. Other providers safely ignore the
+// namespaced authorization parameter.
+func (h *Handlers) RegistrationHandler() http.Handler { return http.HandlerFunc(h.handleRegistration) }
+func (h *Handlers) CallbackHandler() http.Handler     { return http.HandlerFunc(h.handleCallback) }
+func (h *Handlers) LogoutHandler() http.Handler       { return http.HandlerFunc(h.handleLogout) }
 
 func (h *Handlers) handleLogin(w http.ResponseWriter, r *http.Request) {
+	h.beginAuthorization(w, r, false)
+}
+
+func (h *Handlers) handleRegistration(w http.ResponseWriter, r *http.Request) {
+	h.beginAuthorization(w, r, true)
+}
+
+func (h *Handlers) beginAuthorization(w http.ResponseWriter, r *http.Request, registration bool) {
 	if r.Method != http.MethodGet {
 		h.observe(r.Context(), "oidc.login", "rejected", "method")
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -206,7 +219,11 @@ func (h *Handlers) handleLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "store login transaction", http.StatusInternalServerError)
 		return
 	}
-	url := h.oauth2Config.AuthCodeURL(state, oauth2.S256ChallengeOption(verifier), oauth2.SetAuthURLParam("nonce", nonce))
+	options := []oauth2.AuthCodeOption{oauth2.S256ChallengeOption(verifier), oauth2.SetAuthURLParam("nonce", nonce)}
+	if registration {
+		options = append(options, oauth2.SetAuthURLParam("tinyidp_signup", "1"))
+	}
+	url := h.oauth2Config.AuthCodeURL(state, options...)
 	h.observe(r.Context(), "oidc.login", "issued", "")
 	http.Redirect(w, r, url, http.StatusFound)
 }

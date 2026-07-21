@@ -217,6 +217,7 @@ func BuildNativeHandlers(ctx context.Context, cfg ResolvedConfig, sessionManager
 	}
 	nativeHandlers = append(nativeHandlers,
 		NativeHandler{Method: "GET", Path: "/auth/login", Handler: handlers.LoginHandler()},
+		NativeHandler{Method: "GET", Path: "/auth/register", Handler: handlers.RegistrationHandler()},
 		NativeHandler{Method: "GET", Path: "/auth/callback", Handler: handlers.CallbackHandler()},
 		NativeHandler{Method: "POST", Path: "/auth/logout", Handler: handlers.LogoutHandler()},
 		NativeHandler{Method: "GET", Path: "/auth/session", Handler: sessionInfoHandler(sessionManager)},

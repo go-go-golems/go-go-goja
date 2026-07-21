@@ -34,6 +34,16 @@ type recordingMembershipInviteAcceptor struct {
 	token, actor string
 }
 
+func (a *recordingMembershipInviteAcceptor) Begin(_ context.Context, token string, _ time.Time) (membershipinvite.Pending, error) {
+	a.token = token
+	return membershipinvite.Pending{Handle: "pending1", CapabilityID: "cap1", TenantID: "o1"}, nil
+}
+
+func (a *recordingMembershipInviteAcceptor) AcceptPending(_ context.Context, handle, actor string, _ time.Time) (membershipinvite.Result, error) {
+	a.token, a.actor = handle, actor
+	return membershipinvite.Result{CapabilityID: "cap1", UserID: actor, TenantID: "o1", Role: "member"}, nil
+}
+
 func (a *recordingMembershipInviteAcceptor) Accept(_ context.Context, token, actor string, _ time.Time) (membershipinvite.Result, error) {
 	a.token, a.actor = token, actor
 	return membershipinvite.Result{CapabilityID: "cap1", UserID: actor, TenantID: "o1", Role: "member"}, nil

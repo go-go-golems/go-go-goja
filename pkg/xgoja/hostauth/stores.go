@@ -113,7 +113,7 @@ func (b *storeBuilder) build(ctx context.Context, cfg ResolvedStoresConfig) (*St
 	if err != nil {
 		return nil, err
 	}
-	membershipInvite, err := b.buildMembershipInviteAcceptor(cfg.AppAuth, cfg.Capability)
+	membershipInvite, err := b.buildMembershipInviteAcceptor(ctx, cfg.AppAuth, cfg.Capability)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +128,7 @@ func (b *storeBuilder) build(ctx context.Context, cfg ResolvedStoresConfig) (*St
 	return &StoreBundle{Session: sessionStore, Audit: auditStore, AppAuth: appAuthStores, Capability: capabilityStore, MembershipInvite: membershipInvite, ProgramAuth: programAuthStores, OIDCTransaction: oidcTransactionStore, Closers: append([]func(context.Context) error(nil), b.closers...), Health: append([]DependencyHealth(nil), b.health...)}, nil
 }
 
-func (b *storeBuilder) buildMembershipInviteAcceptor(appAuth, capabilities ResolvedStoreConfig) (membershipinvite.Acceptor, error) {
+func (b *storeBuilder) buildMembershipInviteAcceptor(ctx context.Context, appAuth, capabilities ResolvedStoreConfig) (membershipinvite.Acceptor, error) {
 	if appAuth.Driver == StoreDriverMemory && capabilities.Driver == StoreDriverMemory {
 		return nil, nil
 	}
@@ -143,7 +143,16 @@ func (b *storeBuilder) buildMembershipInviteAcceptor(appAuth, capabilities Resol
 	if appAuth.Driver == StoreDriverSQLite {
 		dialect = membershipinvitesql.DialectSQLite
 	}
-	return membershipinvitesql.New(membershipinvitesql.Config{DB: db, Dialect: dialect})
+	store, err := membershipinvitesql.New(membershipinvitesql.Config{DB: db, Dialect: dialect})
+	if err != nil {
+		return nil, err
+	}
+	if appAuth.ApplySchema && capabilities.ApplySchema {
+		if err := store.ApplySchema(ctx); err != nil {
+			return nil, err
+		}
+	}
+	return store, nil
 }
 
 func (b *storeBuilder) buildSessionStore(ctx context.Context, cfg ResolvedStoreConfig) (sessionauth.Store, error) {

@@ -84,6 +84,31 @@ function demo() {
       res.json({ token: issued.token, expiresAt: issued.capability.expiresAt, capabilityId: issued.capability.id });
     });
 
+  app.post("/org-invites/begin")
+    .public()
+    .audit("org.invite.continuation.created")
+    .handle((ctx, res) => {
+      const body = ctx.body || {};
+      try {
+        const pending = auth.membershipInvites.begin(body.token || "").run();
+        const returnTo = `/?pending=${encodeURIComponent(pending.handle)}`;
+        res.json({
+          orgId: pending.orgId,
+          role: pending.role,
+          expiresAt: pending.expiresAt,
+          registrationUrl: `/auth/register?return_to=${encodeURIComponent(returnTo)}`,
+          loginUrl: `/auth/login?return_to=${encodeURIComponent(returnTo)}`
+        });
+      } catch (err) {
+        res.status(400).json({ error: "invitation unavailable" });
+      }
+    });
+
+  app.get("/org-invites/continue")
+    .auth(express.user().required())
+    .audit("org.invite.continuation.resumed")
+    .handle((ctx, res) => res.json({ pending: ctx.request.query.pending || "", next: "POST /org-invites/accept" }));
+
   app.post("/org-invites/accept")
     .auth(express.user().required())
     .csrf()
@@ -91,7 +116,7 @@ function demo() {
     .handle((ctx, res) => {
       const body = ctx.body || {};
       try {
-        const accepted = auth.membershipInvites.accept(body.token || "")
+        const accepted = auth.membershipInvites.acceptPending(body.pending || "")
           .actor(ctx.actor.id)
           .run();
         res.json({

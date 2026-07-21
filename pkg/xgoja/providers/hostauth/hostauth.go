@@ -107,8 +107,14 @@ func newLoader(queryStore audit.QueryStore, maxLimit int, capabilityService capa
 		modules.SetExport(exports, "auth", "capabilities", capabilitiesObj)
 
 		membershipInvitesObj := vm.NewObject()
+		modules.SetExport(membershipInvitesObj, "auth.membershipInvites", "begin", func(token string) *goja.Object {
+			return newMembershipInviteBeginBuilder(vm, membershipInvites, token)
+		})
 		modules.SetExport(membershipInvitesObj, "auth.membershipInvites", "accept", func(token string) *goja.Object {
 			return newMembershipInviteAcceptBuilder(vm, membershipInvites, token)
+		})
+		modules.SetExport(membershipInvitesObj, "auth.membershipInvites", "acceptPending", func(handle string) *goja.Object {
+			return newMembershipInviteAcceptPendingBuilder(vm, membershipInvites, handle)
 		})
 		modules.SetExport(exports, "auth", "membershipInvites", membershipInvitesObj)
 
@@ -117,6 +123,32 @@ func newLoader(queryStore audit.QueryStore, maxLimit int, capabilityService capa
 		modules.SetExport(exports, "auth", "agents", programmatic.agents)
 		modules.SetExport(exports, "auth", "tokens", programmatic.tokens)
 	}
+}
+
+func newMembershipInviteBeginBuilder(vm *goja.Runtime, service membershipinvite.Service, token string) *goja.Object {
+	obj := vm.NewObject()
+	modules.SetExport(obj, "auth.membershipInvites.begin", "run", func() goja.Value {
+		pending, err := service.Begin(runtimebridge.CurrentOwnerContext(vm), token)
+		if err != nil {
+			panic(vm.NewGoError(err))
+		}
+		return vm.ToValue(map[string]any{"handle": pending.Handle, "capabilityId": pending.CapabilityID, "orgId": pending.TenantID, "email": pending.Email, "role": pending.Role, "expiresAt": pending.ExpiresAt})
+	})
+	return obj
+}
+
+func newMembershipInviteAcceptPendingBuilder(vm *goja.Runtime, service membershipinvite.Service, handle string) *goja.Object {
+	actorID := ""
+	obj := vm.NewObject()
+	modules.SetExport(obj, "auth.membershipInvites.acceptPending", "actor", func(id string) *goja.Object { actorID = strings.TrimSpace(id); return obj })
+	modules.SetExport(obj, "auth.membershipInvites.acceptPending", "run", func() goja.Value {
+		result, err := service.AcceptPending(runtimebridge.CurrentOwnerContext(vm), handle, actorID)
+		if err != nil {
+			panic(vm.NewGoError(err))
+		}
+		return vm.ToValue(map[string]any{"capabilityId": result.CapabilityID, "userId": result.UserID, "orgId": result.TenantID, "role": result.Role})
+	})
+	return obj
 }
 
 func newMembershipInviteAcceptBuilder(vm *goja.Runtime, service membershipinvite.Service, token string) *goja.Object {

@@ -40,6 +40,8 @@ func TestLoginCallbackCreatesSession(t *testing.T) {
 		switch r.URL.Path {
 		case "/auth/login":
 			handlers.LoginHandler().ServeHTTP(w, r)
+		case "/auth/register":
+			handlers.RegistrationHandler().ServeHTTP(w, r)
 		case "/auth/callback":
 			handlers.CallbackHandler().ServeHTTP(w, r)
 		case "/after":
@@ -85,6 +87,17 @@ func TestLoginCallbackCreatesSession(t *testing.T) {
 	}
 	if actor.ID != "u1" || actor.Claims["sub"] != "keycloak-sub-1" {
 		t.Fatalf("unexpected actor: %#v", actor)
+	}
+	registerResponse, err := clientWithJar(t).Get(app.URL + "/auth/register?return_to=/after")
+	if err != nil {
+		t.Fatalf("registration flow: %v", err)
+	}
+	_ = registerResponse.Body.Close()
+	provider.mu.Lock()
+	registrationRequested := provider.registrationRequested
+	provider.mu.Unlock()
+	if !registrationRequested {
+		t.Fatal("registration flow did not send tinyidp_signup=1")
 	}
 }
 
@@ -526,14 +539,15 @@ func passthroughNormalizer() UserNormalizer {
 }
 
 type fakeProvider struct {
-	server     *httptest.Server
-	issuer     string
-	key        *rsa.PrivateKey
-	mu         sync.Mutex
-	codes      map[string]string
-	wrongNonce bool
-	audience   string
-	expOffset  time.Duration
+	server                *httptest.Server
+	issuer                string
+	key                   *rsa.PrivateKey
+	mu                    sync.Mutex
+	codes                 map[string]string
+	wrongNonce            bool
+	audience              string
+	expOffset             time.Duration
+	registrationRequested bool
 }
 
 func newFakeProvider(t *testing.T) *fakeProvider {
@@ -590,6 +604,9 @@ func (p *fakeProvider) auth(w http.ResponseWriter, r *http.Request) {
 	code := "code-" + state
 	p.mu.Lock()
 	p.codes[code] = nonce
+	if r.URL.Query().Get("tinyidp_signup") == "1" {
+		p.registrationRequested = true
+	}
 	p.mu.Unlock()
 	callback, _ := url.Parse(redirectURI)
 	q := callback.Query()
