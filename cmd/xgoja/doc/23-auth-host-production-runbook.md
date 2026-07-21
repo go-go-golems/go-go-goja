@@ -27,7 +27,7 @@ The current live demo image was originally built from example 19, a hand-compose
 
 ```text
 URL:                 https://goja-auth.yolo.scapegoat.dev
-Image:               ghcr.io/go-go-golems/go-goja-auth-host:sha-ba77afc
+Image:               ghcr.io/go-go-golems/go-go-goja-auth-host:sha-ba77afc
 Argo application:    goja-auth-host-demo
 Namespace:           goja-auth-host-demo
 Keycloak issuer:     https://auth.yolo.scapegoat.dev/realms/goja-auth-host-demo
@@ -97,8 +97,8 @@ Build and push the image:
 
 ```bash
 docker build -f Dockerfile.auth-host \
-  -t ghcr.io/go-go-golems/go-goja-auth-host:sha-<short-sha> .
-docker push ghcr.io/go-go-golems/go-goja-auth-host:sha-<short-sha>
+  -t ghcr.io/go-go-golems/go-go-goja-auth-host:sha-<short-sha> .
+docker push ghcr.io/go-go-golems/go-go-goja-auth-host:sha-<short-sha>
 ```
 
 ## GitOps checklist
