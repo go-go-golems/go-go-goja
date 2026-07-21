@@ -48,6 +48,7 @@ func TestAcceptRejectsIdentityAndRoleViolationsWithoutMutation(t *testing.T) {
 	}{
 		{name: "unverified", email: "u@example.com", inviteEmail: "u@example.com", role: "member", want: membershipinvite.ErrEmailUnverified},
 		{name: "different email", email: "other@example.com", inviteEmail: "u@example.com", role: "member", verified: true, want: membershipinvite.ErrEmailMismatch},
+		{name: "missing identity binding", email: "u@example.com", inviteEmail: "", role: "member", verified: true, want: membershipinvite.ErrIdentityBinding},
 		{name: "unrecognized role", email: "u@example.com", inviteEmail: "u@example.com", role: "owner", verified: true, want: membershipinvite.ErrRoleNotAllowed},
 	}
 	for _, tc := range cases {
@@ -71,6 +72,46 @@ func TestAcceptRejectsIdentityAndRoleViolationsWithoutMutation(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAcceptSupportsApplicationSubjectBinding(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 7, 21, 12, 0, 0, 0, time.UTC)
+	db, apps, capabilities, acceptor := fixture(t)
+	seed(t, apps, appauth.User{ID: "u1", Email: "unverified@example.com"})
+	capabilities.Now = func() time.Time { return now }
+	issued, err := capabilities.Issue(ctx, capability.IssueSpec{
+		Purpose: capability.PurposeOrgInviteAccept, SubjectID: "u1",
+		ResourceType: "org", ResourceID: "o1", Claims: map[string]string{"role": "member"},
+		TTL: time.Hour, SingleUse: true, CreatedBy: "admin",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := acceptor.Accept(ctx, issued.Token, "u1", now); err != nil {
+		t.Fatalf("Accept subject-bound invitation: %v", err)
+	}
+	assertMembershipCount(t, db, 1)
+}
+
+func TestAcceptRejectsDifferentApplicationSubject(t *testing.T) {
+	ctx := context.Background()
+	now := time.Date(2026, 7, 21, 12, 0, 0, 0, time.UTC)
+	db, apps, capabilities, acceptor := fixture(t)
+	seed(t, apps, appauth.User{ID: "u2", Email: "unverified@example.com"})
+	capabilities.Now = func() time.Time { return now }
+	issued, err := capabilities.Issue(ctx, capability.IssueSpec{
+		Purpose: capability.PurposeOrgInviteAccept, SubjectID: "u1",
+		ResourceType: "org", ResourceID: "o1", Claims: map[string]string{"role": "member"},
+		TTL: time.Hour, SingleUse: true, CreatedBy: "admin",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := acceptor.Accept(ctx, issued.Token, "u2", now); !errors.Is(err, membershipinvite.ErrSubjectMismatch) {
+		t.Fatalf("error = %v, want ErrSubjectMismatch", err)
+	}
+	assertMembershipCount(t, db, 0)
 }
 
 func TestAcceptRollsBackMembershipWhenCapabilityUseFails(t *testing.T) {

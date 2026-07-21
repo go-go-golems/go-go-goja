@@ -102,11 +102,11 @@ func New(cfg Config) (*Store, error) {
 }
 
 type capabilityRow struct {
-	id, purpose, resourceType, resourceID string
-	claims                                map[string]string
-	expiresAt                             time.Time
-	singleUse                             bool
-	usedAt, revokedAt                     sql.NullTime
+	id, purpose, subjectID, resourceType, resourceID string
+	claims                                           map[string]string
+	expiresAt                                        time.Time
+	singleUse                                        bool
+	usedAt, revokedAt                                sql.NullTime
 }
 
 func (s *Store) Accept(ctx context.Context, token, actorUserID string, now time.Time) (membershipinvite.Result, error) {
@@ -171,13 +171,24 @@ func (s *Store) acceptRecord(ctx context.Context, tx *sql.Tx, record capabilityR
 		return membershipinvite.Result{}, membershipinvite.ErrUnauthenticated
 	}
 	expectedEmail := strings.TrimSpace(record.claims["email"])
+	hasIdentityBinding := false
+	if record.subjectID != "" {
+		hasIdentityBinding = true
+		if record.subjectID != actorUserID {
+			return membershipinvite.Result{}, membershipinvite.ErrSubjectMismatch
+		}
+	}
 	if expectedEmail != "" {
+		hasIdentityBinding = true
 		if !verified {
 			return membershipinvite.Result{}, membershipinvite.ErrEmailUnverified
 		}
 		if !strings.EqualFold(strings.TrimSpace(email), expectedEmail) {
 			return membershipinvite.Result{}, membershipinvite.ErrEmailMismatch
 		}
+	}
+	if !hasIdentityBinding {
+		return membershipinvite.Result{}, membershipinvite.ErrIdentityBinding
 	}
 	role := strings.TrimSpace(record.claims["role"])
 	if _, ok := s.allowedRoles[role]; !ok {
@@ -220,7 +231,7 @@ func (s *Store) acceptRecord(ctx context.Context, tx *sql.Tx, record capabilityR
 func (s *Store) loadCapabilityByID(ctx context.Context, tx *sql.Tx, id string) (capabilityRow, error) {
 	var record capabilityRow
 	var claimsJSON string
-	err := tx.QueryRowContext(ctx, s.capabilityByIDQuery(), id).Scan(&record.id, &record.purpose, &record.resourceType, &record.resourceID, &claimsJSON, &record.expiresAt, &record.singleUse, &record.usedAt, &record.revokedAt)
+	err := tx.QueryRowContext(ctx, s.capabilityByIDQuery(), id).Scan(&record.id, &record.purpose, &record.subjectID, &record.resourceType, &record.resourceID, &claimsJSON, &record.expiresAt, &record.singleUse, &record.usedAt, &record.revokedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return record, capability.ErrNotFound
 	}
@@ -236,7 +247,7 @@ func (s *Store) loadCapabilityByID(ctx context.Context, tx *sql.Tx, id string) (
 func (s *Store) loadCapability(ctx context.Context, tx *sql.Tx, hash []byte) (capabilityRow, error) {
 	var record capabilityRow
 	var claimsJSON string
-	err := tx.QueryRowContext(ctx, s.capabilityQuery(), hash).Scan(&record.id, &record.purpose, &record.resourceType, &record.resourceID, &claimsJSON, &record.expiresAt, &record.singleUse, &record.usedAt, &record.revokedAt)
+	err := tx.QueryRowContext(ctx, s.capabilityQuery(), hash).Scan(&record.id, &record.purpose, &record.subjectID, &record.resourceType, &record.resourceID, &claimsJSON, &record.expiresAt, &record.singleUse, &record.usedAt, &record.revokedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return record, capability.ErrNotFound
 	}
@@ -266,14 +277,14 @@ func validateCapability(record capabilityRow, now time.Time) error {
 }
 
 func (s *Store) capabilityQuery() string {
-	q := `SELECT id, purpose, resource_type, resource_id, claims_json, expires_at, single_use, used_at, revoked_at FROM auth_capabilities WHERE token_hash = `
+	q := `SELECT id, purpose, subject_id, resource_type, resource_id, claims_json, expires_at, single_use, used_at, revoked_at FROM auth_capabilities WHERE token_hash = `
 	if s.dialect == DialectPostgres {
 		return q + `$1 FOR UPDATE`
 	}
 	return q + `?`
 }
 func (s *Store) capabilityByIDQuery() string {
-	q := `SELECT id, purpose, resource_type, resource_id, claims_json, expires_at, single_use, used_at, revoked_at FROM auth_capabilities WHERE id = `
+	q := `SELECT id, purpose, subject_id, resource_type, resource_id, claims_json, expires_at, single_use, used_at, revoked_at FROM auth_capabilities WHERE id = `
 	if s.dialect == DialectPostgres {
 		return q + `$1 FOR UPDATE`
 	}

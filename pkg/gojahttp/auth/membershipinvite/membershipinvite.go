@@ -14,8 +14,10 @@ import (
 
 var (
 	ErrUnauthenticated = errors.New("membership invite requires an authenticated actor")
+	ErrIdentityBinding = errors.New("membership invite requires an email or subject binding")
 	ErrEmailUnverified = errors.New("membership invite requires a verified email")
 	ErrEmailMismatch   = errors.New("membership invite email does not match the actor")
+	ErrSubjectMismatch = errors.New("membership invite subject does not match the actor")
 	ErrRoleNotAllowed  = errors.New("membership invite role is not allowed")
 )
 
@@ -116,7 +118,7 @@ func (s Service) record(ctx context.Context, result Result, actorID string, err 
 	_ = s.Audit.RecordAudit(ctx, gojahttp.AuditEvent{
 		Event: "org.invite.accepted", Outcome: outcome, Reason: reason,
 		Actor:      &gojahttp.Actor{ID: actorID},
-		Resource:   &gojahttp.ResourceRef{Type: "org", ID: result.TenantID},
+		Resource:   &gojahttp.ResourceRef{Type: "org", ID: result.TenantID, TenantID: result.TenantID},
 		Attributes: map[string]any{"capabilityId": result.CapabilityID, "role": result.Role},
 	})
 }

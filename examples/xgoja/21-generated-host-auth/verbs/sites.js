@@ -72,10 +72,15 @@ function demo() {
     .handle((ctx, res) => {
       const org = ctx.resource("org");
       const body = ctx.body || {};
+      const email = String(body.email || "").trim();
+      if (!email) {
+        res.status(400).json({ error: "email is required" });
+        return;
+      }
       const issued = auth.capabilities.issue("org.invite.accept")
         .resource("org", org.id)
         .tenantId(org.id)
-        .claimString("email", body.email || "")
+        .claimString("email", email)
         .claimString("role", body.role || "viewer")
         .ttlSeconds(900)
         .singleUse(true)
@@ -106,11 +111,13 @@ function demo() {
 
   app.get("/org-invites/continue")
     .auth(express.user().required())
+    .allow("user.self.read")
     .audit("org.invite.continuation.resumed")
     .handle((ctx, res) => res.json({ pending: ctx.request.query.pending || "", next: "POST /org-invites/accept" }));
 
   app.post("/org-invites/accept")
     .auth(express.user().required())
+    .allow("user.self.read")
     .csrf()
     .audit("org.invite.accepted")
     .handle((ctx, res) => {
@@ -122,7 +129,7 @@ function demo() {
         res.json({
           capabilityId: accepted.capabilityId,
           orgId: accepted.orgId,
-          role: accepted.claims.role
+          role: accepted.role
         });
       } catch (err) {
         const message = String((err && err.message) || err || "capability rejected");
