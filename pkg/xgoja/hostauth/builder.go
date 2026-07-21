@@ -11,6 +11,7 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/appauth"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/audit"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/membershipinvite"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/oidcauth"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/programauth"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth"
@@ -104,6 +105,7 @@ func (b *Builder) BuildHostAuthServices(ctx context.Context, vals *values.Values
 	apiTokenService := programauth.APITokenService{Store: stores.ProgramAuth.APITokens, Agents: agentService, Now: b.options.Now}
 	oauthTokenService := programauth.OAuthTokenService{AccessTokens: stores.ProgramAuth.AccessTokens, RefreshTokens: stores.ProgramAuth.RefreshTokens, PairStore: stores.ProgramAuth.OAuthTokenPairs, Agents: agentService, Now: b.options.Now}
 	deviceService := programauth.DeviceService{Store: stores.ProgramAuth.Devices, Agents: agentService, OAuthTokens: oauthTokenService, Now: b.options.Now, VerificationURI: "/auth/device"}
+	membershipInviteService := membershipinvite.Service{Acceptor: stores.MembershipInvite, Audit: auditSink, Now: b.options.Now}
 	securityEvents := b.options.SecurityEvents
 	if securityEvents == nil {
 		securityEvents = &gojahttp.MemorySecurityMetrics{}
@@ -138,6 +140,7 @@ func (b *Builder) BuildHostAuthServices(ctx context.Context, vals *values.Values
 		SecurityEvents:       securityEvents,
 		AppAuth:              stores.AppAuth,
 		Capability:           stores.Capability,
+		MembershipInvites:    membershipInviteService,
 		AgentStore:           stores.ProgramAuth.Agents,
 		APITokenStore:        stores.ProgramAuth.APITokens,
 		AccessTokenStore:     stores.ProgramAuth.AccessTokens,

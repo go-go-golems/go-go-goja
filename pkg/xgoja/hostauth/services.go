@@ -9,6 +9,7 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/appauth"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/audit"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/capability"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/membershipinvite"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/oidcauth"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/programauth"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth"
@@ -63,8 +64,9 @@ type Services struct {
 	// in-memory counter for diagnostics and integration tests.
 	SecurityEvents gojahttp.SecurityEventObserver
 
-	AppAuth    AppAuthStores
-	Capability capability.Store
+	AppAuth           AppAuthStores
+	Capability        capability.Store
+	MembershipInvites membershipinvite.Service
 
 	AgentStore        programauth.AgentStore
 	APITokenStore     programauth.APITokenStore

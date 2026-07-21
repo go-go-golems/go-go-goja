@@ -72,7 +72,7 @@ function demo() {
     .handle((ctx, res) => {
       const org = ctx.resource("org");
       const body = ctx.body || {};
-      const issued = auth.capabilities.issue("org-invite")
+      const issued = auth.capabilities.issue("org.invite.accept")
         .resource("org", org.id)
         .tenantId(org.id)
         .claimString("email", body.email || "")
@@ -85,24 +85,23 @@ function demo() {
     });
 
   app.post("/org-invites/accept")
-    .public()
+    .auth(express.user().required())
+    .csrf()
     .audit("org.invite.accepted")
     .handle((ctx, res) => {
       const body = ctx.body || {};
       try {
-        const accepted = auth.capabilities.consume(body.token || "")
-          .expectedType("org-invite")
-          .expectedResource("org", "o1")
+        const accepted = auth.membershipInvites.accept(body.token || "")
+          .actor(ctx.actor.id)
           .run();
         res.json({
-          capabilityId: accepted.id,
-          orgId: accepted.resourceId,
-          email: accepted.claims.email,
+          capabilityId: accepted.capabilityId,
+          orgId: accepted.orgId,
           role: accepted.claims.role
         });
       } catch (err) {
         const message = String((err && err.message) || err || "capability rejected");
-        const status = message.includes("already used") ? 409 : 400;
+        const status = message.includes("already used") ? 409 : 403;
         res.status(status).json({ error: message });
       }
     });

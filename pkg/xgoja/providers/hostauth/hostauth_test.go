@@ -9,6 +9,7 @@ import (
 	"github.com/dop251/goja"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/audit"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/capability"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/membershipinvite"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/programauth"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/app"
 	hostauthsvc "github.com/go-go-golems/go-go-goja/pkg/xgoja/hostauth"
@@ -26,6 +27,52 @@ func TestRegisterHostAuthProvider(t *testing.T) {
 	}
 	if mod.DefaultAs != "auth" {
 		t.Fatalf("default alias = %q, want auth", mod.DefaultAs)
+	}
+}
+
+type recordingMembershipInviteAcceptor struct {
+	token, actor string
+}
+
+func (a *recordingMembershipInviteAcceptor) Accept(_ context.Context, token, actor string, _ time.Time) (membershipinvite.Result, error) {
+	a.token, a.actor = token, actor
+	return membershipinvite.Result{CapabilityID: "cap1", UserID: actor, TenantID: "o1", Role: "member"}, nil
+}
+
+func TestAuthMembershipInviteAcceptanceFromJavaScript(t *testing.T) {
+	registry := providerapi.NewProviderRegistry()
+	if err := Register(registry); err != nil {
+		t.Fatal(err)
+	}
+	acceptor := &recordingMembershipInviteAcceptor{}
+	hostServices := app.HostServices{}
+	if err := hostServices.SetHostService(hostauthsvc.ServicesKey, &hostauthsvc.Services{
+		AuditStore: &audit.MemoryStore{}, Capability: capability.NewMemoryStore(),
+		MembershipInvites: membershipinvite.Service{Acceptor: acceptor},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	plan := &app.RuntimePlan{Runtime: app.RuntimeSection{Modules: []app.RuntimeModulePlan{{Provider: PackageID, Name: "auth", As: "auth"}}}}
+	rt, err := app.NewRuntimeFactory(registry, plan, hostServices).NewRuntime(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = rt.Close(context.Background()) }()
+	ret, err := rt.Owner.Call(context.Background(), "membership-invite-test", func(_ context.Context, vm *goja.Runtime) (any, error) {
+		value, runErr := vm.RunString(`JSON.stringify(require("auth").membershipInvites.accept("secret-token").actor("u1").run())`)
+		if runErr != nil {
+			return nil, runErr
+		}
+		return value.String(), nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if acceptor.token != "secret-token" || acceptor.actor != "u1" {
+		t.Fatalf("acceptor received token=%q actor=%q", acceptor.token, acceptor.actor)
+	}
+	if got := ret.(string); !strings.Contains(got, `"capabilityId":"cap1"`) || !strings.Contains(got, `"orgId":"o1"`) {
+		t.Fatalf("result = %s", got)
 	}
 }
 

@@ -11,6 +11,7 @@ import (
 	"github.com/go-go-golems/go-go-goja/modules"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/audit"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/capability"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/membershipinvite"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/programauth"
 	"github.com/go-go-golems/go-go-goja/pkg/runtimebridge"
 	hostauthsvc "github.com/go-go-golems/go-go-goja/pkg/xgoja/hostauth"
@@ -76,12 +77,12 @@ func authModule() providerapi.Module {
 			}
 			capabilityService := capability.Service{Store: services.Capability, Audit: services.AuditSink}
 			maxLimit := effectiveMaxLimit(cfg.Audit)
-			return newLoader(queryStore, maxLimit, capabilityService, services.Agents, services.APITokens), nil
+			return newLoader(queryStore, maxLimit, capabilityService, services.MembershipInvites, services.Agents, services.APITokens), nil
 		},
 	}
 }
 
-func newLoader(queryStore audit.QueryStore, maxLimit int, capabilityService capability.Service, agentService programauth.AgentService, apiTokenService programauth.APITokenService) require.ModuleLoader {
+func newLoader(queryStore audit.QueryStore, maxLimit int, capabilityService capability.Service, membershipInvites membershipinvite.Service, agentService programauth.AgentService, apiTokenService programauth.APITokenService) require.ModuleLoader {
 	return func(vm *goja.Runtime, moduleObj *goja.Object) {
 		exports := moduleObj.Get("exports").(*goja.Object)
 		auditObj := vm.NewObject()
@@ -105,11 +106,34 @@ func newLoader(queryStore audit.QueryStore, maxLimit int, capabilityService capa
 		})
 		modules.SetExport(exports, "auth", "capabilities", capabilitiesObj)
 
+		membershipInvitesObj := vm.NewObject()
+		modules.SetExport(membershipInvitesObj, "auth.membershipInvites", "accept", func(token string) *goja.Object {
+			return newMembershipInviteAcceptBuilder(vm, membershipInvites, token)
+		})
+		modules.SetExport(exports, "auth", "membershipInvites", membershipInvitesObj)
+
 		programmatic := newProgrammaticExports(vm, agentService, apiTokenService)
 		modules.SetExport(exports, "auth", "grants", programmatic.grants)
 		modules.SetExport(exports, "auth", "agents", programmatic.agents)
 		modules.SetExport(exports, "auth", "tokens", programmatic.tokens)
 	}
+}
+
+func newMembershipInviteAcceptBuilder(vm *goja.Runtime, service membershipinvite.Service, token string) *goja.Object {
+	actorID := ""
+	obj := vm.NewObject()
+	modules.SetExport(obj, "auth.membershipInvites.accept", "actor", func(id string) *goja.Object {
+		actorID = strings.TrimSpace(id)
+		return obj
+	})
+	modules.SetExport(obj, "auth.membershipInvites.accept", "run", func() goja.Value {
+		result, err := service.Accept(runtimebridge.CurrentOwnerContext(vm), token, actorID)
+		if err != nil {
+			panic(vm.NewGoError(err))
+		}
+		return vm.ToValue(map[string]any{"capabilityId": result.CapabilityID, "userId": result.UserID, "orgId": result.TenantID, "role": result.Role})
+	})
+	return obj
 }
 
 func newAuditQueryBuilder(vm *goja.Runtime, queryStore audit.QueryStore, maxLimit int) *goja.Object {
