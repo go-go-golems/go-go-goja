@@ -89,6 +89,11 @@ commands:
     sources:
       - local-sites
       - dashboard-assets
+  - id: auth-operator
+    type: provider.command-set
+    name: operator
+    mount: operator
+    provider: go-go-goja-hostauth
 artifacts:
   - id: binary
     type: binary

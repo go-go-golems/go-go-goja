@@ -33,7 +33,15 @@ type AuditConfig struct {
 // not expose raw auth database handles; callers get narrow builder APIs such as
 // auth.audit.query().tenantId(...).run().
 func Register(registry *providerapi.ProviderRegistry) error {
-	return registry.Package(PackageID, authModule())
+	return registry.Package(PackageID,
+		authModule(),
+		providerapi.CommandSetProvider{
+			Name:          "operator",
+			DefaultMount:  "operator",
+			Description:   "Offline generated-host authentication operations",
+			NewCommandSet: newOperatorCommandSet,
+		},
+	)
 }
 
 func authModule() providerapi.Module {
