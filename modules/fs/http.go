@@ -83,10 +83,14 @@ func (h *spaHTTPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	} else {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	}
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	if r.Method == http.MethodHead {
 		return
 	}
-	_, _ = w.Write(data)
+	// Request data only determines whether the fallback is reached. The response
+	// bytes come from a host-configured read-only fs.FS and are not derived from
+	// or interpolated with the URL, headers, query, or body.
+	_, _ = w.Write(data) // #nosec G705 -- serving the host-owned SPA index document as HTML is the intended behavior.
 }
 
 func readOnlyBackendFromModule(vm *goja.Runtime, moduleValue goja.Value) (*ReadOnlyFSBackend, bool) {
