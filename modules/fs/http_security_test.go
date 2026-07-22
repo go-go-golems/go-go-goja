@@ -28,7 +28,7 @@ func TestSPAHTTPHandlerFallbackDoesNotReflectRequestInput(t *testing.T) {
 	}
 
 	const attackerInput = `<script>alert(1)</script>`
-	req := httptest.NewRequest(http.MethodGet, "https://example.test/missing?next=%3Cscript%3Ealert%281%29%3C%2Fscript%3E", nil)
+	req := httptest.NewRequest(http.MethodGet, "https://example.test/%3Cscript%3Ealert%281%29%3C%2Fscript%3E", nil)
 	recorder := httptest.NewRecorder()
 
 	handler.ServeHTTP(recorder, req)
