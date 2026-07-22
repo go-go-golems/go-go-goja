@@ -58,6 +58,9 @@ func TestBuildStoresSQLiteSharedDBAndApplySchema(t *testing.T) {
 	if len(stores.Closers) != 1 {
 		t.Fatalf("closers = %d, want one shared sqlite DB closer", len(stores.Closers))
 	}
+	if stores.MembershipInvite == nil {
+		t.Fatal("shared SQL stores did not build the atomic membership invite acceptor")
+	}
 	exerciseStores(t, ctx, stores)
 }
 

@@ -11,6 +11,7 @@ import (
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/appauth"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/audit"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/membershipinvite"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/oidcauth"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/programauth"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/sessionauth"
@@ -104,6 +105,7 @@ func (b *Builder) BuildHostAuthServices(ctx context.Context, vals *values.Values
 	apiTokenService := programauth.APITokenService{Store: stores.ProgramAuth.APITokens, Agents: agentService, Now: b.options.Now}
 	oauthTokenService := programauth.OAuthTokenService{AccessTokens: stores.ProgramAuth.AccessTokens, RefreshTokens: stores.ProgramAuth.RefreshTokens, PairStore: stores.ProgramAuth.OAuthTokenPairs, Agents: agentService, Now: b.options.Now}
 	deviceService := programauth.DeviceService{Store: stores.ProgramAuth.Devices, Agents: agentService, OAuthTokens: oauthTokenService, Now: b.options.Now, VerificationURI: "/auth/device"}
+	membershipInviteService := membershipinvite.Service{Acceptor: stores.MembershipInvite, Audit: auditSink, Now: b.options.Now}
 	securityEvents := b.options.SecurityEvents
 	if securityEvents == nil {
 		securityEvents = &gojahttp.MemorySecurityMetrics{}
@@ -138,6 +140,7 @@ func (b *Builder) BuildHostAuthServices(ctx context.Context, vals *values.Values
 		SecurityEvents:       securityEvents,
 		AppAuth:              stores.AppAuth,
 		Capability:           stores.Capability,
+		MembershipInvites:    membershipInviteService,
 		AgentStore:           stores.ProgramAuth.Agents,
 		APITokenStore:        stores.ProgramAuth.APITokens,
 		AccessTokenStore:     stores.ProgramAuth.AccessTokens,
@@ -195,25 +198,27 @@ func BuildNativeHandlers(ctx context.Context, cfg ResolvedConfig, sessionManager
 		return nil, configError("auth.stores.oidc-transaction", errors.New("oidc transaction store is required for auth.mode=oidc"))
 	}
 	handlers, err := oidcauth.New(ctx, oidcauth.Config{
-		IssuerURL:        cfg.OIDC.IssuerURL,
-		ClientID:         cfg.OIDC.ClientID,
-		ClientSecret:     cfg.OIDC.ClientSecret,
-		RedirectURL:      cfg.OIDC.RedirectURL,
-		Scopes:           cfg.OIDC.Scopes,
-		AfterLoginURL:    cfg.OIDC.AfterLoginURL,
-		AfterLogoutURL:   cfg.OIDC.AfterLogoutURL,
-		SessionManager:   sessionManager,
-		UserNormalizer:   DefaultOIDCUserNormalizer(stores),
-		TransactionStore: stores.OIDCTransaction,
-		Audit:            auditSink,
-		SecurityEvents:   securityEvents,
-		HTTPClient:       oidcHTTPClient,
+		IssuerURL:         cfg.OIDC.IssuerURL,
+		ClientID:          cfg.OIDC.ClientID,
+		ClientSecret:      cfg.OIDC.ClientSecret,
+		RedirectURL:       cfg.OIDC.RedirectURL,
+		Scopes:            cfg.OIDC.Scopes,
+		AfterLoginURL:     cfg.OIDC.AfterLoginURL,
+		AfterLogoutURL:    cfg.OIDC.AfterLogoutURL,
+		CallbackErrorPage: oidcauth.CallbackErrorPage{StylesheetPath: cfg.OIDC.CallbackErrorStylesheetPath},
+		SessionManager:    sessionManager,
+		UserNormalizer:    DefaultOIDCUserNormalizer(stores),
+		TransactionStore:  stores.OIDCTransaction,
+		Audit:             auditSink,
+		SecurityEvents:    securityEvents,
+		HTTPClient:        oidcHTTPClient,
 	})
 	if err != nil {
 		return nil, err
 	}
 	nativeHandlers = append(nativeHandlers,
 		NativeHandler{Method: "GET", Path: "/auth/login", Handler: handlers.LoginHandler()},
+		NativeHandler{Method: "GET", Path: "/auth/register", Handler: handlers.RegistrationHandler()},
 		NativeHandler{Method: "GET", Path: "/auth/callback", Handler: handlers.CallbackHandler()},
 		NativeHandler{Method: "POST", Path: "/auth/logout", Handler: handlers.LogoutHandler()},
 		NativeHandler{Method: "GET", Path: "/auth/session", Handler: sessionInfoHandler(sessionManager)},

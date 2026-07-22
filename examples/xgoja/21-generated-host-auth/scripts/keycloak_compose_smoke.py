@@ -116,7 +116,7 @@ def main() -> int:
     if audit.get("count", 0) < 1:
         raise RuntimeError(f"audit read returned no records: {audit!r}")
 
-    invite_body = json.dumps({"email": "invitee@example.test", "role": "viewer"}).encode("utf-8")
+    invite_body = json.dumps({"email": args.username, "role": "viewer"}).encode("utf-8")
     status, body, _ = helper.request(
         opener,
         urllib.parse.urljoin(base_url, "/orgs/o1/invites"),
@@ -130,17 +130,33 @@ def main() -> int:
     if not token:
         raise RuntimeError(f"invite issue did not include token: {invite!r}")
 
-    accept_body = json.dumps({"token": token}).encode("utf-8")
+    begin_body = json.dumps({"token": token}).encode("utf-8")
+    status, body, _ = helper.request(
+        opener,
+        urllib.parse.urljoin(base_url, "/org-invites/begin"),
+        method="POST",
+        data=begin_body,
+        headers={"Content-Type": "application/json"},
+    )
+    helper.require_status("invite begin", status, 200, body)
+    begun = helper.parse_json("invite begin", body)
+    registration_url = begun.get("registrationUrl", "")
+    return_to = urllib.parse.parse_qs(urllib.parse.urlsplit(registration_url).query).get("return_to", [""])[0]
+    pending = urllib.parse.parse_qs(urllib.parse.urlsplit(return_to).query).get("pending", [""])[0]
+    if not pending:
+        raise RuntimeError(f"invite begin did not return an opaque continuation: {begun!r}")
+
+    accept_body = json.dumps({"pending": pending}).encode("utf-8")
     status, body, _ = helper.request(
         opener,
         urllib.parse.urljoin(base_url, "/org-invites/accept"),
         method="POST",
         data=accept_body,
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": "application/json", "X-CSRF-Token": csrf},
     )
     helper.require_status("invite accept", status, 200, body)
     accepted = helper.parse_json("invite accept", body)
-    if accepted.get("orgId") != "o1" or accepted.get("email") != "invitee@example.test":
+    if accepted.get("orgId") != "o1" or accepted.get("role") != "viewer":
         raise RuntimeError(f"invite accept returned unexpected payload: {accepted!r}")
 
     status, body, _ = helper.request(
@@ -148,14 +164,14 @@ def main() -> int:
         urllib.parse.urljoin(base_url, "/org-invites/accept"),
         method="POST",
         data=accept_body,
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": "application/json", "X-CSRF-Token": csrf},
     )
     helper.require_status("invite accept reused", status, 409, body)
     reused = helper.parse_json("invite accept reused", body)
     if "already used" not in str(reused.get("error", "")):
         raise RuntimeError(f"invite reuse returned unexpected payload: {reused!r}")
 
-    cap_count = psql(compose_file, "SELECT count(*) FROM auth_capabilities WHERE purpose = 'org-invite' AND used_at IS NOT NULL")
+    cap_count = psql(compose_file, "SELECT count(*) FROM auth_capabilities WHERE purpose = 'org.invite.accept' AND used_at IS NOT NULL")
     if not cap_count or int(cap_count) < 1:
         raise RuntimeError(f"expected used org-invite capability row, got {cap_count!r}")
     print(f"ok persisted used org-invite capability rows {cap_count}")

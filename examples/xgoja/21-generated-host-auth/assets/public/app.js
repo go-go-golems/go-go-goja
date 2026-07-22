@@ -1,5 +1,6 @@
 let csrfToken = "";
 let lastInviteToken = "";
+let pendingInviteHandle = new URLSearchParams(window.location.search).get("pending") || "";
 
 async function fetchText(url, options) {
   const res = await fetch(url, options);
@@ -22,6 +23,7 @@ async function loadSession() {
     document.getElementById("session-status").innerHTML = '<span class="bad">Not logged in</span>';
   }
   show("session-output", out);
+	if (out.ok && pendingInviteHandle) await acceptInvite();
 }
 
 async function loadMe() { show("session-output", await fetchText("/me")); }
@@ -54,11 +56,23 @@ async function issueInvite() {
 }
 
 async function acceptInvite() {
+	if (!pendingInviteHandle && lastInviteToken) {
+		const begun = await fetchText("/org-invites/begin", {
+			method:"POST", headers:{ "Content-Type":"application/json" },
+			body: JSON.stringify({ token:lastInviteToken })
+		});
+		if (!begun.ok) { show("invite-output", begun); return; }
+		window.location.assign(begun.body.registrationUrl);
+		return;
+	}
+	if (!csrfToken) await loadSession();
   show("invite-output", await fetchText("/org-invites/accept", {
     method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body: JSON.stringify({ token:lastInviteToken })
+    headers:{ "Content-Type":"application/json", "X-CSRF-Token": csrfToken },
+    body: JSON.stringify({ pending:pendingInviteHandle })
   }));
+	pendingInviteHandle = "";
+	window.history.replaceState({}, "", "/");
 }
 
 async function loadAudit() { show("audit-output", await fetchText("/orgs/o1/audit")); }

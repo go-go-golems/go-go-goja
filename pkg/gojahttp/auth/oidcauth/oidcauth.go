@@ -8,7 +8,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -28,6 +30,10 @@ type Config struct {
 	Scopes         []string
 	AfterLoginURL  string
 	AfterLogoutURL string
+	// CallbackErrorPage controls a bounded application-owned recovery page for
+	// browser callback failures. OAuth query values never influence its copy,
+	// links, or stylesheet URL.
+	CallbackErrorPage CallbackErrorPage
 
 	SessionManager   *sessionauth.Manager
 	UserNormalizer   UserNormalizer
@@ -37,6 +43,14 @@ type Config struct {
 	// HTTPClient is used for OIDC discovery, token exchange, and remote key
 	// retrieval. When nil, the standard context HTTP client is used.
 	HTTPClient *http.Client
+}
+
+// CallbackErrorPage configures same-origin presentation for failed browser
+// callbacks. Empty StylesheetPath intentionally leaves the safe page unstyled.
+type CallbackErrorPage struct {
+	StylesheetPath string
+	RetryPath      string
+	HomePath       string
 }
 
 // OIDCClaims is the normalized identity material extracted from the verified ID
@@ -103,16 +117,17 @@ type TransactionCleanup interface {
 
 // Handlers owns OIDC login/callback/logout HTTP handlers.
 type Handlers struct {
-	oauth2Config   oauth2.Config
-	verifier       *oidc.IDTokenVerifier
-	sessionManager *sessionauth.Manager
-	normalizer     UserNormalizer
-	transactions   TransactionStore
-	afterLoginURL  string
-	afterLogoutURL string
-	audit          gojahttp.AuditSink
-	securityEvents gojahttp.SecurityEventObserver
-	httpClient     *http.Client
+	oauth2Config      oauth2.Config
+	verifier          *oidc.IDTokenVerifier
+	sessionManager    *sessionauth.Manager
+	normalizer        UserNormalizer
+	transactions      TransactionStore
+	afterLoginURL     string
+	afterLogoutURL    string
+	audit             gojahttp.AuditSink
+	securityEvents    gojahttp.SecurityEventObserver
+	httpClient        *http.Client
+	callbackErrorPage CallbackErrorPage
 }
 
 // New discovers the OIDC provider and returns login/callback/logout handlers.
@@ -135,6 +150,10 @@ func New(ctx context.Context, cfg Config) (*Handlers, error) {
 	if cfg.TransactionStore == nil {
 		cfg.TransactionStore = NewMemoryTransactionStore(10 * time.Minute)
 	}
+	callbackErrorPage, err := normalizeCallbackErrorPage(cfg.CallbackErrorPage)
+	if err != nil {
+		return nil, err
+	}
 	discoveryCtx := withHTTPClient(ctx, cfg.HTTPClient)
 	provider, err := oidc.NewProvider(discoveryCtx, cfg.IssuerURL)
 	if err != nil {
@@ -156,24 +175,38 @@ func New(ctx context.Context, cfg Config) (*Handlers, error) {
 		Scopes:       scopes,
 	}
 	return &Handlers{
-		oauth2Config:   oauth2Config,
-		verifier:       provider.Verifier(&oidc.Config{ClientID: cfg.ClientID}),
-		sessionManager: cfg.SessionManager,
-		normalizer:     cfg.UserNormalizer,
-		transactions:   cfg.TransactionStore,
-		afterLoginURL:  defaultIfEmpty(cfg.AfterLoginURL, "/"),
-		afterLogoutURL: defaultIfEmpty(cfg.AfterLogoutURL, "/"),
-		audit:          cfg.Audit,
-		securityEvents: cfg.SecurityEvents,
-		httpClient:     cfg.HTTPClient,
+		oauth2Config:      oauth2Config,
+		verifier:          provider.Verifier(&oidc.Config{ClientID: cfg.ClientID}),
+		sessionManager:    cfg.SessionManager,
+		normalizer:        cfg.UserNormalizer,
+		transactions:      cfg.TransactionStore,
+		afterLoginURL:     defaultIfEmpty(cfg.AfterLoginURL, "/"),
+		afterLogoutURL:    defaultIfEmpty(cfg.AfterLogoutURL, "/"),
+		audit:             cfg.Audit,
+		securityEvents:    cfg.SecurityEvents,
+		httpClient:        cfg.HTTPClient,
+		callbackErrorPage: callbackErrorPage,
 	}, nil
 }
 
-func (h *Handlers) LoginHandler() http.Handler    { return http.HandlerFunc(h.handleLogin) }
-func (h *Handlers) CallbackHandler() http.Handler { return http.HandlerFunc(h.handleCallback) }
-func (h *Handlers) LogoutHandler() http.Handler   { return http.HandlerFunc(h.handleLogout) }
+func (h *Handlers) LoginHandler() http.Handler { return http.HandlerFunc(h.handleLogin) }
+
+// RegistrationHandler starts the same secure OIDC code flow while explicitly
+// asking TinyIDP to present account creation. Other providers safely ignore the
+// namespaced authorization parameter.
+func (h *Handlers) RegistrationHandler() http.Handler { return http.HandlerFunc(h.handleRegistration) }
+func (h *Handlers) CallbackHandler() http.Handler     { return http.HandlerFunc(h.handleCallback) }
+func (h *Handlers) LogoutHandler() http.Handler       { return http.HandlerFunc(h.handleLogout) }
 
 func (h *Handlers) handleLogin(w http.ResponseWriter, r *http.Request) {
+	h.beginAuthorization(w, r, false)
+}
+
+func (h *Handlers) handleRegistration(w http.ResponseWriter, r *http.Request) {
+	h.beginAuthorization(w, r, true)
+}
+
+func (h *Handlers) beginAuthorization(w http.ResponseWriter, r *http.Request, registration bool) {
 	if r.Method != http.MethodGet {
 		h.observe(r.Context(), "oidc.login", "rejected", "method")
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -206,7 +239,11 @@ func (h *Handlers) handleLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "store login transaction", http.StatusInternalServerError)
 		return
 	}
-	url := h.oauth2Config.AuthCodeURL(state, oauth2.S256ChallengeOption(verifier), oauth2.SetAuthURLParam("nonce", nonce))
+	options := []oauth2.AuthCodeOption{oauth2.S256ChallengeOption(verifier), oauth2.SetAuthURLParam("nonce", nonce)}
+	if registration {
+		options = append(options, oauth2.SetAuthURLParam("tinyidp_signup", "1"))
+	}
+	url := h.oauth2Config.AuthCodeURL(state, options...)
 	h.observe(r.Context(), "oidc.login", "issued", "")
 	http.Redirect(w, r, url, http.StatusFound)
 }
@@ -214,66 +251,66 @@ func (h *Handlers) handleLogin(w http.ResponseWriter, r *http.Request) {
 func (h *Handlers) handleCallback(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		h.observe(r.Context(), "oidc.callback", "rejected", "method")
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		h.renderCallbackError(w, http.StatusMethodNotAllowed, callbackErrorRetry)
 		return
 	}
-	if errText := r.URL.Query().Get("error"); errText != "" {
+	if providerError := r.URL.Query().Get("error"); providerError != "" {
 		h.observe(r.Context(), "oidc.callback", "rejected", "provider_error")
-		http.Error(w, "oidc error: "+errText, http.StatusUnauthorized)
+		h.renderCallbackError(w, http.StatusUnauthorized, callbackErrorFromProvider(providerError))
 		return
 	}
 	state := r.URL.Query().Get("state")
 	code := r.URL.Query().Get("code")
 	if state == "" || code == "" {
 		h.observe(r.Context(), "oidc.callback", "rejected", "missing_parameters")
-		http.Error(w, "missing oidc callback state or code", http.StatusBadRequest)
+		h.renderCallbackError(w, http.StatusBadRequest, callbackErrorRetry)
 		return
 	}
 	tx, err := h.transactions.Take(r.Context(), state)
 	if err != nil {
 		h.observe(r.Context(), "oidc.callback", "rejected", "transaction_unavailable")
-		http.Error(w, "invalid oidc state", http.StatusUnauthorized)
+		h.renderCallbackError(w, http.StatusUnauthorized, callbackErrorRestart)
 		return
 	}
 	callbackCtx := withHTTPClient(r.Context(), h.httpClient)
 	token, err := h.oauth2Config.Exchange(callbackCtx, code, oauth2.VerifierOption(tx.PKCEVerifier))
 	if err != nil {
 		h.observe(r.Context(), "oidc.callback", "rejected", "token_exchange")
-		http.Error(w, "oidc token exchange failed", http.StatusUnauthorized)
+		h.renderCallbackError(w, http.StatusUnauthorized, callbackErrorRestart)
 		return
 	}
 	rawIDToken, ok := token.Extra("id_token").(string)
 	if !ok || rawIDToken == "" {
 		h.observe(r.Context(), "oidc.callback", "rejected", "missing_id_token")
-		http.Error(w, "oidc response missing id_token", http.StatusUnauthorized)
+		h.renderCallbackError(w, http.StatusUnauthorized, callbackErrorRestart)
 		return
 	}
 	idToken, err := h.verifier.Verify(callbackCtx, rawIDToken)
 	if err != nil {
 		h.observe(r.Context(), "oidc.callback", "rejected", "id_token_verification")
-		http.Error(w, "oidc id_token verification failed", http.StatusUnauthorized)
+		h.renderCallbackError(w, http.StatusUnauthorized, callbackErrorRestart)
 		return
 	}
 	if idToken.Nonce != tx.Nonce {
 		h.observe(r.Context(), "oidc.callback", "rejected", "nonce_mismatch")
-		http.Error(w, "oidc nonce mismatch", http.StatusUnauthorized)
+		h.renderCallbackError(w, http.StatusUnauthorized, callbackErrorRestart)
 		return
 	}
 	claims, err := claimsFromIDToken(idToken)
 	if err != nil {
 		h.observe(r.Context(), "oidc.callback", "rejected", "claims")
-		http.Error(w, "oidc claims invalid", http.StatusUnauthorized)
+		h.renderCallbackError(w, http.StatusUnauthorized, callbackErrorRestart)
 		return
 	}
 	userSession, err := h.normalizer.NormalizeOIDCUser(r.Context(), claims)
 	if err != nil {
 		h.observe(r.Context(), "oidc.callback", "rejected", "user_normalization")
-		http.Error(w, "user normalization failed", http.StatusUnauthorized)
+		h.renderCallbackError(w, http.StatusUnauthorized, callbackErrorRetry)
 		return
 	}
 	if userSession.UserID == "" {
 		h.observe(r.Context(), "oidc.callback", "rejected", "empty_user")
-		http.Error(w, "user normalization returned empty user id", http.StatusUnauthorized)
+		h.renderCallbackError(w, http.StatusUnauthorized, callbackErrorRetry)
 		return
 	}
 	session, err := h.sessionManager.NewSession(r.Context(), userSession.UserID,
@@ -283,12 +320,92 @@ func (h *Handlers) handleCallback(w http.ResponseWriter, r *http.Request) {
 	)
 	if err != nil {
 		h.observe(r.Context(), "oidc.callback", "failed", "session_creation")
-		http.Error(w, "create app session", http.StatusInternalServerError)
+		h.renderCallbackError(w, http.StatusInternalServerError, callbackErrorRetry)
 		return
 	}
 	h.sessionManager.SetCookie(w, session.ID)
 	h.observe(r.Context(), "oidc.callback", "accepted", "")
 	http.Redirect(w, r, tx.RedirectURL, http.StatusFound)
+}
+
+type callbackErrorKind string
+
+const (
+	callbackErrorCanceled callbackErrorKind = "canceled"
+	callbackErrorRestart  callbackErrorKind = "restart"
+	callbackErrorRetry    callbackErrorKind = "retry"
+)
+
+func callbackErrorFromProvider(providerError string) callbackErrorKind {
+	if providerError == "access_denied" {
+		return callbackErrorCanceled
+	}
+	return callbackErrorRetry
+}
+
+func normalizeCallbackErrorPage(page CallbackErrorPage) (CallbackErrorPage, error) {
+	var err error
+	if page.StylesheetPath, err = localCallbackPath(page.StylesheetPath, true); err != nil {
+		return CallbackErrorPage{}, fmt.Errorf("oidcauth: callback error stylesheet path: %w", err)
+	}
+	if page.RetryPath, err = localCallbackPath(page.RetryPath, true); err != nil {
+		return CallbackErrorPage{}, fmt.Errorf("oidcauth: callback error retry path: %w", err)
+	}
+	if page.HomePath, err = localCallbackPath(page.HomePath, true); err != nil {
+		return CallbackErrorPage{}, fmt.Errorf("oidcauth: callback error home path: %w", err)
+	}
+	if page.RetryPath == "" {
+		page.RetryPath = "/auth/login"
+	}
+	if page.HomePath == "" {
+		page.HomePath = "/"
+	}
+	return page, nil
+}
+
+func localCallbackPath(raw string, allowEmpty bool) (string, error) {
+	value := strings.TrimSpace(raw)
+	if value == "" && allowEmpty {
+		return "", nil
+	}
+	if value == "" || !strings.HasPrefix(value, "/") || strings.HasPrefix(value, "//") || strings.Contains(value, "\\") {
+		return "", errors.New("must be an absolute same-origin path")
+	}
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.IsAbs() || parsed.Host != "" {
+		return "", errors.New("must be an absolute same-origin path")
+	}
+	return value, nil
+}
+
+func (h *Handlers) renderCallbackError(w http.ResponseWriter, status int, kind callbackErrorKind) {
+	title, summary := callbackErrorCopy(kind)
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'none'")
+	w.Header().Set("Referrer-Policy", "no-referrer")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("X-Frame-Options", "DENY")
+	w.WriteHeader(status)
+	_, _ = fmt.Fprint(w, "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><title>", html.EscapeString(title), "</title>")
+	if h.callbackErrorPage.StylesheetPath != "" {
+		_, _ = fmt.Fprint(w, "<link rel=\"stylesheet\" href=\"", html.EscapeString(h.callbackErrorPage.StylesheetPath), "\">")
+	}
+	_, _ = fmt.Fprint(w, "</head><body><main><section class=\"card auth-callback-error\"><p class=\"badge\">SIGN-IN</p><h1>", html.EscapeString(title), "</h1><p>", html.EscapeString(summary), "</p><div class=\"actions\"><a class=\"button primary\" href=\"", html.EscapeString(h.callbackErrorPage.RetryPath), "\">Try signing in again</a><a class=\"button\" href=\"", html.EscapeString(h.callbackErrorPage.HomePath), "\">Return to the application</a></div></section></main></body></html>")
+}
+
+func callbackErrorCopy(kind callbackErrorKind) (string, string) {
+	switch kind {
+	case callbackErrorCanceled:
+		return "Sign-in was canceled", "You chose not to approve access. You can try again whenever you are ready."
+	case callbackErrorRestart:
+		return "Sign-in needs to be restarted", "This sign-in link is no longer active. Return to the application and start again."
+	case callbackErrorRetry:
+		return "We couldn’t complete sign-in", "Try signing in again. If the problem continues, return to the application and begin a new sign-in."
+	default:
+		return "We couldn’t complete sign-in", "Try signing in again. If the problem continues, return to the application and begin a new sign-in."
+	}
 }
 
 func (h *Handlers) handleLogout(w http.ResponseWriter, r *http.Request) {

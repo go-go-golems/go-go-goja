@@ -72,10 +72,15 @@ function demo() {
     .handle((ctx, res) => {
       const org = ctx.resource("org");
       const body = ctx.body || {};
-      const issued = auth.capabilities.issue("org-invite")
+      const email = String(body.email || "").trim();
+      if (!email) {
+        res.status(400).json({ error: "email is required" });
+        return;
+      }
+      const issued = auth.capabilities.issue("org.invite.accept")
         .resource("org", org.id)
         .tenantId(org.id)
-        .claimString("email", body.email || "")
+        .claimString("email", email)
         .claimString("role", body.role || "viewer")
         .ttlSeconds(900)
         .singleUse(true)
@@ -84,25 +89,51 @@ function demo() {
       res.json({ token: issued.token, expiresAt: issued.capability.expiresAt, capabilityId: issued.capability.id });
     });
 
-  app.post("/org-invites/accept")
+  app.post("/org-invites/begin")
     .public()
+    .audit("org.invite.continuation.created")
+    .handle((ctx, res) => {
+      const body = ctx.body || {};
+      try {
+        const pending = auth.membershipInvites.begin(body.token || "").run();
+        const returnTo = `/?pending=${encodeURIComponent(pending.handle)}`;
+        res.json({
+          orgId: pending.orgId,
+          role: pending.role,
+          expiresAt: pending.expiresAt,
+          registrationUrl: `/auth/register?return_to=${encodeURIComponent(returnTo)}`,
+          loginUrl: `/auth/login?return_to=${encodeURIComponent(returnTo)}`
+        });
+      } catch (err) {
+        res.status(400).json({ error: "invitation unavailable" });
+      }
+    });
+
+  app.get("/org-invites/continue")
+    .auth(express.user().required())
+    .allow("user.self.read")
+    .audit("org.invite.continuation.resumed")
+    .handle((ctx, res) => res.json({ pending: ctx.request.query.pending || "", next: "POST /org-invites/accept" }));
+
+  app.post("/org-invites/accept")
+    .auth(express.user().required())
+    .allow("user.self.read")
+    .csrf()
     .audit("org.invite.accepted")
     .handle((ctx, res) => {
       const body = ctx.body || {};
       try {
-        const accepted = auth.capabilities.consume(body.token || "")
-          .expectedType("org-invite")
-          .expectedResource("org", "o1")
+        const accepted = auth.membershipInvites.acceptPending(body.pending || "")
+          .actor(ctx.actor.id)
           .run();
         res.json({
-          capabilityId: accepted.id,
-          orgId: accepted.resourceId,
-          email: accepted.claims.email,
-          role: accepted.claims.role
+          capabilityId: accepted.capabilityId,
+          orgId: accepted.orgId,
+          role: accepted.role
         });
       } catch (err) {
         const message = String((err && err.message) || err || "capability rejected");
-        const status = message.includes("already used") ? 409 : 400;
+        const status = message.includes("already used") ? 409 : 403;
         res.status(status).json({ error: message });
       }
     });

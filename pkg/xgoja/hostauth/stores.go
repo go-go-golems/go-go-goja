@@ -16,6 +16,8 @@ import (
 	auditsql "github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/audit/sqlstore"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/capability"
 	capabilitysql "github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/capability/sqlstore"
+	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/membershipinvite"
+	membershipinvitesql "github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/membershipinvite/sqlstore"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/oidcauth"
 	oidcauthsql "github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/oidcauth/sqlstore"
 	"github.com/go-go-golems/go-go-goja/pkg/gojahttp/auth/programauth"
@@ -51,12 +53,13 @@ func (h sqlHealth) Name() string                          { return h.name }
 func (h sqlHealth) CheckHealth(ctx context.Context) error { return h.db.PingContext(ctx) }
 
 type StoreBundle struct {
-	Session         sessionauth.Store
-	Audit           audit.Store
-	AppAuth         AppAuthStores
-	Capability      capability.Store
-	ProgramAuth     ProgramAuthStores
-	OIDCTransaction oidcauth.TransactionStore
+	Session          sessionauth.Store
+	Audit            audit.Store
+	AppAuth          AppAuthStores
+	Capability       capability.Store
+	MembershipInvite membershipinvite.Acceptor
+	ProgramAuth      ProgramAuthStores
+	OIDCTransaction  oidcauth.TransactionStore
 
 	Closers []func(context.Context) error
 	Health  []DependencyHealth
@@ -110,6 +113,10 @@ func (b *storeBuilder) build(ctx context.Context, cfg ResolvedStoresConfig) (*St
 	if err != nil {
 		return nil, err
 	}
+	membershipInvite, err := b.buildMembershipInviteAcceptor(ctx, cfg.AppAuth, cfg.Capability)
+	if err != nil {
+		return nil, err
+	}
 	programAuthStores, err := b.buildProgramAuthStores(ctx, cfg.ProgramAuth)
 	if err != nil {
 		return nil, err
@@ -118,7 +125,34 @@ func (b *storeBuilder) build(ctx context.Context, cfg ResolvedStoresConfig) (*St
 	if err != nil {
 		return nil, err
 	}
-	return &StoreBundle{Session: sessionStore, Audit: auditStore, AppAuth: appAuthStores, Capability: capabilityStore, ProgramAuth: programAuthStores, OIDCTransaction: oidcTransactionStore, Closers: append([]func(context.Context) error(nil), b.closers...), Health: append([]DependencyHealth(nil), b.health...)}, nil
+	return &StoreBundle{Session: sessionStore, Audit: auditStore, AppAuth: appAuthStores, Capability: capabilityStore, MembershipInvite: membershipInvite, ProgramAuth: programAuthStores, OIDCTransaction: oidcTransactionStore, Closers: append([]func(context.Context) error(nil), b.closers...), Health: append([]DependencyHealth(nil), b.health...)}, nil
+}
+
+func (b *storeBuilder) buildMembershipInviteAcceptor(ctx context.Context, appAuth, capabilities ResolvedStoreConfig) (membershipinvite.Acceptor, error) {
+	if appAuth.Driver == StoreDriverMemory && capabilities.Driver == StoreDriverMemory {
+		return nil, nil
+	}
+	if appAuth.Driver != capabilities.Driver || appAuth.DSN != capabilities.DSN {
+		return nil, fmt.Errorf("build membership invite acceptor: appauth and capability stores must share one SQL driver and DSN")
+	}
+	db, err := b.openDB(appAuth)
+	if err != nil {
+		return nil, fmt.Errorf("build membership invite acceptor: %w", err)
+	}
+	dialect := membershipinvitesql.DialectPostgres
+	if appAuth.Driver == StoreDriverSQLite {
+		dialect = membershipinvitesql.DialectSQLite
+	}
+	store, err := membershipinvitesql.New(membershipinvitesql.Config{DB: db, Dialect: dialect})
+	if err != nil {
+		return nil, err
+	}
+	if appAuth.ApplySchema && capabilities.ApplySchema {
+		if err := store.ApplySchema(ctx); err != nil {
+			return nil, err
+		}
+	}
+	return store, nil
 }
 
 func (b *storeBuilder) buildSessionStore(ctx context.Context, cfg ResolvedStoreConfig) (sessionauth.Store, error) {
