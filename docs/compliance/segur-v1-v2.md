@@ -73,7 +73,7 @@ Status values:
 | Security awareness (`SC.SSI/GEN.02 BIS` family) | `docs/security/secure-development.md`; PR security checklist | Added by this baseline | Conduct and record role-specific training; include healthcare-data, identity, incident, and operational topics. |
 | Secure-development guide (`SC.SSI/GEN.11`, `SC.SSI/GEN.20` family) | Secure-development standard; host-owned route enforcement; safe module selection; tests, lint, CodeQL, gosec | Implemented / added | Apply the standard through the complete product SDLC, generated code, client applications, integrations, and infrastructure. |
 | Technology and threat watch (`SC.SSI/GEN.03 BIS` family) | Scheduled CodeQL, `govulncheck`, `gosec`, dependency review, secret scanning; dependency-update PRs | Partial | Assign an owner, define review frequency and severity targets, monitor CERT Santé/ANSSI/vendor sources, and retain remediation decisions. |
-| Vulnerability management and proactive patching | `govulncheck`, gosec, CodeQL, dependency review; version-pinned scanner installation | Partial | Define remediation SLAs, asset/version inventory, supported-version policy, emergency patch process, exception register, and customer notification process. |
+| Vulnerability management and proactive patching | `govulncheck`, gosec, CodeQL, dependency review; version-pinned scanner installation; commit-scoped scan artifacts | Partial | Define remediation SLAs, asset/version inventory, supported-version policy, emergency patch process, exception register, and customer notification process. |
 | Penetration testing | Testable HTTP/auth surfaces and deployment runbook | External/product obligation | Commission the ANS-required test against the complete candidate solution using the current ANS form and guide. The guide requires an organization qualified PASSI, while clarifying that the engagement itself need not be a formal PASSI audit. Remediate and retest findings. |
 | Least privilege and runtime capability control | `engine.MiddlewareSafe()`, module allowlist/exclusion middleware, opt-in `process.env`, explicit documentation of privileged modules | Implemented | Enforce the selected capability policy in the product; add OS/container/network isolation and tenant-specific threat analysis. |
 | Authentication and session security | Server-side opaque sessions, secure cookie defaults, idle/absolute expiry, CSRF, OIDC state/nonce/PKCE, revocation, recent-MFA support | Implemented / partial | Integrate the required healthcare identity services, including Pro Santé Connect when applicable; define privileged-account policy and operational access reviews. |
@@ -82,20 +82,24 @@ Status values:
 | Audit trace generation | `pkg/gojahttp/auth/audit`, structured records, secret-key redaction, bounded queries, durable store interfaces | Implemented / partial | Define events, retention, integrity, access controls, export, monitoring, clock synchronization, legal basis, and deletion rules for the product. |
 | Backup and restore | `cmd/xgoja/doc/23-auth-host-production-runbook.md` includes backup, isolated restore rehearsal, migration, and rollback guidance | Partial | Implement scheduled encrypted backups, off-site protection, recovery objectives, periodic restore evidence, key recovery, and healthcare-data obligations. |
 | Secure deployment and operations | Single-node production profile, trusted-proxy configuration, durable stores, SQL readiness, external secret management guidance | Partial | Produce the candidate architecture, hardening baseline, HDS analysis where applicable, monitoring, incident response, business continuity, capacity, and supplier controls. |
-| Software supply-chain evidence | Go module manifests, lockfiles, CI scanners, release checksums/signing mechanisms in release tooling | Partial | Generate and retain an SBOM for each candidate artifact, provenance, artifact digest, signature verification, dependency exception register, and reproducible evidence bundle. |
+| Software supply-chain evidence | Go module manifests, lockfiles, CI scanners, immutable report artifacts, release checksums/signing mechanisms in release tooling | Partial | Generate and retain an SBOM for each candidate artifact, provenance, artifact digest, signature verification, dependency exception register, and reproducible evidence bundle. |
 | Vulnerability disclosure and incident intake | `SECURITY.md` | Added by this baseline | Operate a private intake channel, incident classification, CERT Santé/authority notification analysis, customer communication, exercises, and post-incident review. |
 
 ## CI changes in this baseline
 
-The associated repository change applies the following low-risk controls:
+The associated repository change applies the following controls:
 
 - explicit read-only default GitHub token permissions for test and security workflows;
 - only the CodeQL job receives `security-events: write`;
 - job timeouts to bound runner and token exposure;
-- immutable pinning of the TruffleHog action;
+- immutable pinning of the TruffleHog and scan-report upload actions;
 - released-version pinning of `govulncheck` and `gosec` rather than build-time `@latest` resolution;
+- machine-readable, commit-scoped `govulncheck` and gosec reports retained for 30 days while preserving blocking exit status;
+- tracked gosec suppression metadata for reviewable false-positive decisions;
 - public vulnerability-reporting and secure-development guidance;
 - a pull-request security review checklist.
+
+The baseline scan identified one `G705` XSS-taint warning in the SPA fallback handler. Review confirmed that request input only determines whether fallback occurs; response bytes come from a host-configured read-only `fs.FS` and are not interpolated with the request. The change records a rule-specific inline justification, adds `X-Content-Type-Options: nosniff`, and adds a regression test using an attacker-controlled URL path to verify that only the trusted index document is returned.
 
 These changes improve evidence quality and software-supply-chain hygiene. They do not replace artifact signing, SBOM generation, branch protection, protected environments, independent review, or penetration testing.
 
