@@ -43,7 +43,28 @@ jobs:
         run: go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
 
       - name: Run govulncheck
-        run: govulncheck ./...
+        id: govulncheck
+        shell: bash
+        run: |
+          set +e
+          govulncheck -json ./... > govulncheck.json
+          status=$?
+          echo "exit_code=${status}" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload govulncheck report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: govulncheck-report-${{ github.sha }}
+          path: govulncheck.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce govulncheck result
+        if: steps.govulncheck.outputs.exit_code != '0'
+        env:
+          SCAN_EXIT_CODE: ${{ steps.govulncheck.outputs.exit_code }}
+        run: exit "$SCAN_EXIT_CODE"
 
   gosec:
     name: GoSec Security Scan
@@ -62,4 +83,25 @@ jobs:
         run: go install github.com/securego/gosec/v2/cmd/gosec@v2.25.0
 
       - name: Run Gosec Security Scanner
-        run: gosec -exclude=G101,G304,G301,G306,G204,G703 -exclude-generated -exclude-dir=.history ./...
+        id: gosec
+        shell: bash
+        run: |
+          set +e
+          gosec -exclude=G101,G304,G301,G306,G204,G703 -exclude-generated -exclude-dir=.history -fmt=json -out=gosec.json ./...
+          status=$?
+          echo "exit_code=${status}" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload gosec report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: gosec-report-${{ github.sha }}
+          path: gosec.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce gosec result
+        if: steps.gosec.outputs.exit_code != '0'
+        env:
+          SCAN_EXIT_CODE: ${{ steps.gosec.outputs.exit_code }}
+        run: exit "$SCAN_EXIT_CODE"
