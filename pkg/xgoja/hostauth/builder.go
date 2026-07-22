@@ -198,19 +198,20 @@ func BuildNativeHandlers(ctx context.Context, cfg ResolvedConfig, sessionManager
 		return nil, configError("auth.stores.oidc-transaction", errors.New("oidc transaction store is required for auth.mode=oidc"))
 	}
 	handlers, err := oidcauth.New(ctx, oidcauth.Config{
-		IssuerURL:        cfg.OIDC.IssuerURL,
-		ClientID:         cfg.OIDC.ClientID,
-		ClientSecret:     cfg.OIDC.ClientSecret,
-		RedirectURL:      cfg.OIDC.RedirectURL,
-		Scopes:           cfg.OIDC.Scopes,
-		AfterLoginURL:    cfg.OIDC.AfterLoginURL,
-		AfterLogoutURL:   cfg.OIDC.AfterLogoutURL,
-		SessionManager:   sessionManager,
-		UserNormalizer:   DefaultOIDCUserNormalizer(stores),
-		TransactionStore: stores.OIDCTransaction,
-		Audit:            auditSink,
-		SecurityEvents:   securityEvents,
-		HTTPClient:       oidcHTTPClient,
+		IssuerURL:         cfg.OIDC.IssuerURL,
+		ClientID:          cfg.OIDC.ClientID,
+		ClientSecret:      cfg.OIDC.ClientSecret,
+		RedirectURL:       cfg.OIDC.RedirectURL,
+		Scopes:            cfg.OIDC.Scopes,
+		AfterLoginURL:     cfg.OIDC.AfterLoginURL,
+		AfterLogoutURL:    cfg.OIDC.AfterLogoutURL,
+		CallbackErrorPage: oidcauth.CallbackErrorPage{StylesheetPath: cfg.OIDC.CallbackErrorStylesheetPath},
+		SessionManager:    sessionManager,
+		UserNormalizer:    DefaultOIDCUserNormalizer(stores),
+		TransactionStore:  stores.OIDCTransaction,
+		Audit:             auditSink,
+		SecurityEvents:    securityEvents,
+		HTTPClient:        oidcHTTPClient,
 	})
 	if err != nil {
 		return nil, err

@@ -316,6 +316,66 @@ func TestCallbackRejectsBadStateAndNonce(t *testing.T) {
 	}
 }
 
+func TestCallbackProviderErrorRendersSafeRecoveryHTML(t *testing.T) {
+	ctx := context.Background()
+	provider := newFakeProvider(t)
+	defer provider.Close()
+	manager, err := sessionauth.New(sessionauth.Config{Store: sessionauth.NewMemoryStore(), AllowInsecureHTTP: true})
+	if err != nil {
+		t.Fatalf("session manager: %v", err)
+	}
+	handlers, err := New(ctx, Config{
+		IssuerURL:      provider.URL(),
+		ClientID:       "goja-app",
+		RedirectURL:    "http://app.test/auth/callback",
+		SessionManager: manager,
+		UserNormalizer: passthroughNormalizer(),
+		CallbackErrorPage: CallbackErrorPage{
+			StylesheetPath: "/static/styles.css",
+			RetryPath:      "/auth/login",
+			HomePath:       "/",
+		},
+	})
+	if err != nil {
+		t.Fatalf("handlers: %v", err)
+	}
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/auth/callback?error=access_denied&error_description=%3Cscript%3Ealert(1)%3C%2Fscript%3E", nil)
+	handlers.CallbackHandler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("provider error status=%d, want %d", rec.Code, http.StatusUnauthorized)
+	}
+	if got := rec.Header().Get("Content-Type"); got != "text/html; charset=utf-8" {
+		t.Fatalf("content type=%q", got)
+	}
+	if got := rec.Header().Get("Content-Security-Policy"); got != "default-src 'none'; style-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'none'" {
+		t.Fatalf("CSP=%q", got)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{"Sign-in was canceled", "/static/styles.css", "Try signing in again", "Return to the application"} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("recovery page missing %q: %s", want, body)
+		}
+	}
+	for _, forbidden := range []string{"access_denied", "error_description", "<script>", "alert(1)"} {
+		if strings.Contains(body, forbidden) {
+			t.Fatalf("recovery page reflected %q: %s", forbidden, body)
+		}
+	}
+}
+
+func TestCallbackErrorPageRejectsExternalPaths(t *testing.T) {
+	for _, page := range []CallbackErrorPage{
+		{StylesheetPath: "https://evil.example/style.css"},
+		{RetryPath: "//evil.example"},
+		{HomePath: "/\\evil.example"},
+	} {
+		if _, err := normalizeCallbackErrorPage(page); err == nil {
+			t.Fatalf("expected rejected callback error page: %#v", page)
+		}
+	}
+}
+
 func TestCallbackRejectsExpiredTokenAndWrongAudience(t *testing.T) {
 	ctx := context.Background()
 	for _, tc := range []struct {

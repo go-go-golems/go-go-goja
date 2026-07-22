@@ -96,14 +96,15 @@ type DeviceConfig struct {
 // PublicBaseURL is the preferred production input; RedirectURL is an advanced
 // explicit callback override.
 type OIDCConfig struct {
-	IssuerURL      string   `yaml:"issuer-url" json:"issuer-url"`
-	ClientID       string   `yaml:"client-id" json:"client-id"`
-	ClientSecret   string   `yaml:"client-secret" json:"client-secret"`
-	PublicBaseURL  string   `yaml:"public-base-url" json:"public-base-url"`
-	RedirectURL    string   `yaml:"redirect-url" json:"redirect-url"`
-	Scopes         []string `yaml:"scopes" json:"scopes"`
-	AfterLoginURL  string   `yaml:"after-login-url" json:"after-login-url"`
-	AfterLogoutURL string   `yaml:"after-logout-url" json:"after-logout-url"`
+	IssuerURL                   string   `yaml:"issuer-url" json:"issuer-url"`
+	ClientID                    string   `yaml:"client-id" json:"client-id"`
+	ClientSecret                string   `yaml:"client-secret" json:"client-secret"`
+	PublicBaseURL               string   `yaml:"public-base-url" json:"public-base-url"`
+	RedirectURL                 string   `yaml:"redirect-url" json:"redirect-url"`
+	Scopes                      []string `yaml:"scopes" json:"scopes"`
+	AfterLoginURL               string   `yaml:"after-login-url" json:"after-login-url"`
+	AfterLogoutURL              string   `yaml:"after-logout-url" json:"after-logout-url"`
+	CallbackErrorStylesheetPath string   `yaml:"callback-error-stylesheet-path" json:"callback-error-stylesheet-path"`
 }
 
 // SessionConfig controls server-side app session behavior.
@@ -182,13 +183,14 @@ type ResolvedDeviceConfig struct {
 // ResolvedOIDCConfig contains validated OIDC settings. RedirectURL is always
 // concrete when mode=oidc.
 type ResolvedOIDCConfig struct {
-	IssuerURL      string
-	ClientID       string
-	ClientSecret   string
-	RedirectURL    string
-	Scopes         []string
-	AfterLoginURL  string
-	AfterLogoutURL string
+	IssuerURL                   string
+	ClientID                    string
+	ClientSecret                string
+	RedirectURL                 string
+	Scopes                      []string
+	AfterLoginURL               string
+	AfterLogoutURL              string
+	CallbackErrorStylesheetPath string
 }
 
 type ResolvedSessionConfig struct {

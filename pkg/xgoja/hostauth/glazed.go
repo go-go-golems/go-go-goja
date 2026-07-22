@@ -62,14 +62,15 @@ type GlazedSettings struct {
 	OIDCTransactionStoreDSN         string `glazed:"auth-oidc-transaction-store-dsn"`
 	OIDCTransactionStoreApplySchema bool   `glazed:"auth-oidc-transaction-store-apply-schema"`
 
-	OIDCIssuerURL      string   `glazed:"auth-oidc-issuer-url"`
-	OIDCClientID       string   `glazed:"auth-oidc-client-id"`
-	OIDCClientSecret   string   `glazed:"auth-oidc-client-secret"`
-	OIDCPublicBaseURL  string   `glazed:"auth-oidc-public-base-url"`
-	OIDCRedirectURL    string   `glazed:"auth-oidc-redirect-url"`
-	OIDCScopes         []string `glazed:"auth-oidc-scopes"`
-	OIDCAfterLoginURL  string   `glazed:"auth-oidc-after-login-url"`
-	OIDCAfterLogoutURL string   `glazed:"auth-oidc-after-logout-url"`
+	OIDCIssuerURL                   string   `glazed:"auth-oidc-issuer-url"`
+	OIDCClientID                    string   `glazed:"auth-oidc-client-id"`
+	OIDCClientSecret                string   `glazed:"auth-oidc-client-secret"`
+	OIDCPublicBaseURL               string   `glazed:"auth-oidc-public-base-url"`
+	OIDCRedirectURL                 string   `glazed:"auth-oidc-redirect-url"`
+	OIDCScopes                      []string `glazed:"auth-oidc-scopes"`
+	OIDCAfterLoginURL               string   `glazed:"auth-oidc-after-login-url"`
+	OIDCAfterLogoutURL              string   `glazed:"auth-oidc-after-logout-url"`
+	OIDCCallbackErrorStylesheetPath string   `glazed:"auth-oidc-callback-error-stylesheet-path"`
 }
 
 // ConfigDefaultsProvider is implemented by service factories that can expose
@@ -118,6 +119,7 @@ func GlazedConfigSection(base Config, opts ...schema.SectionOption) (schema.Sect
 		fields.New("auth-oidc-scopes", fields.TypeStringList, fields.WithDefault(defaults.OIDCScopes), fields.WithHelp("OIDC scopes; openid is added automatically")),
 		fields.New("auth-oidc-after-login-url", fields.TypeString, fields.WithDefault(defaults.OIDCAfterLoginURL), fields.WithHelp("Relative URL to redirect to after login")),
 		fields.New("auth-oidc-after-logout-url", fields.TypeString, fields.WithDefault(defaults.OIDCAfterLogoutURL), fields.WithHelp("Relative URL to redirect to after logout")),
+		fields.New("auth-oidc-callback-error-stylesheet-path", fields.TypeString, fields.WithDefault(defaults.OIDCCallbackErrorStylesheetPath), fields.WithHelp("Optional same-origin stylesheet path for native OIDC callback recovery pages")),
 	))
 	return schema.NewSection(SectionSlug, "Generated host auth", opts...)
 }
@@ -187,14 +189,15 @@ func FlattenConfig(cfg Config) GlazedSettings {
 		OIDCTransactionStoreDSN:         strings.TrimSpace(oidcTransaction.DSN),
 		OIDCTransactionStoreApplySchema: boolValue(oidcTransaction.ApplySchema),
 
-		OIDCIssuerURL:      strings.TrimSpace(cfg.OIDC.IssuerURL),
-		OIDCClientID:       strings.TrimSpace(cfg.OIDC.ClientID),
-		OIDCClientSecret:   strings.TrimSpace(cfg.OIDC.ClientSecret),
-		OIDCPublicBaseURL:  strings.TrimSpace(cfg.OIDC.PublicBaseURL),
-		OIDCRedirectURL:    strings.TrimSpace(cfg.OIDC.RedirectURL),
-		OIDCScopes:         append([]string(nil), cfg.OIDC.Scopes...),
-		OIDCAfterLoginURL:  strings.TrimSpace(cfg.OIDC.AfterLoginURL),
-		OIDCAfterLogoutURL: strings.TrimSpace(cfg.OIDC.AfterLogoutURL),
+		OIDCIssuerURL:                   strings.TrimSpace(cfg.OIDC.IssuerURL),
+		OIDCClientID:                    strings.TrimSpace(cfg.OIDC.ClientID),
+		OIDCClientSecret:                strings.TrimSpace(cfg.OIDC.ClientSecret),
+		OIDCPublicBaseURL:               strings.TrimSpace(cfg.OIDC.PublicBaseURL),
+		OIDCRedirectURL:                 strings.TrimSpace(cfg.OIDC.RedirectURL),
+		OIDCScopes:                      append([]string(nil), cfg.OIDC.Scopes...),
+		OIDCAfterLoginURL:               strings.TrimSpace(cfg.OIDC.AfterLoginURL),
+		OIDCAfterLogoutURL:              strings.TrimSpace(cfg.OIDC.AfterLogoutURL),
+		OIDCCallbackErrorStylesheetPath: strings.TrimSpace(cfg.OIDC.CallbackErrorStylesheetPath),
 	}
 }
 
@@ -253,14 +256,15 @@ func (s GlazedSettings) ToConfig() Config {
 			OIDCTransaction: storeConfigFromGlazed(s.OIDCTransactionStoreDriver, s.OIDCTransactionStoreDSN, s.OIDCTransactionStoreApplySchema),
 		},
 		OIDC: OIDCConfig{
-			IssuerURL:      strings.TrimSpace(s.OIDCIssuerURL),
-			ClientID:       strings.TrimSpace(s.OIDCClientID),
-			ClientSecret:   strings.TrimSpace(s.OIDCClientSecret),
-			PublicBaseURL:  strings.TrimSpace(s.OIDCPublicBaseURL),
-			RedirectURL:    strings.TrimSpace(s.OIDCRedirectURL),
-			Scopes:         trimStringSlice(s.OIDCScopes),
-			AfterLoginURL:  strings.TrimSpace(s.OIDCAfterLoginURL),
-			AfterLogoutURL: strings.TrimSpace(s.OIDCAfterLogoutURL),
+			IssuerURL:                   strings.TrimSpace(s.OIDCIssuerURL),
+			ClientID:                    strings.TrimSpace(s.OIDCClientID),
+			ClientSecret:                strings.TrimSpace(s.OIDCClientSecret),
+			PublicBaseURL:               strings.TrimSpace(s.OIDCPublicBaseURL),
+			RedirectURL:                 strings.TrimSpace(s.OIDCRedirectURL),
+			Scopes:                      trimStringSlice(s.OIDCScopes),
+			AfterLoginURL:               strings.TrimSpace(s.OIDCAfterLoginURL),
+			AfterLogoutURL:              strings.TrimSpace(s.OIDCAfterLogoutURL),
+			CallbackErrorStylesheetPath: strings.TrimSpace(s.OIDCCallbackErrorStylesheetPath),
 		},
 	}
 }

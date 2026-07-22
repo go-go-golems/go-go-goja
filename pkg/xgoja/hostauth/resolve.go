@@ -206,13 +206,14 @@ func resolveOIDCConfig(cfg OIDCConfig, allowInsecureHTTP bool) (ResolvedOIDCConf
 		return ResolvedOIDCConfig{}, err
 	}
 	return ResolvedOIDCConfig{
-		IssuerURL:      issuerURL,
-		ClientID:       clientID,
-		ClientSecret:   strings.TrimSpace(cfg.ClientSecret),
-		RedirectURL:    redirectURL,
-		Scopes:         trimStringSlice(cfg.Scopes),
-		AfterLoginURL:  defaultRelativeURL(strings.TrimSpace(cfg.AfterLoginURL), "/"),
-		AfterLogoutURL: defaultRelativeURL(strings.TrimSpace(cfg.AfterLogoutURL), "/"),
+		IssuerURL:                   issuerURL,
+		ClientID:                    clientID,
+		ClientSecret:                strings.TrimSpace(cfg.ClientSecret),
+		RedirectURL:                 redirectURL,
+		Scopes:                      trimStringSlice(cfg.Scopes),
+		AfterLoginURL:               defaultRelativeURL(strings.TrimSpace(cfg.AfterLoginURL), "/"),
+		AfterLogoutURL:              defaultRelativeURL(strings.TrimSpace(cfg.AfterLogoutURL), "/"),
+		CallbackErrorStylesheetPath: strings.TrimSpace(cfg.CallbackErrorStylesheetPath),
 	}, nil
 }
 
