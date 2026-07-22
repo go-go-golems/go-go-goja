@@ -87,7 +87,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          gosec -exclude=G101,G304,G301,G306,G204,G703 -exclude-generated -exclude-dir=.history -fmt=json -out=gosec.json ./...
+          gosec -exclude=G101,G304,G301,G306,G204,G703 -exclude-generated -exclude-dir=.history -track-suppressions -fmt=json -out=gosec.json ./...
           status=$?
           echo "exit_code=${status}" >> "$GITHUB_OUTPUT"
           exit 0
