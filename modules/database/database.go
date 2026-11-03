@@ -498,7 +498,9 @@ func rowsToRecords(moduleName string, rows *sql.Rows) ([]map[string]any, error) 
 		return nil, err
 	}
 
-	var result []map[string]any
+	// Non-nil on purpose: goja (since 6ace4dd) converts a nil slice to null, and
+	// query() must return [] when no rows match.
+	result := []map[string]any{}
 	for rows.Next() {
 		vals := make([]any, len(cols))
 		scan := make([]any, len(cols))
