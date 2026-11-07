@@ -1,6 +1,7 @@
 package jsverbs
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -24,19 +25,65 @@ func DefaultSourceParser() SourceParser {
 	return GojaParser{}
 }
 
+// require() runs a module as the body of this function (goja_nodejs wraps it
+// so), and the parser reads it the same way: a top-level return is legal, and
+// the wrapper's parameters are names the module cannot redeclare with let or
+// const. The prefix has no newline, so only columns on the first line shift.
+const (
+	commonJSPrefix = "(function(exports,require,module,__filename,__dirname){"
+	commonJSSuffix = "\n})"
+)
+
 // ParseSource implements SourceParser.
 func (GojaParser) ParseSource(input ParseInput) (*ParsedSource, error) {
-	src := blankHashbang(string(input.Source))
+	src := commonJSPrefix + blankHashbang(string(input.Source)) + commonJSSuffix
 	program, err := parser.ParseFile(nil, input.RelPath, src, parser.IgnoreRegExpErrors, parser.WithDisableSourceMaps)
 	if err != nil {
-		return nil, err
+		return nil, unwrapPositions(err)
+	}
+	body, ok := moduleBody(program)
+	if !ok {
+		return nil, fmt.Errorf("%s: the source closes the CommonJS function it runs in", input.RelPath)
 	}
 	p := &gojaWalker{src: src}
 	out := &ParsedSource{}
-	for _, stmt := range program.Body {
+	for _, stmt := range body {
 		out.Items = append(out.Items, p.topLevel(stmt)...)
 	}
 	return out, nil
+}
+
+// moduleBody returns the statements of the wrapper function: the module's own
+// top level. A source that closes the wrapper early (and opens another
+// function after it) has no single body.
+func moduleBody(program *ast.Program) ([]ast.Statement, bool) {
+	if program == nil || len(program.Body) != 1 {
+		return nil, false
+	}
+	stmt, ok := program.Body[0].(*ast.ExpressionStatement)
+	if !ok {
+		return nil, false
+	}
+	fn, ok := stmt.Expression.(*ast.FunctionLiteral)
+	if !ok || fn.Body == nil {
+		return nil, false
+	}
+	return fn.Body.List, true
+}
+
+// unwrapPositions moves error columns on the first line back by the wrapper's
+// prefix, so that they point into the module's own source.
+func unwrapPositions(err error) error {
+	var list parser.ErrorList
+	if !errors.As(err, &list) {
+		return err
+	}
+	for _, e := range list {
+		if e != nil && e.Position.Line == 1 && e.Position.Column > len(commonJSPrefix) {
+			e.Position.Column -= len(commonJSPrefix)
+		}
+	}
+	return list
 }
 
 // blankHashbang replaces a leading "#!" line with spaces, keeping offsets,

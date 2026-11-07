@@ -109,7 +109,7 @@ Only functions named by `__verb__` metadata become commands. Every other top-lev
 
 The scanner reads source with a `SourceParser`, set in `ScanOptions.Parser`. The parser reports only the file's top-level function declarations, sentinel calls with their literal arguments, and `doc` blocks; the scanner interprets those the same way for every parser.
 
-- **Default: goja's parser** (`jsverbs.GojaParser`, `DefaultSourceParser()`). Pure Go, no cgo. It accepts exactly the JavaScript goja runs as a script: no ES module syntax (`import`/`export`) and no TypeScript. A leading `#!` line is accepted.
+- **Default: goja's parser** (`jsverbs.GojaParser`, `DefaultSourceParser()`). Pure Go, no cgo. It reads a file as `require()` runs it, as the body of the CommonJS function (`exports`, `require`, `module`, `__filename`, `__dirname`): a top-level `return` is accepted, but no ES module syntax (`import`/`export`) and no TypeScript. A leading `#!` line is accepted.
 - **Opt-in: tree-sitter** (`treesitter.Parser` in `github.com/go-go-golems/go-go-goja/pkg/jsverbs/treesitter`). Links tree-sitter and its JavaScript grammar (cgo). It reads ES module syntax and recovers from syntax errors.
 
 ```go
@@ -370,7 +370,10 @@ Rules:
 - `requireFn` is called with the verb file's module path and must load scanned files through `RequireLoader()`, so that the file's functions are captured;
 - a plain return value is exported to Go;
 - a returned promise is inspected after the call, when goja has already run the promise jobs the call queued: fulfilled returns its exported value, rejected returns an error;
-- a promise that is still pending (it waits for work outside the VM) is returned as `*goja.Promise`, unexported. The host settles it with its own scheduling and reads `promise.Result()` later.
+- a promise that is still pending (it waits for work outside the VM) is returned as `*goja.Promise`, unexported. The host settles it with its own scheduling and reads `promise.Result()` later;
+- a JavaScript exception or interrupt that escapes goja as a panic, for example from a getter that runs while the result is exported, is returned as the error (`*goja.Exception`, `*goja.InterruptedError`), as `InvokeInRuntime`'s owner does;
+- when `vm` is bound in `runtimebridge` (it belongs to an engine runtime, or the host stored services for it), `ctx` is the current owner-call context during the call, so native modules that read `runtimebridge.CurrentOwnerContext` inherit its deadline and values. A bare VM has no binding, and none is created;
+- `InvokeInVM` arms no interrupt or timeout: the host does (for example `context.AfterFunc(ctx, func() { vm.Interrupt(...) })`).
 
 ## Relative module loading
 

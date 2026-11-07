@@ -227,6 +227,12 @@ verb: größe
 Größe misst — 日本語.` + "`" + `;
 __verb__("größe", { short: "Größe", fields: { ä: { bind: "all" }, ü: { bind: "all" } } });
 `,
+	"early-return.js": `
+// require() runs a module as a function body: a top-level return is legal.
+if (typeof module === "undefined") return;
+function early() {}
+__verb__("early", {});
+`,
 	"strings.js": `
 function s() {}
 __verb__("s", { short: "tab\there é \"q\"", long: 'single \'quoted\' \\ back', tags: ["ünï", "日本"] });
@@ -262,6 +268,7 @@ func TestParsersAgreeOnEdgeCases(t *testing.T) {
 	require.Contains(t, byPath, "top forms also-arrow")
 	require.Contains(t, byPath, "top forms do-later")
 	require.Contains(t, byPath, "top forms arrow-thing")
+	require.Contains(t, byPath, "early-return early", "a top-level return does not hide what follows it")
 	require.Equal(t, "Plain does things.\n\nWith a second paragraph.", byPath["top forms plain"].Long)
 	require.Equal(t, []jsverbs.ParameterSpec{
 		{Name: "a", Kind: jsverbs.ParameterIdentifier},
