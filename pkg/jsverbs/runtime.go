@@ -65,39 +65,7 @@ func (r *Registry) InvokeInRuntime(ctx context.Context, runtime *engine.Runtime,
 	}
 
 	ret, err := runtime.Owner.Call(ctx, "jsverbs.invoke", func(_ context.Context, vm *goja.Runtime) (interface{}, error) {
-		if _, err := runtime.Require.Require(verb.File.ModulePath); err != nil {
-			return nil, err
-		}
-		registryValue := vm.Get("__glazedVerbRegistry")
-		if registryValue == nil || goja.IsUndefined(registryValue) || goja.IsNull(registryValue) {
-			return nil, fmt.Errorf("js verb registry not initialized")
-		}
-		registryObject := registryValue.ToObject(vm)
-		entryValue := registryObject.Get(verb.File.ModulePath)
-		if entryValue == nil || goja.IsUndefined(entryValue) || goja.IsNull(entryValue) {
-			return nil, fmt.Errorf("js verb module entry missing for %s", verb.File.ModulePath)
-		}
-		entryObject := entryValue.ToObject(vm)
-		fnValue := entryObject.Get(verb.FunctionName)
-		fn, ok := goja.AssertFunction(fnValue)
-		if !ok {
-			return nil, fmt.Errorf("js function %s not captured for %s", verb.FunctionName, verb.File.RelPath)
-		}
-		jsArgs := make([]goja.Value, 0, len(args))
-		for _, arg := range args {
-			jsArgs = append(jsArgs, vm.ToValue(arg))
-		}
-		result, err := fn(goja.Undefined(), jsArgs...)
-		if err != nil {
-			return nil, err
-		}
-		if result == nil || goja.IsUndefined(result) || goja.IsNull(result) {
-			return nil, nil
-		}
-		if promise, ok := result.Export().(*goja.Promise); ok {
-			return promise, nil
-		}
-		return result.Export(), nil
+		return r.callVerb(vm, runtime.Require.Require, verb, args)
 	})
 	if err != nil {
 		return nil, err
@@ -107,6 +75,121 @@ func (r *Registry) InvokeInRuntime(ctx context.Context, runtime *engine.Runtime,
 		return waitForPromise(ctx, runtime, promise)
 	}
 	return ret, nil
+}
+
+// RequireFunc loads a module into the caller's runtime and returns its
+// exports, as require() does. InvokeInVM calls it with the verb file's module
+// path (FileSpec.ModulePath).
+type RequireFunc func(modulePath string) (goja.Value, error)
+
+// InvokeInVM invokes a verb on a plain goja runtime that the caller owns, for
+// hosts that drive their own VM instead of an engine.Runtime (for example a
+// runtime that runs one transaction per call).
+//
+// The caller must hold exclusive use of vm for the duration of the call, as it
+// would for any goja call; InvokeInVM does not schedule onto an owner or loop.
+// requireFn must load verb files through the registry's RequireLoader, so that
+// the file's functions are captured, and resolve whatever the verb itself
+// requires. A goja_nodejs registry built with
+// require.WithLoader(registry.RequireLoader()) is enough for verbs whose
+// dependencies are other scanned files.
+//
+// Results: a plain value is exported to Go. A promise is inspected after the
+// call returns, when goja has already run the promise jobs the call queued:
+// a fulfilled promise returns its exported value and a rejected one returns an
+// error. A promise that is still pending (it waits for work outside the VM) is
+// returned as *goja.Promise, unexported; the caller settles it with its own
+// scheduling and reads promise.Result() afterwards.
+func (r *Registry) InvokeInVM(ctx context.Context, vm *goja.Runtime, requireFn RequireFunc, verb *VerbSpec, parsedValues *values.Values) (interface{}, error) {
+	if r == nil {
+		return nil, fmt.Errorf("registry is nil")
+	}
+	if vm == nil {
+		return nil, fmt.Errorf("runtime is nil")
+	}
+	if requireFn == nil {
+		return nil, fmt.Errorf("require function is nil")
+	}
+	if verb == nil {
+		return nil, fmt.Errorf("verb is nil")
+	}
+	if ctx != nil {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+	}
+	plan, err := buildVerbBindingPlan(r, verb)
+	if err != nil {
+		return nil, err
+	}
+	args, err := buildArguments(parsedValues, plan, r.RootDir)
+	if err != nil {
+		return nil, err
+	}
+	ret, err := r.callVerb(vm, requireFn, verb, args)
+	if err != nil {
+		return nil, err
+	}
+	promise, ok := ret.(*goja.Promise)
+	if !ok {
+		return ret, nil
+	}
+	switch promise.State() {
+	case goja.PromiseStateFulfilled:
+		return exportResult(promise.Result()), nil
+	case goja.PromiseStateRejected:
+		return nil, fmt.Errorf("promise rejected: %s", valueString(promise.Result()))
+	case goja.PromiseStatePending:
+		return promise, nil
+	default:
+		return promise, nil
+	}
+}
+
+// callVerb loads the verb's module with requireFn, finds the captured function
+// and calls it. It returns the exported result, or the *goja.Promise when the
+// function returned a promise. It must run with exclusive use of vm.
+func (r *Registry) callVerb(vm *goja.Runtime, requireFn RequireFunc, verb *VerbSpec, args []interface{}) (interface{}, error) {
+	if _, err := requireFn(verb.File.ModulePath); err != nil {
+		return nil, err
+	}
+	registryValue := vm.Get("__glazedVerbRegistry")
+	if registryValue == nil || goja.IsUndefined(registryValue) || goja.IsNull(registryValue) {
+		return nil, fmt.Errorf("js verb registry not initialized")
+	}
+	registryObject := registryValue.ToObject(vm)
+	entryValue := registryObject.Get(verb.File.ModulePath)
+	if entryValue == nil || goja.IsUndefined(entryValue) || goja.IsNull(entryValue) {
+		return nil, fmt.Errorf("js verb module entry missing for %s", verb.File.ModulePath)
+	}
+	entryObject := entryValue.ToObject(vm)
+	fnValue := entryObject.Get(verb.FunctionName)
+	fn, ok := goja.AssertFunction(fnValue)
+	if !ok {
+		return nil, fmt.Errorf("js function %s not captured for %s", verb.FunctionName, verb.File.RelPath)
+	}
+	jsArgs := make([]goja.Value, 0, len(args))
+	for _, arg := range args {
+		jsArgs = append(jsArgs, vm.ToValue(arg))
+	}
+	result, err := fn(goja.Undefined(), jsArgs...)
+	if err != nil {
+		return nil, err
+	}
+	if result == nil || goja.IsUndefined(result) || goja.IsNull(result) {
+		return nil, nil
+	}
+	if promise, ok := result.Export().(*goja.Promise); ok {
+		return promise, nil
+	}
+	return result.Export(), nil
+}
+
+func exportResult(value goja.Value) interface{} {
+	if value == nil || goja.IsUndefined(value) || goja.IsNull(value) {
+		return nil
+	}
+	return value.Export()
 }
 
 func buildArguments(parsedValues *values.Values, plan *VerbBindingPlan, rootDir string) ([]interface{}, error) {
@@ -266,10 +349,7 @@ func waitForPromise(ctx context.Context, runtime *engine.Runtime, promise *goja.
 		case goja.PromiseStateRejected:
 			return nil, fmt.Errorf("promise rejected: %s", valueString(snapshot.Result))
 		case goja.PromiseStateFulfilled:
-			if snapshot.Result == nil || goja.IsUndefined(snapshot.Result) || goja.IsNull(snapshot.Result) {
-				return nil, nil
-			}
-			return snapshot.Result.Export(), nil
+			return exportResult(snapshot.Result), nil
 		}
 	}
 }
