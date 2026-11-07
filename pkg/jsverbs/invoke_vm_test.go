@@ -3,11 +3,13 @@ package jsverbs
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/dop251/goja"
 	noderequire "github.com/dop251/goja_nodejs/require"
 	"github.com/go-go-golems/glazed/pkg/cmds/runner"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
+	"github.com/go-go-golems/go-go-goja/pkg/runtimebridge"
 	"github.com/stretchr/testify/require"
 )
 
@@ -25,6 +27,18 @@ __verb__("external", { fields: { n: { type: "int", argument: true } } });
 
 async function fails() { throw new Error("nope"); }
 __verb__("fails", {});
+
+function getter() { return { get x() { throw new Error("from a getter"); } }; }
+__verb__("getter", {});
+
+async function asyncGetter() { return { get x() { throw new Error("from an async getter"); } }; }
+__verb__("asyncGetter", {});
+
+function spinGetter() { return { get x() { for (;;) {} } }; }
+__verb__("spinGetter", {});
+
+function seen() { return { value: globalThis.currentValue() }; }
+__verb__("seen", {});
 `
 
 const plainVMMath = `module.exports = { double: (n) => n * 2 };`
@@ -136,6 +150,66 @@ func TestInvokeInVMRejectsMissingArguments(t *testing.T) {
 	cancel()
 	_, err = registry.InvokeInVM(ctx, vm, req, verb, nil)
 	require.ErrorIs(t, err, context.Canceled)
+}
+
+// Exporting a result runs its getters outside any JavaScript try: what they
+// throw, or an interrupt while they run, comes back as the error instead of a
+// panic in the host.
+func TestInvokeInVMRecoversExportPanics(t *testing.T) {
+	registry := plainVMRegistry(t)
+	for _, tc := range []struct{ verb, want string }{
+		{"verbs num getter", "from a getter"},
+		{"verbs num async-getter", "from an async getter"},
+	} {
+		verb, ok := registry.Verb(tc.verb)
+		require.True(t, ok, "verbs: %v", verbPaths(registry))
+		vm, req := plainVM(registry)
+		var err error
+		require.NotPanics(t, func() {
+			_, err = registry.InvokeInVM(context.Background(), vm, req, verb, plainVMValues(t, registry, verb, nil))
+		})
+		var exc *goja.Exception
+		require.ErrorAs(t, err, &exc, tc.verb)
+		require.ErrorContains(t, err, tc.want)
+	}
+
+	verb, _ := registry.Verb("verbs num spin-getter")
+	vm, req := plainVM(registry)
+	stop := time.AfterFunc(50*time.Millisecond, func() { vm.Interrupt("too long") })
+	defer stop.Stop()
+	var err error
+	require.NotPanics(t, func() {
+		_, err = registry.InvokeInVM(context.Background(), vm, req, verb, plainVMValues(t, registry, verb, nil))
+	})
+	var interrupted *goja.InterruptedError
+	require.ErrorAs(t, err, &interrupted)
+	require.Equal(t, "too long", interrupted.Value())
+}
+
+type ctxKey struct{}
+
+// A VM bound in runtimebridge sees the invocation's context as the current
+// owner context; a bare VM keeps its fallback.
+func TestInvokeInVMCallContext(t *testing.T) {
+	registry := plainVMRegistry(t)
+	verb, _ := registry.Verb("verbs num seen")
+	ctx := context.WithValue(context.Background(), ctxKey{}, "from the invocation")
+
+	run := func(bind bool) interface{} {
+		vm, req := plainVM(registry)
+		if bind {
+			runtimebridge.Store(vm, runtimebridge.RuntimeServices{LifetimeContext: context.Background()})
+			defer runtimebridge.Delete(vm)
+		}
+		require.NoError(t, vm.Set("currentValue", func() interface{} {
+			return runtimebridge.CurrentOwnerContext(vm).Value(ctxKey{})
+		}))
+		result, err := registry.InvokeInVM(ctx, vm, req, verb, plainVMValues(t, registry, verb, nil))
+		require.NoError(t, err)
+		return result.(map[string]interface{})["value"]
+	}
+	require.Equal(t, "from the invocation", run(true))
+	require.Nil(t, run(false))
 }
 
 func verbPaths(registry *Registry) []string {

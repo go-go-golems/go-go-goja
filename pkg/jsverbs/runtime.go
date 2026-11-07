@@ -13,6 +13,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/fields"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/go-go-goja/pkg/engine"
+	"github.com/go-go-golems/go-go-goja/pkg/runtimebridge"
 )
 
 func (r *Registry) invoke(ctx context.Context, verb *VerbSpec, parsedValues *values.Values) (interface{}, error) {
@@ -100,6 +101,15 @@ type RequireFunc func(modulePath string) (goja.Value, error)
 // error. A promise that is still pending (it waits for work outside the VM) is
 // returned as *goja.Promise, unexported; the caller settles it with its own
 // scheduling and reads promise.Result() afterwards.
+//
+// A JavaScript exception or interrupt that escapes goja as a panic (exporting
+// a result runs its getters, outside any JavaScript try) comes back as the
+// error, as it does from InvokeInRuntime's owner.
+//
+// When vm is bound in runtimebridge (it belongs to an engine runtime, or the
+// host stored services for it), ctx is the current owner-call context for the
+// call, so native modules inherit its deadline and values. A bare VM has no
+// binding, and none is created for it.
 func (r *Registry) InvokeInVM(ctx context.Context, vm *goja.Runtime, requireFn RequireFunc, verb *VerbSpec, parsedValues *values.Values) (interface{}, error) {
 	if r == nil {
 		return nil, fmt.Errorf("registry is nil")
@@ -126,6 +136,18 @@ func (r *Registry) InvokeInVM(ctx context.Context, vm *goja.Runtime, requireFn R
 	if err != nil {
 		return nil, err
 	}
+	run := func() (interface{}, error) {
+		return recoverJS(func() (interface{}, error) { return r.callVerbInVM(vm, requireFn, verb, args) })
+	}
+	if _, bound := runtimebridge.Lookup(vm); bound && ctx != nil {
+		return runtimebridge.WithCallContext(vm, ctx, run)
+	}
+	return run()
+}
+
+// callVerbInVM is InvokeInVM's call and result handling, with exclusive use of
+// vm.
+func (r *Registry) callVerbInVM(vm *goja.Runtime, requireFn RequireFunc, verb *VerbSpec, args []interface{}) (interface{}, error) {
 	ret, err := r.callVerb(vm, requireFn, verb, args)
 	if err != nil {
 		return nil, err
@@ -144,6 +166,37 @@ func (r *Registry) InvokeInVM(ctx context.Context, vm *goja.Runtime, requireFn R
 	default:
 		return promise, nil
 	}
+}
+
+// recoverJS runs fn and turns a panic into its error. goja raises a
+// JavaScript exception (*goja.Exception) or an interrupt
+// (*goja.InterruptedError) as a panic when no JavaScript call frame catches
+// it, as when Export runs a getter; both are errors and are returned as they
+// are. Any other panic is wrapped.
+func recoverJS(fn func() (interface{}, error)) (interface{}, error) {
+	var (
+		out interface{}
+		err error
+	)
+	func() {
+		defer func() {
+			rec := recover()
+			if rec == nil {
+				return
+			}
+			out = nil
+			switch e := rec.(type) {
+			case *goja.Exception:
+				err = e
+			case *goja.InterruptedError:
+				err = e
+			default:
+				err = fmt.Errorf("jsverbs: panic in verb: %v", rec)
+			}
+		}()
+		out, err = fn()
+	}()
+	return out, err
 }
 
 // callVerb loads the verb's module with requireFn, finds the captured function
