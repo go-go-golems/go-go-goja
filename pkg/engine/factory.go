@@ -164,6 +164,9 @@ func (b *RuntimeFactoryBuilder) Build() (*RuntimeFactory, error) {
 	if err := validateUniqueIDs(inits, "runtime initializer"); err != nil {
 		return nil, err
 	}
+	if err := validateDefaultGlobals(b.settings.skippedGlobals); err != nil {
+		return nil, err
+	}
 
 	b.built = true
 
@@ -173,6 +176,7 @@ func (b *RuntimeFactoryBuilder) Build() (*RuntimeFactory, error) {
 			implicitDefaultRegistryModules: b.settings.implicitDefaultRegistryModules,
 			dataOnlyDefaultRegistryModules: b.settings.dataOnlyDefaultRegistryModules,
 			includePanicStack:              b.settings.includePanicStack,
+			skippedGlobals:                 cloneGlobalSet(b.settings.skippedGlobals),
 		},
 		modules:             append([]RuntimeModuleRegistrar(nil), modules_...),
 		runtimeInitializers: append([]RuntimeInitializer(nil), inits...),
@@ -229,10 +233,16 @@ func (f *RuntimeFactory) NewRuntime(opts ...RuntimeOption) (*Runtime, error) {
 		runtimeCtxCancel: runtimeCtxCancel,
 	}
 
+	var bridgeOwner runtimebridge.RuntimeOwner = runtimebridgeOwner{owner: owner}
+	if settings.bridgeOwner != nil {
+		if replaced := settings.bridgeOwner(vm, bridgeOwner); replaced != nil {
+			bridgeOwner = replaced
+		}
+	}
 	runtimebridge.Store(vm, runtimebridge.RuntimeServices{
 		LifetimeContext: runtimeCtx,
 		Loop:            loop,
-		Owner:           runtimebridgeOwner{owner: owner},
+		Owner:           bridgeOwner,
 	})
 
 	reg := require.NewRegistry(f.settings.requireOptions...)
@@ -258,14 +268,7 @@ func (f *RuntimeFactory) NewRuntime(opts ...RuntimeOption) (*Runtime, error) {
 	}
 
 	reqMod := reg.Enable(vm)
-	console.Enable(vm)
-	buffer.Enable(vm)
-	url.Enable(vm)
-	if err := installPerformanceGlobals(vm); err != nil {
-		_ = rt.Close(startupCtx)
-		return nil, err
-	}
-	if err := installConsoleTimers(vm); err != nil {
+	if err := f.installDefaultGlobals(vm); err != nil {
 		_ = rt.Close(startupCtx)
 		return nil, err
 	}
@@ -287,4 +290,41 @@ func (f *RuntimeFactory) NewRuntime(opts ...RuntimeOption) (*Runtime, error) {
 	}
 
 	return rt, nil
+}
+
+// installDefaultGlobals installs the globals every runtime gets unless the
+// builder skipped them with WithoutDefaultGlobals.
+func (f *RuntimeFactory) installDefaultGlobals(vm *goja.Runtime) error {
+	skip := f.settings.skippedGlobals
+	if !skip[GlobalConsole] {
+		console.Enable(vm)
+	}
+	if !skip[GlobalBuffer] {
+		buffer.Enable(vm)
+	}
+	if !skip[GlobalURL] {
+		url.Enable(vm)
+	}
+	if !skip[GlobalPerformance] {
+		if err := installPerformanceGlobals(vm); err != nil {
+			return err
+		}
+	}
+	if !skip[GlobalConsole] && !skip[GlobalConsoleTimers] {
+		if err := installConsoleTimers(vm); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func cloneGlobalSet(in map[DefaultGlobal]bool) map[DefaultGlobal]bool {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[DefaultGlobal]bool, len(in))
+	for k, v := range in {
+		out[k] = v
+	}
+	return out
 }
