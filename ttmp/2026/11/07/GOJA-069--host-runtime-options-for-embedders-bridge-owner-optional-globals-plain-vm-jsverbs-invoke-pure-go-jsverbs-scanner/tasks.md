@@ -7,3 +7,4 @@
 - [x] Verbs-only scanning: check current behaviour; fix stale docs <!-- t:446u -->
 - [x] U4: pure-Go jsverbs scanner on goja parser/ast as default; tree-sitter scanner opt-in subpackage; parity tests <!-- t:39dg -->
 - [x] Docs (pkg/doc), lint, full test suite <!-- t:g1tr -->
+- [x] Review fixes: InvokeInVM panic recovery and bridged call context; parser reads the CommonJS function body

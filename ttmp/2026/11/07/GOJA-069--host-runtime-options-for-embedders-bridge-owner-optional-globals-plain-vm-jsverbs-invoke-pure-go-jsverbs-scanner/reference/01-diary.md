@@ -351,3 +351,85 @@ registry, err := jsverbs.ScanDir(dir, jsverbs.ScanOptions{
 ### Technical details
 
 - Commits: `775e4f1`, `2d2a533`, `6fc7937`, `7b668e9`, `2805dc7`, `48145f7`, plus the ticket-docs commit.
+
+## Step 6: Review fixes for #107 (InvokeInVM panics and context, CommonJS parse)
+
+### Prompt Context
+
+**User prompt (verbatim):** "what's the plain VM path in go-go-goja? (read design docs / diaries if necessary) do we need it? or was it optional and we did too much? (See code review comments and how they are because of the plain one)", then "ok, address the issues".
+
+**Assistant interpretation:** Fix the three Codex review findings on go-go-golems/go-go-goja#107. Two come from `InvokeInVM` bypassing the runtime owner; one comes from the new pure-Go parser.
+
+**Inferred user intent:** Keep the plain-VM path and give it what the owner path used to provide for free, and remove the parser regression. Do this before #107 is merged and slop pins a tag.
+
+**Commits (code):**
+- `3992113`: "jsverbs: InvokeInVM recovers JS panics and makes ctx current on bridged VMs"
+- `363f343`: "jsverbs: the goja parser reads a file as the CommonJS function body"
+
+### What I did
+
+- `pkg/jsverbs/runtime.go`:
+  - `InvokeInVM` runs `callVerbInVM` (the old body: call, promise state, export) inside `recoverJS`.
+  - `recoverJS` returns a panicking `*goja.Exception` or `*goja.InterruptedError` as the error and wraps any other panic as `jsverbs: panic in verb: …`.
+  - When `runtimebridge.Lookup(vm)` finds a binding, the call runs under `runtimebridge.WithCallContext(vm, ctx, …)`.
+- `pkg/jsverbs/goja_parser.go`:
+  - `ParseSource` parses `"(function(exports,require,module,__filename,__dirname){" + src + "\n})"`, the wrapper goja_nodejs uses (`require/module.go:197`), and walks the function's body (`moduleBody`).
+  - A source that closes the wrapper early is refused with an error.
+  - `unwrapPositions` moves error columns on line 1 back by the prefix length.
+- Tests:
+  - `TestInvokeInVMRecoversExportPanics` covers sync and async getters that throw, and a getter that loops until `vm.Interrupt`.
+  - `TestInvokeInVMCallContext` covers a bound VM, which sees the invocation's context value, and a bare one, which sees nil.
+  - Parity edge case `early-return.js`, with a spot check that `early-return early` is found.
+- Help (`pkg/doc/11-jsverbs-example-reference.md`): the parser rule, plus InvokeInVM's rules for errors, context and interrupts.
+
+### Why
+
+- **Finding 3 (export panics).** `callVerb` calls `result.Export()` (and `exportResult(promise.Result())`), which runs getters outside any JavaScript frame. goja raises their exception, or an interrupt, as a Go panic. `InvokeInRuntime` reaches the same code inside `runtimeOwner.Call`, which recovers; `InvokeInVM` had no boundary. It mattered downstream: in slop, a throwaway test showed the panic escaping `appverbs.Run`, so an app's verb could kill `slop` in the CLI or abort the request in `app.verb`.
+- **Finding 2 (context).** The owner makes `ctx` the current call context through `runtimebridge.WithCallContext`. Without it, native modules on a bridged VM read the lifetime context instead. The fix is gated on a binding because `WithCallContext` stores a stack per VM in a package-level `sync.Map` (`getCallContextStack` uses `LoadOrStore`; `pop` never deletes the entry). A host that makes a fresh bare VM per call, as slop does, would leak one entry per call.
+- **Finding 1 (top-level return).** It is not caused by the plain VM: the new parser parsed a script where `require()` runs a function body. Tree-sitter accepted such files, so the default parser had regressed.
+
+### What worked
+
+- Each new test fails on the previous code: the export test panics with `Error: from a getter at x (/verbs/num.js:21:46(3))`, the call context differs, and parity differs. All of them pass with the fix: `go test ./pkg/jsverbs/... -count=1`.
+- With the wrapper, error positions stay right: `"let x = ;"` reports `Line 1:9`, and `"function (\n"` reports `Line 1:10`.
+- Commit hooks: lint and tests pass (24.6 s and 6.9 s).
+
+### What didn't work
+
+- My first cut used a type assertion with `//nolint:errorlint`. errorlint is not enabled in this repository, so I switched to `errors.As`.
+
+### What I learned
+
+- goja's AST has no node for parentheses: `(function(){…})` parses to an `ExpressionStatement` whose expression is the `*ast.FunctionLiteral`.
+- goja's parser does not report `let require = 1` as a clash with the wrapper's parameter. That case still scans; running it would fail.
+
+### What was tricky to build
+
+- Keeping the source offsets the walker slices by. The walker gets the wrapped string itself as `src`, so `text(from, to)` stays correct without any offset arithmetic. Only error columns need shifting.
+- Doing without named results (`nonamedreturns` is on): `recoverJS` sets its results from a closure's deferred recover.
+
+### What warrants a second pair of eyes
+
+- `recoverJS` recovers every panic, not only JavaScript ones. That matches `runtimeOwner.Call`, but it also turns a Go bug in a native module into an error, without a stack trace.
+- A source that closes the wrapper early (`}); (function(){ … `) used to scan and now fails. goja_nodejs would run it, so this hack is now unsupported for scanning.
+
+### What should be done in the future
+
+- Reply on the three review threads with these commits.
+
+### Code review instructions
+
+- `git diff 822e67c..363f343 -- pkg/jsverbs`.
+- `go test ./pkg/jsverbs/... -count=1 -run 'InvokeInVM|EdgeCases|Unparseable' -v`.
+
+### Technical details
+
+```go
+run := func() (interface{}, error) {
+	return recoverJS(func() (interface{}, error) { return r.callVerbInVM(vm, requireFn, verb, args) })
+}
+if _, bound := runtimebridge.Lookup(vm); bound && ctx != nil {
+	return runtimebridge.WithCallContext(vm, ctx, run)
+}
+return run()
+```
