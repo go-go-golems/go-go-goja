@@ -32,9 +32,9 @@ The runner walks a directory recursively and inspects `.js` and `.cjs` files. It
 - `__package__`, `__section__`, and `__verb__` metadata,
 - and `doc\`...\`` prose blocks for long help.
 
-Under the hood, the scanner now parses metadata literals directly from the tree-sitter AST instead of rewriting JavaScript object text into JSON. That means metadata support is intentionally strict: literal objects, arrays, strings, numbers, booleans, and `null` are supported, while dynamic expressions inside metadata are rejected. This is a deliberate design choice so command discovery stays deterministic and scanner failures are easier to explain.
+Under the hood, the scanner parses metadata literals directly from a syntax tree (goja's own parser by default, tree-sitter when `ScanOptions.Parser` selects `pkg/jsverbs/treesitter`) instead of rewriting JavaScript object text into JSON. That means metadata support is intentionally strict: literal objects, arrays, strings, numbers, booleans, and `null` are supported, while dynamic expressions inside metadata are rejected. This is a deliberate design choice so command discovery stays deterministic and scanner failures are easier to explain.
 
-By default, public top-level functions become commands even without explicit `__verb__` metadata. Files under subdirectories become nested command groups.
+Only functions named by `__verb__` metadata become commands; other top-level functions stay helpers. Files under subdirectories become nested command groups.
 
 Library callers and generated xgoja binaries can narrow directory/`fs.FS` scans with include/exclude filters. The filters match slash-separated paths relative to the scan root and are intended for application layouts that contain both authored verb files and generated JavaScript assets. For example, an xgoja app can scan `path: .` but include only `site.js` and exclude `assets/**` or `dist/**`.
 

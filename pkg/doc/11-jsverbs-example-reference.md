@@ -43,7 +43,8 @@ Command-compilation entrypoints:
 Runtime entrypoints:
 
 - default internal `registry.invoke(...)` via `Commands()` / `CommandForVerb(...)`
-- `registry.InvokeInRuntime(ctx, runtime, verb, parsedValues)` for caller-owned runtimes
+- `registry.InvokeInRuntime(ctx, runtime, verb, parsedValues)` for caller-owned `engine.Runtime` values
+- `registry.InvokeInVM(ctx, vm, requireFn, verb, parsedValues)` for a caller-owned plain `*goja.Runtime` (see "Invoking on a plain goja runtime")
 - `registry.RequireLoader()` for composing the scanned-source loader into a host runtime
 
 The example runner uses `ScanDir(...)` plus the default `registry.Commands()` path, but the package itself is no longer limited to disk directories or to runtime-owning command wrappers.
@@ -55,6 +56,7 @@ The example runner uses `ScanDir(...)` plus the default `registry.Commands()` pa
 - `Extensions: [".js", ".cjs"]`
 - `FailOnErrorDiagnostics: true`
 - no include/exclude path filters
+- `Parser: nil`, which means `DefaultSourceParser()`: goja's own parser (see "Parsers")
 
 Path filters are evaluated against slash-separated paths relative to the scan root. This keeps filters stable across platforms and across disk-backed and `fs.FS` sources.
 
@@ -92,16 +94,39 @@ Supported command declarations:
 - top-level `const name = (...) => {}` with matching `__verb__("name", ...)` metadata
 - top-level `const name = function(...) {}` with matching `__verb__("name", ...)` metadata
 
+Async functions are declarations like any other. Generator functions are not.
+
 Ignored for command discovery:
 
 - functions without explicit `__verb__()` metadata
 - nested functions
 - object methods
-- functions whose names start with `_`
+- generator functions
 
-Public functions are auto-exposed unless an explicit `__verb__` definition overrides them.
+Only functions named by `__verb__` metadata become commands. Every other top-level function, including helpers in the same file or in files the scan includes for `require()`, stays a plain function. A file can therefore mix verbs and helpers without naming conventions.
 
-This rule gives the subsystem a useful default: simple files can become command trees without much ceremony. At the same time, explicit `__verb__` metadata remains the escape hatch when naming, grouping, or output semantics need to be different from the inferred default.
+## Parsers
+
+The scanner reads source with a `SourceParser`, set in `ScanOptions.Parser`. The parser reports only the file's top-level function declarations, sentinel calls with their literal arguments, and `doc` blocks; the scanner interprets those the same way for every parser.
+
+- **Default: goja's parser** (`jsverbs.GojaParser`, `DefaultSourceParser()`). Pure Go, no cgo. It accepts exactly the JavaScript goja runs as a script: no ES module syntax (`import`/`export`) and no TypeScript. A leading `#!` line is accepted.
+- **Opt-in: tree-sitter** (`treesitter.Parser` in `github.com/go-go-golems/go-go-goja/pkg/jsverbs/treesitter`). Links tree-sitter and its JavaScript grammar (cgo). It reads ES module syntax and recovers from syntax errors.
+
+```go
+import "github.com/go-go-golems/go-go-goja/pkg/jsverbs/treesitter"
+
+registry, err := jsverbs.ScanDir(dir, jsverbs.ScanOptions{
+    Extensions:             []string{".js", ".mjs"},
+    FailOnErrorDiagnostics: true,
+    Parser:                 treesitter.Parser{},
+})
+```
+
+Both parsers produce the same registry, diagnostics included, for every verb tree in this repository and for the edge cases in `pkg/jsverbs/treesitter/parity_test.go`. Importing `pkg/jsverbs` or `pkg/jsverbscli` no longer links tree-sitter; only the `treesitter` subpackage does.
+
+A file the parser cannot read is kept in the registry without declarations, so `require()` through `RequireLoader()` still serves it, and gets a diagnostic: an error when the file mentions `__package__`, `__section__` or `__verb__` (it was meant to declare verbs), a warning otherwise (a helper or a bundled asset). With the default `FailOnErrorDiagnostics: true`, an unreadable verb file fails the scan with a message that names the tree-sitter parser.
+
+To scan sources that use ES module syntax with the default parser, compile them to CommonJS first with `ScanOptions.SourceTransform` (xgoja's TypeScript support does this, with format `cjs` by default).
 
 ## Recognized sentinels
 
@@ -326,6 +351,26 @@ Behavior:
 Promise support matters because it allows the runtime path to remain usable for more realistic JavaScript helpers instead of only synchronous utility functions. At the same time, the waiting logic is intentionally simple and explicit so developers can reason about how long-running or failing async code surfaces back into the CLI.
 
 The current polling implementation is deliberately retained as version-1 behavior. It is documented as simple and temporary rather than as the final async design.
+
+## Invoking on a plain goja runtime
+
+`InvokeInRuntime` needs an `engine.Runtime`: it schedules the call through the runtime's owner and polls a returned promise on the event loop. A host that drives its own `*goja.Runtime` (one transaction per call, no event loop, its own `require`) uses `InvokeInVM` instead:
+
+```go
+vm := goja.New()
+reg := require.NewRegistry(require.WithLoader(registry.RequireLoader()))
+requireFn := reg.Enable(vm).Require // or any func(modulePath string) (goja.Value, error)
+
+result, err := registry.InvokeInVM(ctx, vm, requireFn, verb, parsedValues)
+```
+
+Rules:
+
+- the caller holds exclusive use of `vm` during the call; `InvokeInVM` does not schedule onto an owner or a loop;
+- `requireFn` is called with the verb file's module path and must load scanned files through `RequireLoader()`, so that the file's functions are captured;
+- a plain return value is exported to Go;
+- a returned promise is inspected after the call, when goja has already run the promise jobs the call queued: fulfilled returns its exported value, rejected returns an error;
+- a promise that is still pending (it waits for work outside the VM) is returned as `*goja.Promise`, unexported. The host settles it with its own scheduling and reads `promise.Result()` later.
 
 ## Relative module loading
 

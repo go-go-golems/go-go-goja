@@ -154,7 +154,11 @@ This section explains which files exist so you do not waste time searching.
 - `pkg/jsverbs/model.go`
   This defines the in-memory model: registry, file specs, verb specs, parameter specs, field specs, diagnostics, source-file inputs, output modes, and registry-level shared-section storage.
 - `pkg/jsverbs/scan.go`
-  This walks input sources, parses JavaScript with tree-sitter, extracts functions and sentinel metadata, records diagnostics, and finalizes discovered verbs.
+  This walks input sources, hands each one to a `SourceParser`, interprets the reported functions and sentinel calls, records diagnostics, and finalizes discovered verbs.
+- `pkg/jsverbs/syntax.go` and `pkg/jsverbs/goja_parser.go`
+  The parser boundary (`SourceParser`, `ParsedSource`, `ParsedItem`, `ParsedArg`) and the default parser built on goja's own `parser`/`ast` packages.
+- `pkg/jsverbs/treesitter`
+  The opt-in tree-sitter parser and the parity tests that keep both parsers equivalent.
 - `pkg/jsverbs/binding.go`
   This resolves one shared binding plan so schema generation and runtime invocation do not each invent their own interpretation of parameter semantics.
 - `pkg/jsverbs/command.go`
@@ -220,9 +224,9 @@ The shared-section feature follows that same rule. `require()` still does not im
 
 The scanner now enforces that the metadata attached to these sentinels is a strict literal subset. This is worth emphasizing because it changes how you should think about authoring metadata. The supported style is “declarative configuration written in JavaScript syntax,” not “arbitrary code that eventually produces an object.”
 
-### Why tree-sitter is used
+### Why a real parser is used
 
-The scanner uses tree-sitter because the system needs source-aware extraction without executing arbitrary JavaScript during discovery.
+The scanner uses a JavaScript parser because the system needs source-aware extraction without executing arbitrary JavaScript during discovery.
 
 That gives three important properties:
 
@@ -230,9 +234,9 @@ That gives three important properties:
 - function names and parameter lists come from syntax rather than brittle regexes,
 - metadata sentinels can be read from source in a deterministic way.
 
-Tree-sitter is not free; it adds a parser dependency and a source-model layer that a new developer must learn a bit. But the tradeoff is worth it here because the subsystem needs syntax awareness. Once you accept that requirement, a proper parser is much cheaper than inventing a homegrown partial parser through string operations and then slowly discovering edge cases one by one.
+A proper parser is much cheaper than a homegrown partial parser built from string operations, whose edge cases are discovered one by one. The subsystem originally used a JS-to-JSON rewrite shortcut for metadata objects; the hardening pass replaced it with AST literal parsing.
 
-That last sentence is no longer hypothetical. The subsystem originally used a JS-to-JSON rewrite shortcut for metadata objects. The hardening pass removed it and replaced it with AST literal parsing precisely because source-text rewriting was the wrong long-term abstraction once tree-sitter was already in the stack.
+The scanner first used tree-sitter. It now uses goja's own parser by default, for three reasons: it is pure Go, so programs that import `pkg/jsverbs` need no cgo grammar; it accepts exactly what goja will later run, so a file that scans also loads; and it is about five times faster on this repository's verb trees. The tree-sitter parser remains available in `pkg/jsverbs/treesitter` for ES module syntax and error-tolerant scanning. Both sit behind the `SourceParser` interface, which reports only top-level functions, sentinel calls with decoded literal arguments, and `doc` blocks; everything after that (packages, sections, verbs, diagnostics) is shared code, and `pkg/jsverbs/treesitter/parity_test.go` checks that both parsers give identical registries.
 
 ## Source origins
 
@@ -333,7 +337,7 @@ A host can therefore:
 
 1. reuse jsverbs discovery and schema generation,
 2. parse values through the generated command as usual,
-3. run the verb inside a caller-owned runtime using `registry.InvokeInRuntime(...)`, or route execution through some other host-specific mechanism.
+3. run the verb inside a caller-owned runtime using `registry.InvokeInRuntime(...)` (an `engine.Runtime`) or `registry.InvokeInVM(...)` (a plain `*goja.Runtime` the host drives itself), or route execution through some other host-specific mechanism.
 
 That split is deliberate. `pkg/jsverbs` owns command discovery, metadata interpretation, and generic command-wrapper generation. The host application still owns runtime/session lifecycle policy when it needs something more specialized than the default ephemeral runtime path.
 
