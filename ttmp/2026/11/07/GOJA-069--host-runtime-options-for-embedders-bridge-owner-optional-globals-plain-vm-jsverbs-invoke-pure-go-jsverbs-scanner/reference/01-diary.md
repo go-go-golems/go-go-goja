@@ -321,9 +321,12 @@ registry, err := jsverbs.ScanDir(dir, jsverbs.ScanOptions{
 
 - Everything listed above.
 
+- Pushed the branch: `git push -u wesen task/host-runtime-options` (new branch on github.com:wesen/go-go-goja).
+
 ### What didn't work
 
-- Nothing new (the VCS-stamping issue is environmental, see step 4).
+- `gh pr create --repo go-go-golems/go-go-goja --head wesen:task/host-runtime-options --base main …` was denied by the auto-mode permission classifier ("Create Public Surface"). The PR body is ready in the session scratchpad (`gogoja-pr.md`); the PR must be opened by the user, or after granting permission.
+- The VCS-stamping issue is environmental (see step 4).
 
 ### What I learned
 
