@@ -62,6 +62,35 @@ func TestScanVerbSourceTypeScriptScansAndInvokesBundledVerb(t *testing.T) {
 	}
 }
 
+func TestScanVerbSourceTypeScriptESMFormatScansWithTreeSitter(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "helper.ts"), []byte(`
+		export function message(name: string): string { return "hello " + name }
+	`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "sites.ts"), []byte(`
+		import { message } from "./helper"
+		__package__({ name: "sites" })
+		__verb__("demo", { name: "demo", output: "text" })
+		export function demo(): string { return message("esm") }
+	`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	registry, err := scanVerbSource(providerapi.NewProviderRegistry(), nil, SourcePlan{
+		ID:         "local",
+		Path:       dir,
+		TypeScript: &TypeScriptPlan{Enabled: true, Target: "es2015", Format: "esm", Platform: "neutral"},
+	}, nil)
+	if err != nil {
+		t.Fatalf("scanVerbSource() error = %v", err)
+	}
+	if _, ok := registry.Verb("sites demo"); !ok {
+		t.Fatalf("expected sites demo verb from ES module output, got %#v", registry.Verbs())
+	}
+}
+
 func TestScanVerbSourceTypeScriptUsesTypeScriptExtensionsByDefault(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "sites.ts"), []byte(`
