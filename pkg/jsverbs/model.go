@@ -80,6 +80,15 @@ type ScanOptions struct {
 	Exclude                []string
 	SourceTransform        SourceTransform
 	RuntimeTransform       RuntimeTransform
+	// Parser reads each source's top-level declarations. Nil means
+	// DefaultSourceParser(), goja's own parser (pure Go). The tree-sitter
+	// parser is in pkg/jsverbs/treesitter.
+	//
+	// A file the parser cannot read is kept without declarations, so that
+	// require() through the registry's loader still finds it, and gets a
+	// diagnostic: an error if the file mentions a metadata sentinel
+	// (__package__, __section__, __verb__), a warning otherwise.
+	Parser SourceParser
 }
 
 func DefaultScanOptions() ScanOptions {

@@ -7,12 +7,9 @@ import (
 	"path"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/bmatcuk/doublestar/v4"
-	tree_sitter "github.com/tree-sitter/go-tree-sitter"
-	tree_sitter_javascript "github.com/tree-sitter/tree-sitter-javascript/bindings/go"
 )
 
 func ScanDir(root string, opts ...ScanOptions) (*Registry, error) {
@@ -353,19 +350,6 @@ func transformSourceInput(input sourceInput, options ScanOptions) (sourceInput, 
 }
 
 func scanInput(input sourceInput, options ScanOptions, registry *Registry) (*FileSpec, error) {
-	parser := tree_sitter.NewParser()
-	defer parser.Close()
-	lang := tree_sitter.NewLanguage(tree_sitter_javascript.Language())
-	if err := parser.SetLanguage(lang); err != nil {
-		return nil, fmt.Errorf("set javascript language: %w", err)
-	}
-
-	tree := parser.Parse(input.Source, nil)
-	if tree == nil {
-		return nil, fmt.Errorf("parse %s: nil tree", input.RelPath)
-	}
-	defer tree.Close()
-
 	file := &FileSpec{
 		AbsPath:        input.AbsPath,
 		RelPath:        filepath.ToSlash(input.RelPath),
@@ -383,15 +367,45 @@ func scanInput(input sourceInput, options ScanOptions, registry *Registry) (*Fil
 		Docs:           map[string]string{},
 	}
 
+	parser := options.Parser
+	if parser == nil {
+		parser = DefaultSourceParser()
+	}
+	parsed, err := parser.ParseSource(ParseInput{RelPath: file.RelPath, Source: input.Source})
+	if err != nil {
+		registry.Diagnostics = append(registry.Diagnostics, parseFailureDiagnostic(file.RelPath, input.Source, err))
+		return file, nil
+	}
+
 	extractor := &extractor{
-		src:      input.Source,
 		relPath:  file.RelPath,
-		options:  options,
 		file:     file,
 		registry: registry,
 	}
-	extractor.extract(tree.RootNode())
+	for _, item := range parsed.Items {
+		extractor.apply(item)
+	}
 	return file, nil
+}
+
+// parseFailureDiagnostic reports a source the parser could not read. A file
+// that mentions a metadata sentinel was meant to declare verbs, so its failure
+// is an error; any other file (a helper, a bundled asset) only warns.
+func parseFailureDiagnostic(relPath string, source []byte, err error) Diagnostic {
+	severity := DiagnosticSeverityWarning
+	text := string(source)
+	for _, sentinel := range []string{PackageSentinel, SectionSentinel, VerbSentinel} {
+		if strings.Contains(text, sentinel) {
+			severity = DiagnosticSeverityError
+			break
+		}
+	}
+	return Diagnostic{
+		Severity: severity,
+		Path:     relPath,
+		Message: fmt.Sprintf("cannot parse source: %v (the default parser reads JavaScript as goja runs it: "+
+			"no import/export; compile to CommonJS, or scan with pkg/jsverbs/treesitter)", err),
+	}
 }
 
 func (r *Registry) finalizeVerbs() error {
@@ -486,56 +500,26 @@ func defaultParentsForFile(file *FileSpec) []string {
 }
 
 type extractor struct {
-	src      []byte
 	relPath  string
-	options  ScanOptions
 	file     *FileSpec
 	registry *Registry
 }
 
-func (e *extractor) extract(root *tree_sitter.Node) {
-	for i := uint(0); i < root.ChildCount(); i++ {
-		e.processTopLevel(root.Child(i))
-	}
-}
-
-func (e *extractor) processTopLevel(node *tree_sitter.Node) {
-	if node == nil {
-		return
-	}
-	switch node.Kind() {
-	case "expression_statement":
-		e.processTopLevel(node.Child(0))
-	case "call_expression":
-		e.handleCallExpression(node)
-	case "function_declaration":
-		e.handleFunctionDeclaration(node)
-	case "lexical_declaration", "variable_declaration", "export_statement":
-		for i := uint(0); i < node.ChildCount(); i++ {
-			e.processTopLevel(node.Child(i))
+func (e *extractor) apply(item ParsedItem) {
+	switch item.Kind {
+	case ParsedItemFunction:
+		e.addFunction(item.Name, item.Params)
+	case ParsedItemCall:
+		switch item.Name {
+		case PackageSentinel:
+			e.handlePackage(item.Args)
+		case SectionSentinel:
+			e.handleSection(item.Args)
+		case VerbSentinel:
+			e.handleVerb(item.Args)
 		}
-	case "variable_declarator":
-		e.handleVariableDeclarator(node)
-	}
-}
-
-func (e *extractor) handleFunctionDeclaration(node *tree_sitter.Node) {
-	nameNode := node.ChildByFieldName("name")
-	if nameNode == nil || nameNode.Kind() != "identifier" {
-		return
-	}
-	e.addFunction(e.nodeText(nameNode), extractParameters(node, e.nodeText))
-}
-
-func (e *extractor) handleVariableDeclarator(node *tree_sitter.Node) {
-	nameNode := node.ChildByFieldName("name")
-	valueNode := node.ChildByFieldName("value")
-	if nameNode == nil || valueNode == nil || nameNode.Kind() != "identifier" {
-		return
-	}
-	switch valueNode.Kind() {
-	case "arrow_function", "function":
-		e.addFunction(e.nodeText(nameNode), extractParameters(valueNode, e.nodeText))
+	case ParsedItemDoc:
+		e.handleDocTemplate(item.Text)
 	}
 }
 
@@ -547,47 +531,28 @@ func (e *extractor) addFunction(name string, params []ParameterSpec) {
 	if _, ok := e.file.functionByName[name]; ok {
 		return
 	}
-	fn := &FunctionSpec{Name: name, Params: params}
+	fn := &FunctionSpec{Name: name, Params: append([]ParameterSpec{}, params...)}
 	e.file.Functions = append(e.file.Functions, fn)
 	e.file.functionByName[name] = fn
 }
 
-func (e *extractor) handleCallExpression(node *tree_sitter.Node) {
-	fnNode := node.ChildByFieldName("function")
-	if fnNode == nil {
-		return
+func (e *extractor) handlePackage(args []ParsedArg) {
+	var objectArg *ParsedArg
+	for i := range args {
+		if args[i].Object {
+			objectArg = &args[i]
+			break
+		}
 	}
-	fnName := e.nodeText(fnNode)
-	if fnName == "doc" {
-		e.handleDocTemplate(node)
-		return
-	}
-	argsNode := node.ChildByFieldName("arguments")
-	if argsNode == nil {
-		return
-	}
-	switch fnName {
-	case "__package__":
-		e.handlePackage(argsNode)
-	case "__section__":
-		e.handleSection(argsNode)
-	case "__verb__":
-		e.handleVerb(argsNode)
-	}
-}
-
-func (e *extractor) handlePackage(argsNode *tree_sitter.Node) {
-	objectArg := e.firstObjectArg(argsNode)
 	if objectArg == nil {
 		e.errorf("", "__package__ requires an object argument")
 		return
 	}
-	value, err := e.parseLiteralNode(objectArg)
-	if err != nil {
-		e.errorf("", "invalid __package__ metadata: %v", err)
+	if objectArg.Err != nil {
+		e.errorf("", "invalid __package__ metadata: %v", objectArg.Err)
 		return
 	}
-	data, ok := value.(map[string]interface{})
+	data, ok := objectArg.Value.(map[string]interface{})
 	if !ok {
 		e.errorf("", "__package__ metadata must be an object")
 		return
@@ -601,18 +566,17 @@ func (e *extractor) handlePackage(argsNode *tree_sitter.Node) {
 	}
 }
 
-func (e *extractor) handleSection(argsNode *tree_sitter.Node) {
-	name, objectNode := e.namedObjectArgs(argsNode)
-	if objectNode == nil {
+func (e *extractor) handleSection(args []ParsedArg) {
+	name, objectArg := namedObjectArgs(args)
+	if objectArg == nil {
 		e.errorf(name, "__section__ requires a name and object metadata")
 		return
 	}
-	value, err := e.parseLiteralNode(objectNode)
-	if err != nil {
-		e.errorf(name, "invalid __section__ metadata: %v", err)
+	if objectArg.Err != nil {
+		e.errorf(name, "invalid __section__ metadata: %v", objectArg.Err)
 		return
 	}
-	data, ok := value.(map[string]interface{})
+	data, ok := objectArg.Value.(map[string]interface{})
 	if !ok {
 		e.errorf(name, "__section__ metadata must be an object")
 		return
@@ -640,18 +604,17 @@ func (e *extractor) handleSection(argsNode *tree_sitter.Node) {
 	e.file.Sections[slug] = section
 }
 
-func (e *extractor) handleVerb(argsNode *tree_sitter.Node) {
-	name, objectNode := e.namedObjectArgs(argsNode)
-	if objectNode == nil {
+func (e *extractor) handleVerb(args []ParsedArg) {
+	name, objectArg := namedObjectArgs(args)
+	if objectArg == nil {
 		e.errorf(name, "__verb__ requires a function name and object metadata")
 		return
 	}
-	value, err := e.parseLiteralNode(objectNode)
-	if err != nil {
-		e.errorf(name, "invalid __verb__ metadata: %v", err)
+	if objectArg.Err != nil {
+		e.errorf(name, "invalid __verb__ metadata: %v", objectArg.Err)
 		return
 	}
-	data, ok := value.(map[string]interface{})
+	data, ok := objectArg.Value.(map[string]interface{})
 	if !ok {
 		e.errorf(name, "__verb__ metadata must be an object")
 		return
@@ -682,19 +645,8 @@ func (e *extractor) handleVerb(argsNode *tree_sitter.Node) {
 	e.file.VerbMeta[functionName] = verb
 }
 
-func (e *extractor) handleDocTemplate(node *tree_sitter.Node) {
-	var templateNode *tree_sitter.Node
-	for i := uint(0); i < node.ChildCount(); i++ {
-		child := node.Child(i)
-		if child.Kind() == "template_string" {
-			templateNode = child
-			break
-		}
-	}
-	if templateNode == nil {
-		return
-	}
-	frontmatter, body := splitFrontmatter(e.templateRawText(templateNode))
+func (e *extractor) handleDocTemplate(raw string) {
+	frontmatter, body := splitFrontmatter(raw)
 	prose := strings.TrimSpace(body)
 	if prose == "" {
 		return
@@ -707,222 +659,22 @@ func (e *extractor) handleDocTemplate(node *tree_sitter.Node) {
 	e.file.Docs[target] = prose
 }
 
-func (e *extractor) namedObjectArgs(argsNode *tree_sitter.Node) (string, *tree_sitter.Node) {
-	args := e.collectArgs(argsNode)
+// namedObjectArgs reads the (name, object) or (object) argument forms of
+// __section__ and __verb__. It returns a nil argument when neither form fits.
+func namedObjectArgs(args []ParsedArg) (string, *ParsedArg) {
 	switch len(args) {
 	case 1:
-		if args[0].Kind() == "object" {
-			return "", args[0]
+		if args[0].Object {
+			return "", &args[0]
 		}
 	case 2:
-		nameValue, err := e.parseLiteralNode(args[0])
-		if err == nil {
-			if name, ok := nameValue.(string); ok {
-				return name, args[1]
+		if args[0].Err == nil {
+			if name, ok := args[0].Value.(string); ok {
+				return name, &args[1]
 			}
 		}
 	}
 	return "", nil
-}
-
-func (e *extractor) collectArgs(argsNode *tree_sitter.Node) []*tree_sitter.Node {
-	ret := []*tree_sitter.Node{}
-	for i := uint(0); i < argsNode.ChildCount(); i++ {
-		child := argsNode.Child(i)
-		switch child.Kind() {
-		case ",", "(", ")", "comment":
-			continue
-		default:
-			ret = append(ret, child)
-		}
-	}
-	return ret
-}
-
-func (e *extractor) firstObjectArg(argsNode *tree_sitter.Node) *tree_sitter.Node {
-	for _, arg := range e.collectArgs(argsNode) {
-		if arg.Kind() == "object" {
-			return arg
-		}
-	}
-	return nil
-}
-
-func (e *extractor) nodeText(node *tree_sitter.Node) string {
-	if node == nil {
-		return ""
-	}
-	start := node.StartByte()
-	end := node.EndByte()
-	srcLen := uint(len(e.src))
-	if end < start || start > srcLen || end > srcLen {
-		return ""
-	}
-	return string(e.src[start:end])
-}
-
-func (e *extractor) templateRawText(tmplNode *tree_sitter.Node) string {
-	text := e.nodeText(tmplNode)
-	text = strings.TrimPrefix(text, "`")
-	text = strings.TrimSuffix(text, "`")
-	return text
-}
-
-func (e *extractor) parseLiteralNode(node *tree_sitter.Node) (interface{}, error) {
-	if node == nil {
-		return nil, fmt.Errorf("literal node is nil")
-	}
-	switch node.Kind() {
-	case "object":
-		return e.parseObjectLiteral(node)
-	case "array":
-		return e.parseArrayLiteral(node)
-	case "string":
-		return decodeStringLiteral(e.nodeText(node))
-	case "template_string":
-		return e.parseTemplateLiteral(node)
-	case "number":
-		return strconv.ParseFloat(e.nodeText(node), 64)
-	case "true":
-		return true, nil
-	case "false":
-		return false, nil
-	case "null":
-		return nil, nil
-	default:
-		return nil, fmt.Errorf("unsupported metadata literal %q", node.Kind())
-	}
-}
-
-func (e *extractor) parseObjectLiteral(node *tree_sitter.Node) (map[string]interface{}, error) {
-	ret := map[string]interface{}{}
-	for i := uint(0); i < node.NamedChildCount(); i++ {
-		child := node.NamedChild(i)
-		switch child.Kind() {
-		case "pair":
-			keyNode := child.ChildByFieldName("key")
-			valueNode := child.ChildByFieldName("value")
-			if keyNode == nil || valueNode == nil {
-				return nil, fmt.Errorf("object pair missing key or value")
-			}
-			key, err := e.parseObjectKey(keyNode)
-			if err != nil {
-				return nil, err
-			}
-			value, err := e.parseLiteralNode(valueNode)
-			if err != nil {
-				return nil, fmt.Errorf("field %q: %w", key, err)
-			}
-			ret[key] = value
-		case "comment":
-			continue
-		default:
-			return nil, fmt.Errorf("unsupported object element %q", child.Kind())
-		}
-	}
-	return ret, nil
-}
-
-func (e *extractor) parseArrayLiteral(node *tree_sitter.Node) ([]interface{}, error) {
-	ret := []interface{}{}
-	for i := uint(0); i < node.NamedChildCount(); i++ {
-		child := node.NamedChild(i)
-		if child.Kind() == "comment" {
-			continue
-		}
-		value, err := e.parseLiteralNode(child)
-		if err != nil {
-			return nil, err
-		}
-		ret = append(ret, value)
-	}
-	return ret, nil
-}
-
-func (e *extractor) parseObjectKey(node *tree_sitter.Node) (string, error) {
-	switch node.Kind() {
-	case "property_identifier", "identifier":
-		return e.nodeText(node), nil
-	case "string", "template_string":
-		value, err := e.parseLiteralNode(node)
-		if err != nil {
-			return "", err
-		}
-		s, ok := value.(string)
-		if !ok {
-			return "", fmt.Errorf("object key must resolve to string")
-		}
-		return s, nil
-	default:
-		return "", fmt.Errorf("unsupported object key %q", node.Kind())
-	}
-}
-
-func (e *extractor) parseTemplateLiteral(node *tree_sitter.Node) (string, error) {
-	for i := uint(0); i < node.NamedChildCount(); i++ {
-		child := node.NamedChild(i)
-		if child.Kind() != "string_fragment" {
-			return "", fmt.Errorf("template metadata strings cannot contain substitutions")
-		}
-	}
-	return e.templateRawText(node), nil
-}
-
-func extractParameters(node *tree_sitter.Node, textFn func(*tree_sitter.Node) string) []ParameterSpec {
-	if node == nil {
-		return nil
-	}
-	if paramsNode := node.ChildByFieldName("parameters"); paramsNode != nil {
-		return collectParameterNodes(paramsNode, textFn)
-	}
-	if paramNode := node.ChildByFieldName("parameter"); paramNode != nil {
-		return []ParameterSpec{parseParameterNode(paramNode, textFn)}
-	}
-	return nil
-}
-
-func collectParameterNodes(paramsNode *tree_sitter.Node, textFn func(*tree_sitter.Node) string) []ParameterSpec {
-	params := []ParameterSpec{}
-	for i := uint(0); i < paramsNode.ChildCount(); i++ {
-		child := paramsNode.Child(i)
-		switch child.Kind() {
-		case ",", "(", ")", "comment":
-			continue
-		default:
-			params = append(params, parseParameterNode(child, textFn))
-		}
-	}
-	return params
-}
-
-func parseParameterNode(node *tree_sitter.Node, textFn func(*tree_sitter.Node) string) ParameterSpec {
-	if node == nil {
-		return ParameterSpec{}
-	}
-	switch node.Kind() {
-	case "identifier":
-		return ParameterSpec{Name: textFn(node), Kind: ParameterIdentifier}
-	case "rest_pattern":
-		argument := node.ChildByFieldName("argument")
-		if argument == nil && node.NamedChildCount() > 0 {
-			argument = node.NamedChild(0)
-		}
-		param := parseParameterNode(argument, textFn)
-		param.Rest = true
-		return param
-	case "assignment_pattern":
-		left := node.ChildByFieldName("left")
-		if left == nil && node.NamedChildCount() > 0 {
-			left = node.NamedChild(0)
-		}
-		return parseParameterNode(left, textFn)
-	case "object_pattern":
-		return ParameterSpec{Name: textFn(node), Kind: ParameterObject}
-	case "array_pattern":
-		return ParameterSpec{Name: textFn(node), Kind: ParameterArray}
-	default:
-		return ParameterSpec{Name: textFn(node), Kind: ParameterUnknown}
-	}
 }
 
 func parseFieldMap(data map[string]interface{}) map[string]*FieldSpec {
@@ -982,55 +734,6 @@ func parseFrontmatter(fm string) map[string]string {
 		ret[key] = value
 	}
 	return ret
-}
-
-func decodeStringLiteral(raw string) (string, error) {
-	if len(raw) < 2 {
-		return "", fmt.Errorf("invalid string literal")
-	}
-	switch raw[0] {
-	case '"':
-		value, err := strconv.Unquote(raw)
-		if err != nil {
-			return "", fmt.Errorf("decode string literal: %w", err)
-		}
-		return value, nil
-	case '\'':
-		return decodeSingleQuotedLiteral(raw)
-	default:
-		return "", fmt.Errorf("unsupported string literal %q", raw)
-	}
-}
-
-func decodeSingleQuotedLiteral(raw string) (string, error) {
-	if len(raw) < 2 || raw[0] != '\'' || raw[len(raw)-1] != '\'' {
-		return "", fmt.Errorf("invalid single-quoted literal")
-	}
-	var sb strings.Builder
-	for i := 1; i < len(raw)-1; i++ {
-		ch := raw[i]
-		if ch != '\\' {
-			sb.WriteByte(ch)
-			continue
-		}
-		i++
-		if i >= len(raw)-1 {
-			return "", fmt.Errorf("unterminated escape sequence")
-		}
-		switch raw[i] {
-		case '\\', '\'', '"', '`':
-			sb.WriteByte(raw[i])
-		case 'n':
-			sb.WriteByte('\n')
-		case 'r':
-			sb.WriteByte('\r')
-		case 't':
-			sb.WriteByte('\t')
-		default:
-			return "", fmt.Errorf("unsupported escape sequence \\%c", raw[i])
-		}
-	}
-	return sb.String(), nil
 }
 
 func firstMap(values ...interface{}) (map[string]interface{}, bool) {

@@ -7,6 +7,7 @@ import (
 
 	"github.com/evanw/esbuild/pkg/api"
 	"github.com/go-go-golems/go-go-goja/pkg/jsverbs"
+	"github.com/go-go-golems/go-go-goja/pkg/jsverbs/treesitter"
 	"github.com/go-go-golems/go-go-goja/pkg/tsscript"
 )
 
@@ -18,6 +19,12 @@ func applyTypeScriptScanOptions(source SourcePlan, options *jsverbs.ScanOptions,
 	}
 	tsOptions := tsscriptOptionsFromRuntimePlan(source.TypeScript)
 	tsOptions.External = appendUniqueStrings(tsOptions.External, runtimeAliases...)
+	if tsOptions.Format == api.FormatESModule && options.Parser == nil {
+		// The scanner sees the transformed source. ES module output keeps
+		// import/export, which goja's script parser (the jsverbs default)
+		// rejects, so read it with the tree-sitter parser.
+		options.Parser = treesitter.Parser{}
+	}
 	options.SourceTransform = func(file jsverbs.SourceFile) (jsverbs.SourceFile, error) {
 		if !tsscript.IsTypeScriptPath(file.Path) {
 			return file, nil

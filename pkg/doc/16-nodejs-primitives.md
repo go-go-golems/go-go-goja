@@ -27,7 +27,7 @@ This section explains how primitives become available in a runtime, how the piec
 
 A go-go-goja runtime starts with goja, then adds the `goja_nodejs/require` registry, the event loop, and selected native modules. Modules under `modules/` implement `modules.NativeModule` and register themselves into `modules.DefaultRegistry` through `init()` functions.
 
-The factory always installs data-only primitives and safe globals:
+By default the factory installs data-only primitives and safe globals (the next section shows how a host turns them off):
 
 - `console`, from `goja_nodejs/console`
 - `Buffer`, from `goja_nodejs/buffer`
@@ -62,6 +62,31 @@ factory, err := engine.NewRuntimeFactoryBuilder().
 ```
 
 Use only `ProcessEnv()` if scripts need the global `process` object but not `require("process")`. Use only `ProcessModule()` if scripts should be able to call `require("process")` or `require("node:process")` but should not receive a global `process` binding.
+
+### Deterministic runtimes for embedders
+
+Some hosts must keep wall clocks, timers and standard output away from scripts, for example a host that runs each script call inside one database transaction and settles asynchronous work only in later calls. Three options remove what the factory would otherwise add:
+
+```go
+factory, err := engine.NewRuntimeFactoryBuilder(
+    engine.WithImplicitDefaultRegistryModules(false), // no default-registry modules
+    engine.WithDataOnlyDefaultRegistryModules(false), // not even crypto/events/path/time/timer
+    engine.WithoutDefaultGlobals(engine.DefaultGlobals()...),
+).WithModules(myModules...).Build()
+```
+
+`WithoutDefaultGlobals` takes any of `engine.GlobalConsole`, `engine.GlobalConsoleTimers`, `engine.GlobalPerformance`, `engine.GlobalBuffer` and `engine.GlobalURL`; calling it more than once accumulates, and `Build` rejects unknown names. Skipping `GlobalConsole` also skips the console timers, which live on the console object. `require` is always installed; a runtime initializer can replace it. Note that the data-only default set includes `timer`, so a host that wants no timers must turn that set off as shown.
+
+`WithRuntimeBridgeOwner` (a `RuntimeOption` passed to `NewRuntime`) replaces the owner that native modules find through `runtimebridge.Lookup(vm)`, before any module registers or loads:
+
+```go
+rt, err := factory.NewRuntime(engine.WithRuntimeBridgeOwner(
+    func(vm *goja.Runtime, base runtimebridge.RuntimeOwner) runtimebridge.RuntimeOwner {
+        return &hostOwner{base: base} // e.g. Post becomes "run this in the host's next transaction"
+    }))
+```
+
+Modules that settle promises with `Owner.Post` (fetch, fs, timer, express) then go through the host's scheduler. `rt.Owner` and the owners passed to module registrars and runtime initializers stay the runtime's own, which the host uses to drive the VM. A nil function, or one that returns nil, keeps the default.
 
 ## Embedding from Third-Party Packages
 
@@ -414,7 +439,7 @@ This section maps the JavaScript APIs back to Go files so maintainers can review
 | API | Main files |
 |-----|------------|
 | Node core registration | `pkg/engine/nodejs_init.go` |
-| Global Buffer/URL/performance install | `pkg/engine/factory.go`, `pkg/engine/performance.go` |
+| Global console/Buffer/URL/performance install, `WithoutDefaultGlobals`, `WithRuntimeBridgeOwner` | `pkg/engine/factory.go`, `pkg/engine/options.go`, `pkg/engine/performance.go` |
 | Optional process / node:process module and process global | `pkg/engine/module_specs.go`, `ProcessModule()`, `ProcessEnv()` |
 | fs / node:fs | `modules/fs/fs.go`, `fs_async.go`, `fs_sync.go`, `fs_errors.go` |
 | events / node:events | `modules/events/events.go` |
