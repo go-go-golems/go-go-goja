@@ -95,11 +95,11 @@ For the complete field-level reference, use `xgoja help xgoja-v2-reference`.
 
 ## Providers and runtime modules
 
-Providers are Go packages imported by generated code. A provider entry identifies the package and registration function:
+Providers are Go packages imported by generated code. A provider entry identifies the package and registration function. `id` must be the package ID the provider registers (`go-go-goja-http`, `go-go-goja-core`, `go-go-goja-host`, `go-go-goja-hostauth`, `go-go-goja-mcp`, or a third-party provider's `PackageID`); `xgoja build` does not check it, and a mismatch shows up at runtime as `runtime references unknown provider module ...` or `unknown command provider ...`:
 
 ```yaml
 providers:
-  - id: http
+  - id: go-go-goja-http
     import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http
     register: Register
 ```
@@ -109,7 +109,7 @@ Runtime modules select modules registered by those providers:
 ```yaml
 runtime:
   modules:
-    - provider: http
+    - provider: go-go-goja-http
       name: express
       as: express
 ```
@@ -166,7 +166,7 @@ Provider command sets use `provider.command-set`:
 commands:
   - id: serve
     type: provider.command-set
-    provider: http
+    provider: go-go-goja-http
     name: serve
     mount: serve
     sources: [verbs]
@@ -174,7 +174,7 @@ commands:
 
 `commands[].sources` is command-scoped. Providers receive a `SourceRegistry` containing only the selected source IDs for that command. For example, HTTP `serve` scans and hot-reloads only the jsverb sources listed on its command, not every jsverb source in the generated application.
 
-To serve the runtime to agents over MCP, add the `go-go-goja-mcp` provider and its `mcp` command set. Provider `id` values must equal the registered package ID (`id: mcp` fails with `unknown provider "mcp"`):
+To serve the runtime to agents over MCP, add the `go-go-goja-mcp` provider and its `mcp` command set. Provider `id` values must equal the registered package ID; with `id: mcp` the build succeeds but the generated `mcp` command only reports `unknown command provider mcp.mcp`:
 
 ```yaml
 providers:
@@ -197,12 +197,12 @@ For an HTTP application, the usual shape is:
 
 ```yaml
 providers:
-  - id: http
+  - id: go-go-goja-http
     import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http
 
 runtime:
   modules:
-    - provider: http
+    - provider: go-go-goja-http
       name: express
       as: express
 
@@ -219,7 +219,7 @@ sources:
 commands:
   - id: serve
     type: provider.command-set
-    provider: http
+    provider: go-go-goja-http
     name: serve
     mount: serve
     sources: [sites]

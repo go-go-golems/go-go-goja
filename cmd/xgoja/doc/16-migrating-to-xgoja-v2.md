@@ -141,7 +141,7 @@ through `require(...)` or externalized TypeScript imports:
 ```yaml
 runtime:
   modules:
-    - provider: http
+    - provider: go-go-goja-http
       name: express
       as: express
 ```
@@ -152,7 +152,7 @@ A provider command set is selected under `commands` and contributes CLI commands
 commands:
   - id: serve
     type: provider.command-set
-    provider: http
+    provider: go-go-goja-http
     name: serve
     mount: serve
     sources: [sites]

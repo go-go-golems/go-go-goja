@@ -57,12 +57,12 @@ workspace:
   mode: auto
 
 providers:
-  - id: core
+  - id: go-go-goja-core
     import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/core
 
 runtime:
   modules:
-    - provider: core
+    - provider: go-go-goja-core
       name: path
       as: path
 
@@ -167,7 +167,7 @@ module path, local directory, version, resolution kind, and source before build.
 
 ```yaml
 providers:
-  - id: http
+  - id: go-go-goja-http
     import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http
     register: Register
     module:
@@ -179,8 +179,14 @@ A provider is a Go package that registers xgoja capabilities. It can contribute
 Go-backed runtime modules, command sets, jsverb sources, TypeScript descriptors,
 help sources, assets, host services, and runtime initializers.
 
-`id` is the local spec identifier used by `runtime.modules`, `sources`, and
-`commands`. `import` is the Go package import path. `register` defaults to
+`id` is the provider package ID that the package's register function
+registers (`go-go-goja-http`, `go-go-goja-core`, `go-go-goja-mcp`, ...); `runtime.modules`,
+`sources`, and `commands` refer to it. There is no alias mechanism: the generated
+binary registers providers under their package IDs and looks plan entries up by
+the spec `id`. `xgoja build` does not detect a mismatch (it plans against the
+spec itself); the binary then fails at runtime with
+`runtime references unknown provider module <id>.<module>` and replaces
+provider commands with an error stub reporting `unknown command provider <id>.<name>`. `import` is the Go package import path. `register` defaults to
 `Register`. `module.version` and `module.replace` control generated `go.mod`
 requirements when workspace resolution does not provide a better local module.
 
@@ -189,7 +195,7 @@ requirements when workspace resolution does not provide a better local module.
 ```yaml
 runtime:
   modules:
-    - provider: http
+    - provider: go-go-goja-http
       name: express
       as: express
       config:
@@ -333,7 +339,7 @@ commands:
 
   - id: serve
     type: provider.command-set
-    provider: http
+    provider: go-go-goja-http
     name: serve
     mount: serve
     sources: [local-sites]
@@ -402,10 +408,9 @@ commands:
 ```
 
 This adds `cv-agent mcp serve` (the mount is the parent command, `serve` the
-command set's only command). Provider `id` values are looked up in the provider
-registry as package IDs, so `id: mcp` fails at build time with
-`unknown provider "mcp"` (and a hand-written runtime plan with a mismatched
-provider fails at startup with `runtime references unknown provider module ...`).
+command set's only command). The provider `id` must be the package ID
+`go-go-goja-mcp` (see "Providers"): with `id: mcp` the build succeeds, but
+`cv-agent mcp` is an error stub reporting `unknown command provider mcp.mcp`.
 
 `config` keys (unknown keys are rejected):
 
@@ -579,12 +584,12 @@ schema: xgoja/v2
 name: typescript-jsverbs
 
 providers:
-  - id: http
+  - id: go-go-goja-http
     import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http
 
 runtime:
   modules:
-    - provider: http
+    - provider: go-go-goja-http
       name: express
 
 sources:
@@ -604,7 +609,7 @@ commands:
 
   - id: serve
     type: provider.command-set
-    provider: http
+    provider: go-go-goja-http
     name: serve
     mount: serve
     sources: [sites]
@@ -685,7 +690,7 @@ on the command. For HTTP serve, use this shape:
 commands:
   - id: http-serve
     type: provider.command-set
-    provider: http
+    provider: go-go-goja-http
     name: serve
     mount: serve
     sources: [local-sites]
