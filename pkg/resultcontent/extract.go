@@ -50,14 +50,16 @@ func ProviderOf(value goja.Value) (Provider, bool) {
 
 // Placeholder returns the text that stands for provider number n (1-based).
 func Placeholder(n int, p Provider) string {
-	desc := describe(p)
+	desc := Describe(p)
 	if desc == "" {
 		return fmt.Sprintf("[content %d]", n)
 	}
 	return fmt.Sprintf("[content %d: %s]", n, desc)
 }
 
-func describe(p Provider) string {
+// Describe returns the provider's Describer placeholder, or "" when it has
+// none (or the Describer panicked). It calls Go code only.
+func Describe(p Provider) string {
 	d, ok := p.(Describer)
 	if !ok {
 		return ""

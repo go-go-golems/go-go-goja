@@ -10,6 +10,7 @@ import (
 
 	"github.com/dop251/goja"
 	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
+	"github.com/go-go-golems/go-go-goja/pkg/resultcontent"
 	"github.com/pkg/errors"
 )
 
@@ -19,6 +20,8 @@ type executionOutcome struct {
 	LastValueJSON  string
 	PersistedNames []string
 	HelperError    bool
+	Providers      []resultcontent.Provider
+	ProcessError   string
 }
 
 type promiseSnapshot struct {
@@ -339,16 +342,20 @@ func (s *Service) evaluateInstrumented(ctx context.Context, state *sessionState,
 		return nil, errors.Wrap(refreshErr, "refresh binding runtime details")
 	}
 
+	rendering := s.renderContent(ctx, outcome.Providers)
+	candidate.content = rendering.Content
 	cell.Execution = ExecutionReport{
-		Status:      executionStatus(execErr, outcome.HelperError),
-		Result:      outcome.LastValue,
-		ResultJSON:  outcome.LastValueJSON,
-		Error:       errorString(execErr),
-		DurationMS:  duration.Milliseconds(),
-		Awaited:     outcome.Awaited,
-		Console:     consoleEvents,
-		HadSideFX:   len(diffs) > 0,
-		HelperError: outcome.HelperError,
+		Status:               executionStatus(execErr, outcome.HelperError),
+		Result:               outcome.LastValue,
+		ResultJSON:           outcome.LastValueJSON,
+		Error:                errorString(execErr),
+		DurationMS:           duration.Milliseconds(),
+		Awaited:              outcome.Awaited,
+		Console:              consoleEvents,
+		HadSideFX:            len(diffs) > 0,
+		HelperError:          outcome.HelperError,
+		Content:              nonEmptyRefs(rendering.Refs),
+		ResultProcessorError: outcome.ProcessError,
 	}
 	cell.Runtime = RuntimeReport{
 		BeforeGlobals:    mapGlobalSnapshotViews(beforeGlobals),
@@ -425,15 +432,18 @@ func (s *Service) evaluateRaw(ctx context.Context, state *sessionState, cell *Ce
 		}
 	}
 
+	rendering := s.renderContent(ctx, outcome.Providers)
 	cell.Execution = ExecutionReport{
-		Status:     executionStatus(execErr, false),
-		Result:     outcome.LastValue,
-		ResultJSON: outcome.LastValueJSON,
-		Error:      errorString(execErr),
-		DurationMS: duration.Milliseconds(),
-		Awaited:    outcome.Awaited,
-		Console:    consoleEvents,
-		HadSideFX:  len(diffs) > 0,
+		Status:               executionStatus(execErr, false),
+		Result:               outcome.LastValue,
+		ResultJSON:           outcome.LastValueJSON,
+		Error:                errorString(execErr),
+		DurationMS:           duration.Milliseconds(),
+		Awaited:              outcome.Awaited,
+		Console:              consoleEvents,
+		HadSideFX:            len(diffs) > 0,
+		Content:              nonEmptyRefs(rendering.Refs),
+		ResultProcessorError: outcome.ProcessError,
 	}
 	cell.Runtime = RuntimeReport{
 		CurrentCellValue: outcome.LastValue,
@@ -457,7 +467,14 @@ func (s *Service) evaluateRaw(ctx context.Context, state *sessionState, cell *Ce
 		cell.Runtime.RemovedBindings = dedupeSortedStrings(removedBindings)
 	}
 
-	return s.commitEvaluatedCell(ctx, state, &cellState{report: cell, analysis: analysis})
+	return s.commitEvaluatedCell(ctx, state, &cellState{report: cell, analysis: analysis, content: rendering.Content})
+}
+
+func nonEmptyRefs(refs []resultcontent.Ref) []resultcontent.Ref {
+	if len(refs) == 0 {
+		return nil
+	}
+	return refs
 }
 
 func wrapTopLevelAwaitExpression(source string) (string, bool) {
@@ -507,9 +524,12 @@ func (s *sessionState) executeRaw(ctx context.Context, source string, policy Ses
 	execCtx, cancel := evaluationContext(ctx, policy)
 	defer cancel()
 
+	if err := s.beforeEval(execCtx); err != nil {
+		return outcome, err
+	}
 	value, err := s.runString(execCtx, source)
 	if err != nil {
-		return outcome, err
+		return s.failedOutcome(ctx, outcome, err)
 	}
 	if value == nil {
 		outcome.LastValue = "undefined"
@@ -521,7 +541,7 @@ func (s *sessionState) executeRaw(ctx context.Context, source string, policy Ses
 			outcome.Awaited = true
 			value, err = s.waitPromise(execCtx, promise)
 			if err != nil {
-				return outcome, err
+				return s.failedOutcome(ctx, outcome, err)
 			}
 		} else {
 			outcome.LastValue = promisePreview(promise)
@@ -529,12 +549,67 @@ func (s *sessionState) executeRaw(ctx context.Context, source string, policy Ses
 			return outcome, nil
 		}
 	}
-	outcome.LastValue = gojaValuePreview(value, s.runtime.VM)
+	finalized, err := s.finalizeValue(ctx, value)
+	if err != nil {
+		return outcome, err
+	}
+	outcome.LastValue = finalized.LastValue
 	if outcome.LastValue == "" && (value == nil || goja.IsUndefined(value) || goja.IsNull(value)) {
 		outcome.LastValue = "undefined"
 	}
-	outcome.LastValueJSON = s.resultEnvelopeJSON(ctx, value)
+	outcome.LastValueJSON = finalized.LastValueJSON
+	outcome.Providers = finalized.Providers
+	outcome.ProcessError = finalized.ProcessError
 	return outcome, nil
+}
+
+// failedOutcome lets a FailureProcessor contribute text and providers for a
+// cell that threw, was rejected, or timed out.
+func (s *sessionState) failedOutcome(ctx context.Context, outcome executionOutcome, evalErr error) (executionOutcome, error) {
+	processed := s.processFailure(ctx, evalErr)
+	if processed.Text != "" {
+		outcome.LastValue = processed.Text
+	}
+	outcome.Providers = processed.Providers
+	outcome.ProcessError = processed.Err
+	return outcome, evalErr
+}
+
+type finalizedValue struct {
+	LastValue     string
+	LastValueJSON string
+	Providers     []resultcontent.Provider
+	ProcessError  string
+}
+
+// finalizeValue renders the preview, runs the result processor, and builds the
+// JSON envelope in one owner call.
+func (s *sessionState) finalizeValue(ctx context.Context, value goja.Value) (finalizedValue, error) {
+	ret, err := s.runtime.Owner.Call(ctx, "replsession.finalize-value", func(callCtx context.Context, vm *goja.Runtime) (any, error) {
+		return s.finalizeValueOnOwner(callCtx, vm, value), nil
+	})
+	if err != nil {
+		return finalizedValue{}, err
+	}
+	finalized, ok := ret.(finalizedValue)
+	if !ok {
+		return finalizedValue{}, fmt.Errorf("unexpected finalized value type %T", ret)
+	}
+	return finalized, nil
+}
+
+func (s *sessionState) finalizeValueOnOwner(ctx context.Context, vm *goja.Runtime, value goja.Value) finalizedValue {
+	processed := s.processValue(ctx, vm, value)
+	text := processed.Text
+	if text == "" {
+		text = gojaValuePreview(value, vm)
+	}
+	return finalizedValue{
+		LastValue:     text,
+		LastValueJSON: resultEnvelopeJSONWithProviders(vm, value, processed.Providers),
+		Providers:     processed.Providers,
+		ProcessError:  processed.Err,
+	}
 }
 
 func (s *sessionState) executeWrapped(ctx context.Context, rewrite RewriteReport) (executionOutcome, error) {
@@ -542,9 +617,12 @@ func (s *sessionState) executeWrapped(ctx context.Context, rewrite RewriteReport
 	execCtx, cancel := evaluationContext(ctx, s.policy)
 	defer cancel()
 
+	if err := s.beforeEval(execCtx); err != nil {
+		return outcome, err
+	}
 	value, err := s.runString(execCtx, rewrite.TransformedSource)
 	if err != nil {
-		return outcome, err
+		return s.failedOutcome(ctx, outcome, err)
 	}
 	if value == nil {
 		return outcome, nil
@@ -553,17 +631,19 @@ func (s *sessionState) executeWrapped(ctx context.Context, rewrite RewriteReport
 		outcome.Awaited = true
 		value, err = s.waitPromise(execCtx, promise)
 		if err != nil {
-			return outcome, err
+			return s.failedOutcome(ctx, outcome, err)
 		}
 	}
-	persisted, lastValue, lastValueJSON, helperError, err := s.persistWrappedReturn(ctx, value, rewrite.BindingHelperName, rewrite.LastHelperName)
+	result, err := s.persistWrappedReturn(ctx, value, rewrite.BindingHelperName, rewrite.LastHelperName)
 	if err != nil {
 		return outcome, err
 	}
-	outcome.PersistedNames = persisted
-	outcome.LastValue = lastValue
-	outcome.LastValueJSON = lastValueJSON
-	outcome.HelperError = helperError
+	outcome.PersistedNames = result.Persisted
+	outcome.LastValue = result.LastValue
+	outcome.LastValueJSON = result.LastValueJSON
+	outcome.HelperError = result.HelperError
+	outcome.Providers = result.Providers
+	outcome.ProcessError = result.ProcessError
 	return outcome, nil
 }
 
@@ -651,17 +731,24 @@ func (s *sessionState) waitPromise(ctx context.Context, promise *goja.Promise) (
 	}
 }
 
-func (s *sessionState) persistWrappedReturn(ctx context.Context, value goja.Value, bindingsKey string, lastKey string) ([]string, string, string, bool, error) {
-	ret, err := s.runtime.Owner.Call(ctx, "replsession.persist-return", func(_ context.Context, vm *goja.Runtime) (any, error) {
+func (s *sessionState) persistWrappedReturn(ctx context.Context, value goja.Value, bindingsKey string, lastKey string) (persistResult, error) {
+	ret, err := s.runtime.Owner.Call(ctx, "replsession.persist-return", func(callCtx context.Context, vm *goja.Runtime) (any, error) {
 		if value == nil || goja.IsUndefined(value) || goja.IsNull(value) {
 			return persistResult{HelperError: true, LastValue: "undefined", LastValueJSON: resultEnvelopeJSON(vm, goja.Undefined())}, nil
 		}
 		obj := value.ToObject(vm)
 		bindingsValue := obj.Get(bindingsKey)
 		lastValue := obj.Get(lastKey)
-		lastValueJSON := resultEnvelopeJSON(vm, lastValue)
+		finalized := s.finalizeValueOnOwner(callCtx, vm, lastValue)
+		result := persistResult{
+			LastValue:     finalized.LastValue,
+			LastValueJSON: finalized.LastValueJSON,
+			Providers:     finalized.Providers,
+			ProcessError:  finalized.ProcessError,
+		}
 		if bindingsValue == nil || goja.IsUndefined(bindingsValue) || goja.IsNull(bindingsValue) {
-			return persistResult{HelperError: true, LastValue: gojaValuePreview(lastValue, vm), LastValueJSON: lastValueJSON}, nil
+			result.HelperError = true
+			return result, nil
 		}
 		bindingsObj := bindingsValue.ToObject(vm)
 		names := bindingsObj.Keys()
@@ -671,16 +758,17 @@ func (s *sessionState) persistWrappedReturn(ctx context.Context, value goja.Valu
 				return nil, setErr
 			}
 		}
-		return persistResult{Persisted: names, LastValue: gojaValuePreview(lastValue, vm), LastValueJSON: lastValueJSON}, nil
+		result.Persisted = names
+		return result, nil
 	})
 	if err != nil {
-		return nil, "", "", false, err
+		return persistResult{}, err
 	}
 	result, ok := ret.(persistResult)
 	if !ok {
-		return nil, "", "", false, fmt.Errorf("unexpected persist result type %T", ret)
+		return persistResult{}, fmt.Errorf("unexpected persist result type %T", ret)
 	}
-	return result.Persisted, result.LastValue, result.LastValueJSON, result.HelperError, nil
+	return result, nil
 }
 
 func (s *sessionState) resultEnvelopeJSON(ctx context.Context, value goja.Value) string {
@@ -698,6 +786,10 @@ func (s *sessionState) resultEnvelopeJSON(ctx context.Context, value goja.Value)
 }
 
 func resultEnvelopeJSON(vm *goja.Runtime, value goja.Value) string {
+	return resultEnvelopeJSONWithReplacer(vm, value, nil)
+}
+
+func resultEnvelopeJSONWithReplacer(vm *goja.Runtime, value goja.Value, replacer goja.Value) string {
 	if vm == nil {
 		return resultErrorEnvelopeJSON(fmt.Errorf("runtime is nil"))
 	}
@@ -717,7 +809,11 @@ func resultEnvelopeJSON(vm *goja.Runtime, value goja.Value) string {
 	if err := envelope.Set("result", value); err != nil {
 		return resultErrorEnvelopeJSON(err)
 	}
-	jsonValue, err := stringify(jsonObject, envelope)
+	args := []goja.Value{envelope}
+	if replacer != nil {
+		args = append(args, replacer)
+	}
+	jsonValue, err := stringify(jsonObject, args...)
 	if err != nil {
 		if exception, ok := err.(*goja.Exception); ok {
 			return resultErrorEnvelopeJSON(fmt.Errorf("result is not JSON-serializable: %s", rejectionMessage(exception.Value(), vm)))

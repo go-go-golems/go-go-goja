@@ -14,6 +14,7 @@ import (
 	inspectorruntime "github.com/go-go-golems/go-go-goja/pkg/inspector/runtime"
 	"github.com/go-go-golems/go-go-goja/pkg/jsdoc/extract"
 	"github.com/go-go-golems/go-go-goja/pkg/repldb"
+	"github.com/go-go-golems/go-go-goja/pkg/resultcontent"
 	"github.com/pkg/errors"
 )
 
@@ -23,7 +24,9 @@ func (s *Service) commitEvaluatedCell(ctx context.Context, state *sessionState, 
 	if state == nil || cell == nil || cell.report == nil {
 		return nil, errors.New("commit cell: state or cell is nil")
 	}
-	response := &EvaluateResponse{Session: state.buildSummary(ctx), Cell: cell.report}
+	content := cell.content
+	cell.content = nil
+	response := &EvaluateResponse{Session: state.buildSummary(ctx), Cell: cell.report, Content: content}
 	record, durable, err := s.buildEvaluationRecord(ctx, state, cell.report)
 	if err != nil {
 		commitErr := state.markCommitFailure(cell, nil, nil, err)
@@ -198,6 +201,10 @@ func classifyBindingExport(value goja.Value, vm *goja.Runtime) bindingExportSnap
 	}
 	if _, ok := goja.AssertFunction(value); ok {
 		return stringExportSnapshot(inspectorruntime.ValuePreview(value, vm, 120))
+	}
+	if provider, ok := resultcontent.ProviderOf(value); ok {
+		// Never marshal a content provider: its Go fields may hold image bytes.
+		return stringExportSnapshot(providerPlaceholders(nil).placeholder(provider))
 	}
 
 	exported := value.Export()

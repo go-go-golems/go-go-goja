@@ -12,6 +12,7 @@ import (
 	inspectorruntime "github.com/go-go-golems/go-go-goja/pkg/inspector/runtime"
 	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
 	"github.com/go-go-golems/go-go-goja/pkg/repldb"
+	"github.com/go-go-golems/go-go-goja/pkg/resultcontent"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -50,6 +51,10 @@ type Service struct {
 	ownerID            string
 	now                func() time.Time
 	leaseTTL           time.Duration
+
+	resultProcessor      ResultProcessor
+	contentLimits        resultcontent.Limits
+	skipContentRendering bool
 }
 
 type sessionState struct {
@@ -78,11 +83,16 @@ type sessionState struct {
 	pendingCommit *pendingCommit
 	inFlightCell  *cellState
 	lease         *repldb.SessionLease
+
+	resultProcessor ResultProcessor
 }
 
 type cellState struct {
 	report   *CellReport
 	analysis *jsparse.AnalysisResult
+	// content is the rendered result content of a cell being committed. It is
+	// handed to the EvaluateResponse and cleared; it is never retained or persisted.
+	content []resultcontent.Content
 }
 
 type bindingState struct {
@@ -164,11 +174,15 @@ func NewService(factory *engine.RuntimeFactory, logger zerolog.Logger, opts ...O
 		phase:              ServicePhaseOpen,
 		now:                func() time.Time { return time.Now().UTC() },
 		leaseTTL:           30 * time.Second,
+		contentLimits:      resultcontent.DefaultLimits(),
 	}
 	for _, opt := range opts {
 		if opt != nil {
 			opt(service)
 		}
+	}
+	if service.resultProcessor == nil {
+		service.resultProcessor = DefaultResultProcessor{Limits: service.contentLimits}
 	}
 	service.lifetimeCtx, service.lifetimeCancel = context.WithCancelCause(service.lifetimeParent)
 	return service
@@ -240,6 +254,8 @@ func (s *Service) CreateSessionWithOptions(ctx context.Context, opts SessionOpti
 		health:    SessionHealthHealthy,
 		ctx:       sessionCtx,
 		cancel:    sessionCancel,
+
+		resultProcessor: s.resultProcessor,
 	}
 	if state.policy.Observe.ConsoleCapture {
 		if err := state.installConsoleCapture(ctx); err != nil {
@@ -417,6 +433,9 @@ func (s *Service) restoreSession(ctx context.Context, opts SessionOptions, histo
 		s.logger,
 		WithLifetimeContext(s.lifetimeCtx),
 		WithDefaultSessionOptions(replayOpts),
+		WithResultProcessor(s.resultProcessor),
+		WithResultContentLimits(s.contentLimits),
+		withoutContentRendering(),
 	)
 	tmpSummary, err := tmpService.CreateSessionWithOptions(replayCtx, replayOpts)
 	if err != nil {

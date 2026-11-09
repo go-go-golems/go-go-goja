@@ -73,6 +73,10 @@ func NewWithConfig(parent context.Context, factory *engine.RuntimeFactory, logge
 	serviceOpts := []replsession.Option{
 		replsession.WithLifetimeContext(appCtx),
 		replsession.WithDefaultSessionOptions(config.SessionOptions),
+		replsession.WithResultContentLimits(config.ResultContentLimits),
+	}
+	if config.ResultProcessor != nil {
+		serviceOpts = append(serviceOpts, replsession.WithResultProcessor(config.ResultProcessor))
 	}
 	if config.Store != nil {
 		serviceOpts = append(serviceOpts,

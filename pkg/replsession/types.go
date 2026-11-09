@@ -1,6 +1,10 @@
 package replsession
 
-import "time"
+import (
+	"time"
+
+	"github.com/go-go-golems/go-go-goja/pkg/resultcontent"
+)
 
 // This file defines the JSON serialization layer (DTOs) for the REPL service.
 // All types here exist purely for JSON transport to the web UI.
@@ -31,6 +35,10 @@ type EvaluateRequest struct {
 type EvaluateResponse struct {
 	Session *SessionSummary `json:"session"`
 	Cell    *CellReport     `json:"cell"`
+	// Content is the rendered result content for transports (MCP images,
+	// base64 fields). It is not persisted; Cell.Execution.Content holds the
+	// byte-free refs that are. Index i of Content is the ref with Index == i.
+	Content []resultcontent.Content `json:"content,omitempty"`
 }
 
 // --- Cell report sub-structures ---
@@ -58,6 +66,11 @@ type ExecutionReport struct {
 	Console     []ConsoleEvent `json:"console"`
 	HadSideFX   bool           `json:"hadSideEffects"`
 	HelperError bool           `json:"helperError"`
+	// Content lists the result content found in the value (byte-free refs).
+	Content []resultcontent.Ref `json:"content,omitempty"`
+	// ResultProcessorError is set when the result processor failed; the
+	// default preview is used in that case.
+	ResultProcessorError string `json:"resultProcessorError,omitempty"`
 }
 
 // ConsoleEvent captures one console.* emission.
