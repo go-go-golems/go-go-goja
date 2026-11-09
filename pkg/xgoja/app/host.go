@@ -123,7 +123,11 @@ func (h *Host) AttachRun(root *cobra.Command) {
 	if root == nil || h == nil {
 		return
 	}
-	cmd, err := buildGlazedCobraCommand(newRunCommand(h.Factory, h.RuntimePlan), h.MiddlewaresFunc)
+	out := h.Out
+	if out == nil {
+		out = root.OutOrStdout()
+	}
+	cmd, err := buildGlazedCobraCommand(newRunCommand(h.Factory, h.RuntimePlan, out), h.MiddlewaresFunc)
 	if err != nil {
 		command, _ := h.RuntimePlan.commandByType("builtin.run")
 		root.AddCommand(commandErrorStub(commandName(command, "run"), "Execute a JavaScript file in a generated xgoja runtime", err))

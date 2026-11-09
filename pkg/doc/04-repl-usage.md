@@ -72,6 +72,12 @@ Root-level plugin flags still apply:
 go run ./cmd/goja-repl --plugin-dir ./plugins run ./scripts/with-plugins.js
 ```
 
+If `module.exports` (awaited when it is a promise) holds result content — Go values implementing `resultcontent.Provider`, such as images returned by a module — `run` prints the value with `[content N: ...]` placeholders. With `--content-dir DIR` it renders the content and writes `DIR/content-N.<ext>` (extension from the MIME type), printing one `# content N: <path>` line per file:
+
+```bash
+go run ./cmd/goja-repl run ./scripts/look.js --content-dir ./out
+```
+
 ### Module Security Flags
 
 By default, `run` (and all other `goja-repl` commands) load **all** registered native modules. You can restrict the module sandbox using persistent flags:

@@ -346,6 +346,13 @@ Supported builtin command types are:
 - `builtin.repl`
 - `builtin.jsverbs`
 
+`builtin.eval` and `builtin.run` await a promise result (for `run`, a promise
+assigned to `module.exports`). When the result holds result content (Go values
+implementing `resultcontent.Provider`, for example images), it is printed with
+`[content N: ...]` placeholders instead of raw Go values; `--content-dir DIR`
+renders the content and writes `DIR/content-N.<ext>`, printing the paths. A
+`run` script whose exports hold no content prints nothing, as before.
+
 `provider.command-set` mounts a command set contributed by a selected provider.
 Provider command sets commonly depend on source sets. For example, the HTTP
 `serve` provider command uses jsverb sources to register Express routes.
