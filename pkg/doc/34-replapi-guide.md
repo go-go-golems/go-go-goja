@@ -116,6 +116,79 @@ The context passed to `replapi.New` owns app and runtime lifetime. The context p
 
 Use `UnloadSession` for non-destructive per-session cleanup and `App.Close` for app-wide cleanup. Unloading an in-memory session discards its only state. `DeleteSession` is a product deletion operation and soft-deletes durable history.
 
+## Process Results and Return Content
+
+Each settled cell value passes through a `replsession.ResultProcessor` on the runtime owner goroutine. It returns the result text and any result content providers (Go values implementing `resultcontent.Provider`, such as images; see `goja-repl help creating-modules`). The service then renders the providers off the owner goroutine:
+
+```go
+type ResultProcessor interface {
+    Process(ctx context.Context, vm *goja.Runtime, value goja.Value) (replsession.ProcessedResult, error)
+}
+type ProcessedResult struct {
+    Text      string                   // replaces the default preview when non-empty
+    Providers []resultcontent.Provider // rendered after Process returns
+}
+```
+
+Without an option, apps use `replsession.DefaultResultProcessor{}`: the 120-character inspector preview stays the result text unless the value holds providers, in which case the text becomes a full rendering with `[content N: ...]` placeholders. `DefaultResultProcessor{FullText: true}` always uses the full rendering, which is what agent transports want:
+
+```go
+app, err := replapi.New(appCtx, factory, logger,
+    replapi.WithProfile(replapi.ProfileInteractive),
+    replapi.WithResultProcessor(replsession.DefaultResultProcessor{FullText: true}),
+    replapi.WithResultContentLimits(resultcontent.Limits{MaxItems: 4, MaxTotalBytes: 4 << 20}),
+)
+resp, err := app.Evaluate(ctx, session.ID, `({ mean: 0.5, img: swatch.solid(4, 255, 0, 0) })`)
+// resp.Cell.Execution.Result  == "{mean: 0.5, img: [content 1: swatch 4x4 #ff0000]}"
+// resp.Cell.Execution.Content == []resultcontent.Ref{{Index: 0, Provider: 1, MIMEType: "image/png", Caption: "swatch 4x4 #ff0000", Bytes: 78}}
+// resp.Content[0].Data        == the PNG bytes
+```
+
+`Cell.Execution.Content` holds byte-free refs (`Index` into `resp.Content`, or -1 with a `Dropped` reason when a limit or render error dropped the item); it is persisted with the cell. `EvaluateResponse.Content` holds the bytes for the caller; it is never persisted or retained by the session. `Cell.Execution.ResultJSON` names providers by placeholder instead of serializing their Go fields. `WithResultContentLimits` bounds the walk (depth 8, 1000 properties, 16000 characters) and rendering (8 items, 8 MiB); providers past the item limit are not called.
+
+A processor may implement two optional hooks:
+
+- `replsession.BeforeEvalHook` — `BeforeEval(ctx, vm) error` runs on the owner before every cell (reset per-cell state); an error fails the cell without running it.
+- `replsession.FailureProcessor` — `ProcessFailure(ctx, vm, evalErr) (ProcessedResult, error)` runs when a cell throws, rejects or times out, so content queued before the error is still delivered.
+
+The processor is a Go value passed to the app, not part of the (persisted) session policy, and restore replay runs it without rendering content. goja-cv's `pkg/cvsession` (`github.com/go-go-golems/goja-cv`) is a complete example: a YAML result processor implementing both hooks, installed with `WithResultProcessor` and `WithResultContentLimits`.
+
+### Hosts without a concrete factory
+
+`replapi.New` takes an `*engine.RuntimeFactory`. Hosts that construct runtimes differently, such as xgoja command-set providers holding a `providerapi.RuntimeFactory`, pass a constructor instead:
+
+```go
+newRuntime := func(startup, lifetime context.Context) (*engine.Runtime, error) {
+    // Bind the runtime to lifetime: it is the session-owned context.
+    return xgojaFactory.NewRuntimeFromSections(lifetime, parsedValues)
+}
+app, err := replapi.NewWithRuntimeConstructor(appCtx, newRuntime, logger, replapi.WithProfile(replapi.ProfileInteractive))
+```
+
+`replsession.EngineRuntimeConstructor(factory)` adapts an engine factory to the same type.
+
+## Serve Sessions over MCP
+
+`pkg/replmcp` turns any app into an MCP server (official `github.com/modelcontextprotocol/go-sdk`) with the tools `eval`, `create_session`, `list_sessions`, `history`, and `bindings`. `*replapi.App` implements its `Evaluator` interface:
+
+```go
+server, err := replmcp.NewServer(app,
+    replmcp.WithName("my-host"),
+    replmcp.WithVersion("1.0.0"),
+    replmcp.WithInstructions("Evaluate JavaScript with the eval tool."),
+    replmcp.WithLimits(replmcp.Limits{MaxResultChars: 20000, MaxImages: 8, MaxImageBytes: 4 << 20}),
+    replmcp.WithExtraTools(func(s *mcp.Server) {
+        mcp.AddTool(s, &mcp.Tool{Name: "open"}, openHandler)
+    }),
+)
+if err != nil {
+    return err
+}
+return replmcp.ServeStdio(ctx, server) // or: http.Handle("/mcp", replmcp.NewStreamableHTTPHandler(server, nil))
+```
+
+The `eval` tool returns one text item (result text, `console:` lines, `error (<status>): ...`, and a `content:` list naming each item as attached or dropped) followed by `ImageContent` items for `image/*` content. JavaScript errors and unknown sessions are tool errors (`isError`), not protocol errors. Calls without `sessionId` use one implicit default session (or `WithDefaultSession(id)`); over streamable HTTP all clients share it. Use `replmcp.EvalResult(resp, limits)` to build the same result from an extra tool. Install `DefaultResultProcessor{FullText: true}` (or your own processor) on the app so agents see full values. goja-cv's `cvsession.NewMCPServer` adds its own tools and resources this way. The CLI front end is `goja-repl mcp` (`goja-repl help repl-usage`).
+
 ## Add Durable Replay
 
 A persistent app needs a `repldb.Store`. The caller owns the store and must close it after all app operations have stopped.
@@ -348,6 +421,16 @@ The app combines live-runtime methods and store-backed methods. The distinction 
 | `Close` | All live sessions | Idempotently unloads all runtimes; does not close the caller-owned store |
 | `ListSessions`, `History`, `Docs`, `Export`, `ReplaySource` | Durable | Return an error when no store is configured |
 
+Constructors and options for result processing:
+
+| API | Purpose |
+|---|---|
+| `New(appCtx, factory, logger, opts...)`, `NewWithConfig(appCtx, factory, logger, config)` | App over an engine factory |
+| `NewWithRuntimeConstructor(appCtx, newRuntime, logger, opts...)` | App over a `replsession.RuntimeConstructor` |
+| `WithResultProcessor(p)` / `Config.ResultProcessor` | Result text and content providers (default `replsession.DefaultResultProcessor`) |
+| `WithResultContentLimits(l)` / `Config.ResultContentLimits` | Walk and render limits (`resultcontent.Limits`) |
+| `EvaluateResponse.Content`, `Cell.Execution.Content` | Rendered bytes (transport only) and persisted refs |
+
 `WithRuntime` is the controlled escape hatch for host integrations. Its callback receives an operation context that is canceled by caller cancellation, unload, or app shutdown. Honor that context; do not retain the runtime pointer after the callback returns; and do not call another app method for the same session from inside the callback because the callback already owns that session's capacity-one operation gate.
 
 A JavaScript parse error, thrown value, rejected promise, or timeout is normally represented by `response.Cell.Execution.Status` and `response.Cell.Execution.Error`; it is not necessarily returned as the Go `error`. Always inspect the cell status. Go errors represent failures such as missing sessions, canceled infrastructure work, runtime observation failures, or persistence failures.
@@ -422,6 +505,11 @@ Shutdown rejects new app operations with typed `ErrAppClosing` or `ErrAppClosed`
 | `Evaluate` returned no Go error but JavaScript failed | JS failures are reported in the cell report | Check `Cell.Execution.Status` and `Cell.Execution.Error` |
 | A deleted session cannot be restored | `DeleteSession` soft-deletes it and normal reads hide deleted rows | Use `UnloadSession` for persistent-runtime eviction |
 | HTTP execution is reachable by untrusted clients | The built-in handler has no security middleware | Bind to loopback or add authentication, authorization, limits, and sandboxed modules |
+| A result shows `{img}` or `[Object]` instead of `[content 1: ...]` | The value is not a Go provider (for example a JS proxy or a Go struct holding the image in a field), or it is deeper than the walk limits | Return the provider itself (or inside plain objects, arrays, Go maps/slices); raise `WithResultContentLimits` |
+| `Cell.Execution.Content` has refs with `index: -1` | An item, byte, or render limit dropped them (`dropped` says why) | Raise the limits or return smaller content |
+| `resp.Content` is empty after `RetryPendingCommit` | Retried responses rebuild from the retained cell, which keeps refs only | Re-render from the provider if the bytes are needed |
+| Agents only see `{a, b}` previews over MCP | The app uses the default processor | Install `replsession.DefaultResultProcessor{FullText: true}` |
+| `cell.execution.resultProcessorError` is set | The processor returned an error or panicked; the default preview was used | Fix the processor; content from that cell is not delivered |
 
 ## See Also
 
@@ -431,3 +519,7 @@ Shutdown rejects new app operations with typed `ErrAppClosing` or `ErrAppClosed`
 - `pkg/replapi/app.go` and `pkg/replapi/config.go` — app methods, profiles, and validation.
 - `pkg/replsession/service.go` and `pkg/replsession/policy.go` — live session ownership and evaluation policy.
 - `cmd/goja-repl/cmd_serve.go` — current server construction and shutdown path.
+- `goja-repl help creating-modules` — writing result content providers ("Returning Rich Content").
+- `pkg/replsession/result_processor.go`, `pkg/resultcontent`, `pkg/replmcp` — processor hooks, content walk/render, MCP server.
+- `cmd/goja-repl/cmd_mcp.go` — `goja-repl mcp` construction (safe modules, full-text results).
+- `github.com/go-go-golems/goja-cv` `pkg/cvsession` — a real result processor and MCP server built on these APIs.
