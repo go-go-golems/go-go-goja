@@ -74,6 +74,7 @@ func newRootCommand(out io.Writer) (*cobra.Command, error) {
 		newExportCommand(out, opts),
 		newRestoreCommand(out, opts),
 		newServeCommand(out, opts),
+		newMCPCommand(out, opts),
 		newTUICommand(out, opts),
 	}
 	for _, command := range commands {
@@ -110,6 +111,12 @@ type appSupportOptions struct {
 	profile    replapi.Profile
 	withStore  bool
 	helpSystem *help.HelpSystem
+	// moduleMiddleware replaces the root-flag module selection when non-nil.
+	moduleMiddleware engine.ModuleMiddleware
+	// explicitPluginsOnly skips the default plugin discovery directories and
+	// loads plugins only from --plugin-dir.
+	explicitPluginsOnly bool
+	appOptions          []replapi.Option
 }
 
 func (s commandSupport) moduleMiddleware() engine.ModuleMiddleware {
@@ -144,9 +151,12 @@ func (s commandSupport) newAppWithOptions(ctx context.Context, options appSuppor
 			return nil, nil, err
 		}
 	}
-	pluginSetup := host.NewRuntimeSetup(s.opts.PluginDirs, s.opts.AllowPluginModules)
 	builder := engine.NewRuntimeFactoryBuilder()
-	if mw := s.moduleMiddleware(); mw != nil {
+	mw := s.moduleMiddleware()
+	if options.moduleMiddleware != nil {
+		mw = options.moduleMiddleware
+	}
+	if mw != nil {
 		builder = builder.UseModuleMiddleware(mw)
 	}
 	if options.helpSystem != nil {
@@ -159,7 +169,9 @@ func (s commandSupport) newAppWithOptions(ctx context.Context, options appSuppor
 			}},
 		}))
 	}
-	builder = pluginSetup.WithBuilder(builder)
+	if !options.explicitPluginsOnly || len(s.opts.PluginDirs) > 0 {
+		builder = host.NewRuntimeSetup(s.opts.PluginDirs, s.opts.AllowPluginModules).WithBuilder(builder)
+	}
 	factory, err := builder.Build()
 	if err != nil {
 		if store != nil {
@@ -171,6 +183,7 @@ func (s commandSupport) newAppWithOptions(ctx context.Context, options appSuppor
 	if store != nil {
 		appOpts = append(appOpts, replapi.WithStore(store))
 	}
+	appOpts = append(appOpts, options.appOptions...)
 	app, err := replapi.New(ctx, factory, log.Logger, appOpts...)
 	if err != nil {
 		if store != nil {

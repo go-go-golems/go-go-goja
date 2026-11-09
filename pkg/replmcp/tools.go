@@ -144,36 +144,37 @@ func EvalResult(resp *replsession.EvaluateResponse, limits Limits) *mcp.CallTool
 		return result
 	}
 	exec := resp.Cell.Execution
-	var text strings.Builder
+	sections := []string{}
 	resultText := exec.Result
 	if resultText == "" && exec.Error == "" {
 		resultText = "undefined"
 	}
-	text.WriteString(resultText)
+	if resultText != "" {
+		sections = append(sections, resultText)
+	}
 	if len(exec.Console) > 0 {
-		text.WriteString("\n\nconsole:")
+		var console strings.Builder
+		console.WriteString("console:")
 		for _, event := range exec.Console {
-			fmt.Fprintf(&text, "\n[%s] %s", event.Kind, event.Message)
+			fmt.Fprintf(&console, "\n[%s] %s", event.Kind, event.Message)
 		}
+		sections = append(sections, console.String())
 	}
 	if exec.Error != "" {
-		fmt.Fprintf(&text, "\n\nerror (%s): %s", exec.Status, exec.Error)
+		sections = append(sections, fmt.Sprintf("error (%s): %s", exec.Status, exec.Error))
 	} else if exec.Status != "" && exec.Status != "ok" {
-		fmt.Fprintf(&text, "\n\nstatus: %s", exec.Status)
+		sections = append(sections, "status: "+exec.Status)
 	}
 	if exec.ResultProcessorError != "" {
-		fmt.Fprintf(&text, "\n\nresult processor error: %s", exec.ResultProcessorError)
+		sections = append(sections, "result processor error: "+exec.ResultProcessorError)
 	}
 
 	items, notes := attachContent(resp, maxImages, maxImageBytes)
 	if len(notes) > 0 {
-		text.WriteString("\n\ncontent:")
-		for _, note := range notes {
-			text.WriteString("\n" + note)
-		}
+		sections = append(sections, "content:\n"+strings.Join(notes, "\n"))
 	}
 
-	body := text.String()
+	body := strings.Join(sections, "\n\n")
 	if len(body) > maxChars {
 		omitted := len(body) - maxChars
 		body = truncateUTF8(body, maxChars) + fmt.Sprintf("\n… [result truncated: %d more characters]", omitted)

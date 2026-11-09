@@ -372,6 +372,17 @@ js> console.log(JSON.stringify(data, null, 2))
 
 For embedding a long-lived in-memory or replay-backed REPL in a Go host, use the `replapi.App` facade instead of creating a fresh runtime per evaluation. Run `goja-repl help replapi-guide` for the distinction between live VM continuity and SQLite reconstruction, plus profiles, context ownership, deletion semantics, and HTTP limitations.
 
+## MCP Server
+
+`goja-repl mcp` serves REPL sessions to MCP clients (Claude Code, Claude Desktop, other agents) with the tools `eval`, `create_session`, `list_sessions`, `history`, and `bindings`. It speaks MCP over stdin/stdout by default and over streamable HTTP with `--http 127.0.0.1:3091`. Unlike the other commands it loads only the safe modules unless `--enable-module` names modules explicitly, because an eval tool over `fs` or `exec` is a shell; plugins load only from explicit `--plugin-dir` directories. Sessions are in memory unless `--persistent` stores them in `--db-path`.
+
+```bash
+go run ./cmd/goja-repl mcp                         # stdio, safe modules
+go run ./cmd/goja-repl --enable-module fs,path mcp # explicitly allow fs
+```
+
+Values returned by `eval` that carry images (Go values implementing `resultcontent.Provider`) come back as MCP image content; the text result names them `[content N: ...]`. Go hosts embed the same server with `replmcp.NewServer(app)`.
+
 ## Protobuf JSON REPL API
 
 The persistent REPL service also has a schema-first protobuf JSON transport for generated clients. The `replhttp.NewHandler(app)` now exposes generated protobuf JSON messages directly under `/api/...`. The pre-protobuf hand-written JSON envelopes were removed before public adoption.
