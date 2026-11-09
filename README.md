@@ -8,6 +8,7 @@ The goal is to have a place where you can:
 * experiment with goja + Node-style `require()` without having to set up a whole application
 * open the canonical interactive prompt with `go run ./cmd/goja-repl tui`
 * inspect and persist REPL sessions through the `goja-repl` CLI and JSON server surfaces
+* serve sessions to agents as an MCP server with `goja-repl mcp` (images returned by modules come back as MCP image content)
 * compose runtime behavior explicitly via `engine.NewRuntimeFactoryBuilder() -> Build() -> RuntimeFactory.NewRuntime(...)`
 
 ---
@@ -59,6 +60,10 @@ Key entry points:
 - Generated host auth configuration: `xgoja help hostauth-config-reference`
 - Auth store persistence: `xgoja help auth-stores-reference`
 - HTTP `serve` internals: `xgoja help http-serve-command-reference`
+- MCP server for agents (`goja-repl mcp`): `goja-repl help repl-usage` ("MCP Server")
+- Returning images and other rich content from modules: `goja-repl help creating-modules` ("Returning Rich Content")
+- Embedding sessions, result processors, and `replmcp`: `goja-repl help replapi-guide`
+- MCP in generated binaries (`mcp serve` provider): `xgoja help xgoja-v2-reference`
 - Kubernetes/Keycloak deployment: `goja-repl help deploying-an-express-auth-host` and `xgoja help auth-host-production-runbook`
 
 The two trees are intentionally separate because they are loaded by different binaries. Cross-links in the auth pages point to the corresponding topic in the other tree.
@@ -106,7 +111,17 @@ go run ./cmd/goja-repl tui --enable-module db
 go run ./cmd/goja-repl --disable-module fs,exec run ./script.js
 ```
 
-These flags apply to all commands that build a runtime (`run`, `tui`, `eval`, `create`, etc.).
+These flags apply to all commands that build a runtime (`run`, `tui`, `eval`, `create`, etc.), except that `goja-repl mcp` starts from the safe set and loads other modules only when `--enable-module` names them.
+
+### MCP server
+
+```bash
+claude mcp add goja -- goja-repl mcp                        # Claude Code, stdio, safe modules
+goja-repl mcp --enable-module fs,path --eval-timeout-ms 30000
+goja-repl mcp --http 127.0.0.1:3091                         # streamable HTTP
+```
+
+Tools: `eval`, `create_session`, `list_sessions`, `history`, `bindings`. `run --content-dir DIR` writes images returned by a script's `module.exports` to `DIR/content-N.<ext>`. See `goja-repl help repl-usage`.
 
 ### Runtime API quick example (current)
 
