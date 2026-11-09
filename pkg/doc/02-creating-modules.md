@@ -37,8 +37,13 @@ type m struct{}
 // Compile-time interface check
 var _ modules.NativeModule = (*m)(nil)
 
-func (m) Name() string { 
+func (m) Name() string {
     return "example" // This becomes the require() name
+}
+
+// Doc is the module's documentation string (required by modules.NativeModule).
+func (m) Doc() string {
+    return "example: hello(name) returns a greeting"
 }
 
 func (m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
@@ -82,7 +87,7 @@ These comprehensive examples demonstrate patterns beyond the basic template, sho
 ### File System Module
 
 ```go
-// modules/fs/fs.go
+// A simplified file module (the real one lives in modules/fs)
 package fsmod
 
 import (
@@ -96,6 +101,7 @@ type m struct{}
 var _ modules.NativeModule = (*m)(nil)
 
 func (m) Name() string { return "fs" }
+func (m) Doc() string  { return "fs: readFileSync, writeFileSync, existsSync" }
 
 func (m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
     exports := moduleObj.Get("exports").(*goja.Object)
@@ -143,7 +149,7 @@ if (fs.existsSync("/tmp/test.txt")) {
 ### HTTP Client Module
 
 ```go
-// modules/http/http.go
+// An example HTTP client module (not part of this repository; see modules/fetch)
 package httpmod
 
 import (
@@ -157,6 +163,7 @@ type m struct{}
 var _ modules.NativeModule = (*m)(nil)
 
 func (m) Name() string { return "http" }
+func (m) Doc() string  { return "http: get(url) returns status, body and headers" }
 
 func (m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
     exports := moduleObj.Get("exports").(*goja.Object)
@@ -357,7 +364,7 @@ Add your module to the import list in `pkg/engine/runtime.go` to ensure it's loa
 ```go
 import (
     _ "github.com/go-go-golems/go-go-goja/modules/fs"
-    _ "github.com/go-go-golems/go-go-goja/modules/http"
+    _ "github.com/go-go-golems/go-go-goja/modules/path"
     _ "github.com/go-go-golems/go-go-goja/modules/yourmodule" // Add here
 )
 ```
