@@ -283,3 +283,51 @@ func TestConsoleCaptureShowsContentPlaceholder(t *testing.T) {
 		t.Fatalf("console argument was collected as content: %#v", resp.Cell.Execution.Content)
 	}
 }
+
+// holderLook has a value receiver and an interface field holding a slice: its
+// type is comparable, but using the value as a map key panics.
+type holderLook struct{ payload any }
+
+func (holderLook) ResultContent(context.Context) ([]resultcontent.Content, error) {
+	return []resultcontent.Content{{MIMEType: "text/plain", Data: []byte("holder")}}, nil
+}
+
+type holderInit struct{}
+
+func (holderInit) ID() string { return "test-holder-look" }
+
+func (holderInit) InitRuntime(ctx *engine.RuntimeInitializationContext) error {
+	if err := ctx.VM.Set("holder", func() holderLook { return holderLook{payload: []int{1, 2}} }); err != nil {
+		return err
+	}
+	return ctx.VM.Set("typedLooks", func() map[string]*testLook {
+		return map[string]*testLook{"b": {Name: "b"}, "a": {Name: "a"}}
+	})
+}
+
+func TestNonComparableProviderValueAndTypedCollections(t *testing.T) {
+	t.Parallel()
+	factory, err := engine.NewRuntimeFactoryBuilder().
+		UseModuleMiddleware(engine.MiddlewareSafe()).
+		WithRuntimeInitializers(holderInit{}).
+		Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := NewService(factory, zerolog.Nop(), WithDefaultSessionOptions(InteractiveSessionOptions()))
+	t.Cleanup(func() { _ = service.Close(context.Background()) })
+	session, err := service.CreateSession(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp := evalOK(t, service, session.ID, `const h = holder(); [h, h]`)
+	// Same JS wrapper twice → one provider; the JSON cannot number a
+	// non-comparable value and uses the unnumbered placeholder.
+	if len(resp.Content) != 1 || resp.Cell.Execution.Result != "[[content 1], [content 1]]" || resp.Cell.Execution.ResultJSON != `{"result":["[content]","[content]"]}` {
+		t.Fatalf("holder: content=%d json=%s", len(resp.Content), resp.Cell.Execution.ResultJSON)
+	}
+	resp = evalOK(t, service, session.ID, `typedLooks()`)
+	if resp.Cell.Execution.Result != "{a: [content 1: look a], b: [content 2: look b]}" || len(resp.Content) != 2 {
+		t.Fatalf("typed map: result=%q content=%d", resp.Cell.Execution.Result, len(resp.Content))
+	}
+}

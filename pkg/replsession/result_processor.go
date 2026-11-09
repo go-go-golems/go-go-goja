@@ -3,7 +3,6 @@ package replsession
 import (
 	"context"
 	"fmt"
-	"reflect"
 
 	"github.com/dop251/goja"
 	"github.com/go-go-golems/go-go-goja/pkg/resultcontent"
@@ -168,26 +167,29 @@ func (s *Service) renderContent(ctx context.Context, providers []resultcontent.P
 	return resultcontent.Render(ctx, providers, s.contentLimits)
 }
 
-// providerPlaceholders maps comparable providers to their 1-based number so the
-// JSON envelope can name them the same way the text rendering does.
-type providerPlaceholders map[resultcontent.Provider]int
+// providerPlaceholders maps providers (by resultcontent.IdentityKey) to their
+// 1-based number so the JSON envelope can name them the same way the text
+// rendering does. Providers without an identity key (non-comparable values)
+// fall back to the unnumbered placeholder.
+type providerPlaceholders map[any]int
 
 func newProviderPlaceholders(providers []resultcontent.Provider) providerPlaceholders {
 	out := providerPlaceholders{}
 	for i, p := range providers {
-		if p == nil || !reflect.TypeOf(p).Comparable() {
+		key, ok := resultcontent.IdentityKey(p)
+		if !ok {
 			continue
 		}
-		if _, ok := out[p]; !ok {
-			out[p] = i + 1
+		if _, seen := out[key]; !seen {
+			out[key] = i + 1
 		}
 	}
 	return out
 }
 
 func (m providerPlaceholders) placeholder(p resultcontent.Provider) string {
-	if p != nil && reflect.TypeOf(p).Comparable() {
-		if n, ok := m[p]; ok {
+	if key, ok := resultcontent.IdentityKey(p); ok {
+		if n, found := m[key]; found {
 			return resultcontent.Placeholder(n, p)
 		}
 	}

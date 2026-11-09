@@ -28,6 +28,9 @@ type verbLookInit struct{}
 func (verbLookInit) ID() string { return "jsverbs-test-look" }
 
 func (verbLookInit) InitRuntime(ctx *engine.RuntimeInitializationContext) error {
+	if err := ctx.VM.Set("lookList", func() []*verbLook { return []*verbLook{{name: "l1"}, {name: "l2"}} }); err != nil {
+		return err
+	}
 	return ctx.VM.Set("look", func(name string) *verbLook { return &verbLook{name: name} })
 }
 
@@ -130,4 +133,13 @@ __verb__("show", { output: "text" });
 `, "looks show")
 	out := runWriterCommand(t, command, nil)
 	stdrequire.Contains(t, out, `"img": "[content 1: look t]"`)
+}
+
+func TestVerbTypedCollectionContent(t *testing.T) {
+	rows := runCommand(t, lookCommand(t, `
+function typed() { return { imgs: lookList() }; }
+__verb__("typed", {});
+`, "looks typed"), nil)
+	stdrequire.Len(t, rows, 1)
+	stdrequire.Equal(t, []any{"[content 1: look l1]", "[content 2: look l2]"}, rows[0]["imgs"])
 }

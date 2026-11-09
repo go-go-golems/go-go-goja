@@ -123,11 +123,12 @@ func TestMapExportedCustomReplacementAndLimits(t *testing.T) {
 	cyclic := map[string]any{"img": a}
 	cyclic["self"] = cyclic
 	out, providers = ExtractExported(cyclic, Limits{MaxDepth: 3})
-	if len(providers) != 1 {
-		t.Fatalf("cyclic providers = %d", len(providers))
+	if len(providers) != 1 || out.(map[string]any)["self"] != "[Circular]" {
+		t.Fatalf("cyclic: providers=%d out=%#v", len(providers), out)
 	}
-	deep := out.(map[string]any)["self"].(map[string]any)["self"].(map[string]any)["self"]
-	if deep != "…" {
+	nested := map[string]any{"a": map[string]any{"b": map[string]any{"c": map[string]any{"img": a}}}}
+	out, _ = ExtractExported(nested, Limits{MaxDepth: 3})
+	if deep := out.(map[string]any)["a"].(map[string]any)["b"].(map[string]any)["c"]; deep != "…" {
 		t.Fatalf("depth limit kept container: %#v", deep)
 	}
 	many := make([]any, 20)

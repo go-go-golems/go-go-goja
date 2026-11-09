@@ -3,6 +3,7 @@ package resultcontent
 import (
 	"fmt"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -75,8 +76,10 @@ func Describe(p Provider) string {
 // Extract walks a settled value and collects content providers. It must run
 // on the runtime owner goroutine.
 //
-// The walk descends only into arrays and plain objects (including Go maps
-// exposed as objects). It never reads or calls "then", never awaits, never
+// The walk descends only into arrays and plain objects, and into Go maps with
+// string keys and Go slices/arrays exposed by native modules (including typed
+// ones such as map[string]*Image or []*Image; typed map keys render sorted,
+// byte slices render as "[N bytes]"). It never reads or calls "then", never awaits, never
 // invokes getters (accessor properties render as "[Getter]"), and treats
 // proxies, functions, promises and other exotic objects as opaque leaves. It
 // is bounded by limits.MaxDepth, limits.MaxProperties and limits.MaxTextChars
@@ -88,8 +91,8 @@ func Extract(vm *goja.Runtime, value goja.Value, limits Limits) (Extraction, err
 	w := &walker{
 		vm:          vm,
 		limits:      limits.Normalize(),
-		providerIdx: map[*goja.Object]int{},
-		inProgress:  map[*goja.Object]struct{}{},
+		providerIdx: map[any]int{},
+		inProgress:  map[any]struct{}{},
 	}
 	w.getDesc = lookupGetOwnPropertyDescriptor(vm)
 
@@ -120,8 +123,8 @@ type walker struct {
 	stopped     bool
 	truncated   bool
 	providers   []Provider
-	providerIdx map[*goja.Object]int
-	inProgress  map[*goja.Object]struct{}
+	providerIdx map[any]int
+	inProgress  map[any]struct{}
 }
 
 func lookupGetOwnPropertyDescriptor(vm *goja.Runtime) goja.Callable {
@@ -209,9 +212,17 @@ func (w *walker) walk(value goja.Value, depth int) {
 	class := obj.ClassName()
 	switch {
 	case class == "Array" && t == plainArrayType:
-		w.container(obj, depth, w.walkArray)
+		w.container(obj, nil, depth, w.walkArray)
 	case class == "Object" && t == plainObjectType:
-		w.container(obj, depth, w.walkObject)
+		w.container(obj, goBackedIdentity(obj, t), depth, w.walkObject)
+	case isByteSlice(t):
+		w.writeBytes(obj)
+	case class == "Array" && t != nil && (t.Kind() == reflect.Slice || t.Kind() == reflect.Array):
+		// Typed Go slice/array exposed by a native module, e.g. []*Image.
+		w.container(obj, goBackedIdentity(obj, t), depth, w.walkArray)
+	case t != nil && t != plainObjectType && t.Kind() == reflect.Map && t.Key().Kind() == reflect.String:
+		// Typed Go map exposed by a native module, e.g. map[string]*Image.
+		w.container(obj, goBackedIdentity(obj, t), depth, w.walkGoMap)
 	case t == timeType:
 		if tm, ok := obj.Export().(time.Time); ok {
 			w.write(tm.UTC().Format(time.RFC3339Nano))
@@ -225,8 +236,15 @@ func (w *walker) walk(value goja.Value, depth int) {
 	}
 }
 
-func (w *walker) container(obj *goja.Object, depth int, fn func(*goja.Object, int)) {
-	if _, cyclic := w.inProgress[obj]; cyclic {
+// container walks obj unless it is already being walked further up. Go-backed
+// maps and slices are re-wrapped in a new *goja.Object on every property read,
+// so they are tracked by goID (type + backing pointer) instead of the wrapper.
+func (w *walker) container(obj *goja.Object, goID any, depth int, fn func(*goja.Object, int)) {
+	var id any = obj
+	if goID != nil {
+		id = goID
+	}
+	if _, cyclic := w.inProgress[id]; cyclic {
 		w.write("[Circular]")
 		return
 	}
@@ -235,9 +253,50 @@ func (w *walker) container(obj *goja.Object, depth int, fn func(*goja.Object, in
 		w.write("…")
 		return
 	}
-	w.inProgress[obj] = struct{}{}
-	defer delete(w.inProgress, obj)
+	w.inProgress[id] = struct{}{}
+	defer delete(w.inProgress, id)
 	fn(obj, depth)
+}
+
+// goBackedIdentity returns the backing-pointer identity of a Go map or slice
+// behind obj, or nil for plain JavaScript objects and arrays. Export on a
+// Go-backed object returns the wrapped value without running JavaScript.
+func goBackedIdentity(obj *goja.Object, t reflect.Type) any {
+	if t == nil || t == plainArrayType {
+		return nil
+	}
+	if t == plainObjectType {
+		// Plain JS objects export as map[string]interface{} too and cannot be
+		// told apart from a Go map[string]any without Export, which would read
+		// every property of a JS object. They are tracked by their wrapper;
+		// cycles through untyped Go maps are bounded by MaxDepth instead.
+		return nil
+	}
+	id, ok := containerIdentity(reflect.ValueOf(obj.Export()))
+	if !ok {
+		return nil
+	}
+	return id
+}
+
+func isByteSlice(t reflect.Type) bool {
+	return t != nil && (t.Kind() == reflect.Slice || t.Kind() == reflect.Array) && t.Elem().Kind() == reflect.Uint8
+}
+
+func (w *walker) writeBytes(obj *goja.Object) {
+	rv := reflect.ValueOf(obj.Export())
+	if rv.Kind() == reflect.Slice || rv.Kind() == reflect.Array {
+		w.write(fmt.Sprintf("[%d bytes]", rv.Len()))
+		return
+	}
+	w.write("[bytes]")
+}
+
+// walkGoMap renders a typed Go map with sorted keys (Go map order is random).
+func (w *walker) walkGoMap(obj *goja.Object, depth int) {
+	keys := obj.Keys()
+	sort.Strings(keys)
+	w.writeObjectKeys(obj, keys, depth)
 }
 
 func (w *walker) walkArray(obj *goja.Object, depth int) {
@@ -257,7 +316,10 @@ func (w *walker) walkArray(obj *goja.Object, depth int) {
 }
 
 func (w *walker) walkObject(obj *goja.Object, depth int) {
-	keys := obj.Keys()
+	w.writeObjectKeys(obj, obj.Keys(), depth)
+}
+
+func (w *walker) writeObjectKeys(obj *goja.Object, keys []string, depth int) {
 	w.write("{")
 	first := true
 	for _, key := range keys {
@@ -338,13 +400,21 @@ func (w *walker) writePrimitive(value goja.Value) {
 	}
 }
 
+// addProvider numbers p. Pointer-like providers are deduplicated by address
+// (so the same *Image reached through two freshly wrapped Go slice elements
+// keeps one number); value providers by their *goja.Object wrapper, so two
+// equal values returned by two calls stay two items.
 func (w *walker) addProvider(obj *goja.Object, p Provider) int {
-	if idx, ok := w.providerIdx[obj]; ok {
+	var key any = obj
+	if k, ok := addressKey(p); ok {
+		key = k
+	}
+	if idx, ok := w.providerIdx[key]; ok {
 		return idx
 	}
 	w.providers = append(w.providers, p)
 	idx := len(w.providers)
-	w.providerIdx[obj] = idx
+	w.providerIdx[key] = idx
 	return idx
 }
 
