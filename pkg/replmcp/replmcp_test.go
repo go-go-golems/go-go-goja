@@ -265,3 +265,23 @@ func TestToolListAndAnnotations(t *testing.T) {
 		t.Fatalf("initialize result = %#v", init)
 	}
 }
+
+func TestEvalResultDoesNotDuplicateProcessedError(t *testing.T) {
+	failed := func(result string) *replsession.EvaluateResponse {
+		return &replsession.EvaluateResponse{Cell: &replsession.CellReport{Execution: replsession.ExecutionReport{
+			Status: "runtime-error",
+			Result: result,
+			Error:  "promise rejected: E_RANGE: black must be < white",
+		}}}
+	}
+	r := EvalResult(failed("error:\n  code: E_RANGE\n  message: black must be < white"), Limits{})
+	text := r.Content[0].(*mcp.TextContent).Text
+	if !r.IsError || strings.Contains(text, "promise rejected") || !strings.HasPrefix(text, "error:\n  code: E_RANGE") {
+		t.Fatalf("processed error: isError=%v text=%q", r.IsError, text)
+	}
+	r = EvalResult(failed(""), Limits{})
+	text = r.Content[0].(*mcp.TextContent).Text
+	if !r.IsError || text != "error (runtime-error): promise rejected: E_RANGE: black must be < white" {
+		t.Fatalf("unprocessed error: isError=%v text=%q", r.IsError, text)
+	}
+}

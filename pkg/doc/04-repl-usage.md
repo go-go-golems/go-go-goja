@@ -443,7 +443,7 @@ content:
 content 1 swatch 4x4 #ff0000: attached (image/png, 78 bytes)
 ```
 
-A thrown error, rejection, or timeout sets `isError` and adds `error (<status>): <message>`; dropped content is listed as `content N ...: dropped (<reason>)`; long text ends with `… [result truncated: N more characters]` (20000 characters per result, 8 images, 4 MiB per image). Values carry images when a module returns Go values implementing `resultcontent.Provider` (`goja-repl help creating-modules`); Go hosts embed the same server with `replmcp.NewServer(app)` (`goja-repl help replapi-guide`).
+A thrown error, rejection, or timeout sets `isError` and adds `error (<status>): <message>` (unless the session's result processor already rendered the error as the result text); dropped content is listed as `content N ...: dropped (<reason>)`; long text ends with `… [result truncated: N more characters]` (20000 characters per result, 8 images, 4 MiB per image). Values carry images when a module returns Go values implementing `resultcontent.Provider` (`goja-repl help creating-modules`); Go hosts embed the same server with `replmcp.NewServer(app)` (`goja-repl help replapi-guide`).
 
 ### Troubleshooting
 

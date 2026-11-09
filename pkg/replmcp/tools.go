@@ -160,9 +160,14 @@ func EvalResult(resp *replsession.EvaluateResponse, limits Limits) *mcp.CallTool
 		}
 		sections = append(sections, console.String())
 	}
-	if exec.Error != "" {
+	switch {
+	case exec.Error != "" && exec.Result != "":
+		// A failed cell only has result text when the session's result
+		// processor (FailureProcessor) rendered the error itself; the generic
+		// line would repeat it. IsError is still set below.
+	case exec.Error != "":
 		sections = append(sections, fmt.Sprintf("error (%s): %s", exec.Status, exec.Error))
-	} else if exec.Status != "" && exec.Status != "ok" {
+	case exec.Status != "" && exec.Status != "ok":
 		sections = append(sections, "status: "+exec.Status)
 	}
 	if exec.ResultProcessorError != "" {
