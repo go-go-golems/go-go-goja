@@ -369,16 +369,68 @@ The HTTP provider demonstrates the distinction: `express` is the runtime module,
 while `serve` is a provider command set that runs a jsverb long enough for the
 registered HTTP routes to serve traffic.
 
-The MCP provider (`github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/mcp`,
-command set `mcp`) turns any generated binary into an MCP eval server for agents:
-`{ id: mcp, type: provider.command-set, provider: mcp, name: mcp, mount: mcp }`
-adds `<binary> mcp serve`, which serves the tools `eval`, `create_session`,
-`list_sessions`, `history`, and `bindings` over stdio (or streamable HTTP with
-`--http ADDR`). Sessions are in-memory and use the binary's selected runtime
-modules; values implementing `resultcontent.Provider` (for example images) are
-returned as MCP image content. `config` accepts `name`, `version`,
-`instructions`, `evalTimeoutMs`, `maxResultChars`, `maxImages`, and
-`maxImageBytes`.
+### MCP command set (`go-go-goja-mcp`)
+
+The MCP provider (`github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/mcp`)
+registers package `go-go-goja-mcp` with one command set, `mcp`. Its `serve`
+command turns the generated binary into an MCP eval server for agents with the
+tools `eval`, `create_session`, `list_sessions`, `history`, and `bindings`.
+Sessions are in memory, use the binary's selected runtime modules (no safe-mode
+filtering: the spec chose them), and render results in full; values implementing
+`resultcontent.Provider` (for example images) are returned as MCP image content.
+
+```yaml
+providers:
+  - id: go-go-goja-mcp            # must equal the registered package ID
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/mcp
+    register: Register
+  - id: goja-cv
+    import: github.com/go-go-golems/goja-cv/pkg/xgoja/providers/cv
+runtime:
+  modules:
+    - { provider: goja-cv, name: cv, as: cv }
+commands:
+  - id: mcp
+    type: provider.command-set
+    provider: go-go-goja-mcp
+    name: mcp
+    mount: mcp
+    config:
+      name: cv-agent
+      evalTimeoutMs: 30000
+      maxImages: 4
+```
+
+This adds `cv-agent mcp serve` (the mount is the parent command, `serve` the
+command set's only command). Provider `id` values are looked up in the provider
+registry as package IDs, so `id: mcp` fails at build time with
+`unknown provider "mcp"` (and a hand-written runtime plan with a mismatched
+provider fails at startup with `runtime references unknown provider module ...`).
+
+`config` keys (unknown keys are rejected):
+
+| Key | Default | Effect |
+|---|---|---|
+| `name` | the mount (`mcp`) | MCP implementation name shown to clients |
+| `version` | `dev` | MCP implementation version |
+| `instructions` | replmcp default | Server instructions sent at initialize |
+| `evalTimeoutMs` | 5000 | Default of `--eval-timeout-ms` |
+| `maxResultChars` | 20000 | Text characters per tool result |
+| `maxImages` | 8 | Content items attached per eval result |
+| `maxImageBytes` | 4194304 | Bytes per attached item |
+
+`mcp serve` flags, plus the Glazed sections of the selected runtime modules:
+
+| Flag | Effect |
+|---|---|
+| `--http ADDR` | Serve MCP streamable HTTP instead of stdio |
+| `--allow-remote` | Allow a non-loopback `--http` address (no built-in authentication) |
+| `--eval-timeout-ms N` | Per-cell evaluation timeout |
+
+Register the binary with an MCP client like `goja-repl mcp`, for example
+`claude mcp add cv -- ./dist/cv-agent mcp serve` (see `goja-repl help
+repl-usage`, "MCP Server"). Go hosts can call `mcp.NewServer(ctx, commandCtx,
+cfg, evalTimeoutMS, vals)` from the package directly.
 
 The `mount` field on a command controls where the command appears in the
 generated CLI command tree. It does not mount an HTTP handler. HTTP handler

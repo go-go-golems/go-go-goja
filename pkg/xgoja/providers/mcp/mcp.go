@@ -2,10 +2,10 @@
 // binary's runtime as an MCP eval server (pkg/replmcp).
 //
 //	providers:
-//	  - id: mcp
+//	  - id: go-go-goja-mcp # provider ids are package IDs
 //	    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/mcp
 //	commands:
-//	  - { id: mcp, type: provider.command-set, provider: mcp, name: mcp, mount: mcp }
+//	  - { id: mcp, type: provider.command-set, provider: go-go-goja-mcp, name: mcp, mount: mcp }
 //
 // produces "<binary> mcp serve" (stdio by default, --http ADDR for streamable
 // HTTP). Sessions use the binary's selected runtime modules.

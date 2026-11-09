@@ -174,6 +174,23 @@ commands:
 
 `commands[].sources` is command-scoped. Providers receive a `SourceRegistry` containing only the selected source IDs for that command. For example, HTTP `serve` scans and hot-reloads only the jsverb sources listed on its command, not every jsverb source in the generated application.
 
+To serve the runtime to agents over MCP, add the `go-go-goja-mcp` provider and its `mcp` command set. Provider `id` values must equal the registered package ID (`id: mcp` fails with `unknown provider "mcp"`):
+
+```yaml
+providers:
+  - id: go-go-goja-mcp
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/mcp
+commands:
+  - id: mcp
+    type: provider.command-set
+    provider: go-go-goja-mcp
+    name: mcp
+    mount: mcp
+    config: { evalTimeoutMs: 30000 }
+```
+
+The binary then has `<binary> mcp serve` (stdio; `--http ADDR` for streamable HTTP) with the tools `eval`, `create_session`, `list_sessions`, `history`, and `bindings` over the selected runtime modules. `builtin.eval` and `builtin.run` also accept `--content-dir DIR` to write images returned by a script. Config keys and flags: "MCP command set" in `xgoja help xgoja-v2-reference`.
+
 A provider command set is different from a runtime module. A runtime module makes a Go-backed CommonJS module available to JavaScript through `require(...)` or an externalized TypeScript import. A provider command set contributes one or more user-facing CLI commands. The HTTP provider commonly contributes both: the `express` runtime module and the `serve` command set.
 
 For an HTTP application, the usual shape is:
