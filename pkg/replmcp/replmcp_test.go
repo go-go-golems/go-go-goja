@@ -3,11 +3,13 @@ package replmcp
 import (
 	"context"
 	"encoding/json"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/go-go-golems/go-go-goja/pkg/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/replapi"
+	"github.com/go-go-golems/go-go-goja/pkg/repldb"
 	"github.com/go-go-golems/go-go-goja/pkg/replsession"
 	"github.com/go-go-golems/go-go-goja/pkg/resultcontent"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -283,5 +285,90 @@ func TestEvalResultDoesNotDuplicateProcessedError(t *testing.T) {
 	text = r.Content[0].(*mcp.TextContent).Text
 	if !r.IsError || text != "error (runtime-error): promise rejected: E_RANGE: black must be < white" {
 		t.Fatalf("unprocessed error: isError=%v text=%q", r.IsError, text)
+	}
+}
+
+func TestUnknownSessionIsAHelpfulToolError(t *testing.T) {
+	cs := connect(t, newTestApp(t))
+	// Before any default session exists.
+	r := call(t, cs, "eval", map[string]any{"code": "1", "sessionId": "probe"})
+	text := firstText(t, r)
+	if !r.IsError || !strings.Contains(text, `session "probe" does not exist`) || !strings.Contains(text, "No sessions exist yet") ||
+		!strings.Contains(text, "omit sessionId") || !strings.Contains(text, "create_session") || strings.Contains(text, "replsession:") {
+		t.Fatalf("no sessions yet: isError=%v text=%q", r.IsError, text)
+	}
+
+	call(t, cs, "eval", map[string]any{"code": "1"}) // creates the default session
+	sessions := structured[ListSessionsOutput](t, call(t, cs, "list_sessions", nil))
+	if len(sessions.Sessions) != 1 {
+		t.Fatalf("an unknown id was remembered as a session: %#v", sessions)
+	}
+	defaultID := sessions.Sessions[0].SessionID
+	for _, tool := range []string{"eval", "history", "bindings"} {
+		args := map[string]any{"sessionId": "probe"}
+		if tool == "eval" {
+			args["code"] = "1"
+		}
+		r := call(t, cs, tool, args)
+		text := firstText(t, r)
+		if !r.IsError || !strings.Contains(text, `session "probe" does not exist`) || !strings.Contains(text, "only the default session ("+defaultID+")") ||
+			!strings.Contains(text, "omit sessionId") || strings.Contains(text, "replsession:") {
+			t.Fatalf("%s: isError=%v text=%q", tool, r.IsError, text)
+		}
+	}
+
+	created := structured[CreateSessionOutput](t, call(t, cs, "create_session", nil))
+	r = call(t, cs, "eval", map[string]any{"code": "1", "sessionId": "probe"})
+	text = firstText(t, r)
+	if !strings.Contains(text, "Existing sessions: "+defaultID+" (default), "+created.SessionID) {
+		t.Fatalf("several sessions: %q", text)
+	}
+}
+
+func TestSessionIDSchemaDescription(t *testing.T) {
+	cs := connect(t, newTestApp(t))
+	tools, err := cs.ListTools(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tool := range tools.Tools {
+		if tool.Name != "eval" && tool.Name != "history" && tool.Name != "bindings" {
+			continue
+		}
+		raw, _ := json.Marshal(tool.InputSchema)
+		if !strings.Contains(string(raw), "omit it to use the default session") || !strings.Contains(string(raw), "only pass ids returned by create_session or list_sessions") {
+			t.Fatalf("%s sessionId description: %s", tool.Name, raw)
+		}
+	}
+}
+
+func TestUnknownSessionWithPersistentStore(t *testing.T) {
+	ctx := context.Background()
+	store, err := repldb.Open(ctx, filepath.Join(t.TempDir(), "repl.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	factory, err := engine.NewRuntimeFactoryBuilder().UseModuleMiddleware(engine.MiddlewareSafe()).Build()
+	if err != nil {
+		t.Fatal(err)
+	}
+	app, err := replapi.New(ctx, factory, zerolog.Nop(), replapi.WithProfile(replapi.ProfilePersistent), replapi.WithStore(store))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = app.Close(ctx)
+		_ = store.Close()
+	})
+	cs := connect(t, app)
+	for _, tool := range []string{"eval", "history", "bindings"} {
+		args := map[string]any{"sessionId": "probe"}
+		if tool == "eval" {
+			args["code"] = "1"
+		}
+		r := call(t, cs, tool, args)
+		if text := firstText(t, r); !r.IsError || !strings.Contains(text, `session "probe" does not exist`) || strings.Contains(text, "repldb:") {
+			t.Fatalf("%s: isError=%v text=%q", tool, r.IsError, text)
+		}
 	}
 }

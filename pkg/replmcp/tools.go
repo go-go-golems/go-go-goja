@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-go-golems/go-go-goja/pkg/repldb"
 	"github.com/go-go-golems/go-go-goja/pkg/replsession"
 	"github.com/go-go-golems/go-go-goja/pkg/resultcontent"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -16,12 +17,12 @@ import (
 // EvalInput is the input of the eval tool.
 type EvalInput struct {
 	Code      string `json:"code" jsonschema:"JavaScript source to evaluate. The value of the last expression is the result; top-level await is supported."`
-	SessionID string `json:"sessionId,omitempty" jsonschema:"Session to evaluate in. Omit to use the default session."`
+	SessionID string `json:"sessionId,omitempty" jsonschema:"Optional; omit it to use the default session (where the host's globals live); only pass ids returned by create_session or list_sessions."`
 }
 
 // SessionInput selects a session; empty means the default session.
 type SessionInput struct {
-	SessionID string `json:"sessionId,omitempty" jsonschema:"Session to inspect. Omit to use the default session."`
+	SessionID string `json:"sessionId,omitempty" jsonschema:"Optional; omit it to use the default session (where the host's globals live); only pass ids returned by create_session or list_sessions."`
 }
 
 // CreateSessionOutput is the output of create_session.
@@ -115,10 +116,12 @@ func (h *handlers) eval(ctx context.Context, _ *mcp.CallToolRequest, in EvalInpu
 	if err != nil {
 		return nil, nil, err
 	}
-	h.remember(sessionID)
 	resp, err := h.ev.Evaluate(ctx, sessionID, in.Code)
 	if err != nil {
 		if resp == nil || resp.Cell == nil {
+			if isSessionNotFound(err) {
+				return nil, nil, h.unknownSessionError(ctx, sessionID)
+			}
 			return nil, nil, errors.Wrapf(err, "evaluate in session %s", sessionID)
 		}
 		// A commit failure still carries the executed cell; report both.
@@ -127,6 +130,7 @@ func (h *handlers) eval(ctx context.Context, _ *mcp.CallToolRequest, in EvalInpu
 		result.Content = append([]mcp.Content{&mcp.TextContent{Text: "session error: " + err.Error()}}, result.Content...)
 		return result, nil, nil
 	}
+	h.remember(sessionID)
 	return EvalResult(resp, h.cfg.limits), nil, nil
 }
 
@@ -261,25 +265,69 @@ func (h *handlers) createSession(ctx context.Context, _ *mcp.CallToolRequest, _ 
 }
 
 func (h *handlers) listSessions(ctx context.Context, _ *mcp.CallToolRequest, _ struct{}) (*mcp.CallToolResult, ListSessionsOutput, error) {
-	out := ListSessionsOutput{Sessions: []SessionInfo{}}
+	return nil, ListSessionsOutput{Sessions: h.sessionInfos(ctx)}, nil
+}
+
+// sessionInfos lists the sessions this server knows (default first) plus the
+// durable ones when the evaluator has a store.
+func (h *handlers) sessionInfos(ctx context.Context) []SessionInfo {
+	out := []SessionInfo{}
 	defaultID := h.currentDefault()
 	seen := map[string]int{}
 	for _, id := range h.knownSessions() {
-		seen[id] = len(out.Sessions)
-		out.Sessions = append(out.Sessions, SessionInfo{SessionID: id, Default: id == defaultID})
+		seen[id] = len(out)
+		out = append(out, SessionInfo{SessionID: id, Default: id == defaultID})
 	}
 	if records, err := h.ev.ListSessions(ctx); err == nil {
 		for _, record := range records {
 			createdAt := record.CreatedAt
 			if idx, ok := seen[record.SessionID]; ok {
-				out.Sessions[idx].Durable = true
-				out.Sessions[idx].CreatedAt = &createdAt
+				out[idx].Durable = true
+				out[idx].CreatedAt = &createdAt
 				continue
 			}
-			out.Sessions = append(out.Sessions, SessionInfo{SessionID: record.SessionID, CreatedAt: &createdAt, Durable: true, Default: record.SessionID == defaultID})
+			out = append(out, SessionInfo{SessionID: record.SessionID, CreatedAt: &createdAt, Durable: true, Default: record.SessionID == defaultID})
 		}
 	}
-	return nil, out, nil
+	return out
+}
+
+// unknownSessionError tells the model that sessionID does not exist, which
+// sessions do, and how to proceed (agents sometimes invent ids).
+func (h *handlers) unknownSessionError(ctx context.Context, sessionID string) error {
+	infos := h.sessionInfos(ctx)
+	var existing string
+	switch {
+	case len(infos) == 0:
+		existing = "No sessions exist yet."
+	case len(infos) == 1 && infos[0].Default:
+		existing = fmt.Sprintf("There is only the default session (%s).", infos[0].SessionID)
+	default:
+		ids := make([]string, 0, len(infos))
+		for _, info := range infos {
+			if info.Default {
+				ids = append(ids, info.SessionID+" (default)")
+			} else {
+				ids = append(ids, info.SessionID)
+			}
+		}
+		existing = "Existing sessions: " + strings.Join(ids, ", ") + "."
+	}
+	return errors.Errorf("session %q does not exist. %s To use the default session (where the host's globals live), omit sessionId; to start a new one, call create_session. Only pass ids returned by create_session or list_sessions.", sessionID, existing)
+}
+
+// isSessionNotFound matches the live (replsession) and durable (repldb)
+// not-found errors.
+func isSessionNotFound(err error) bool {
+	return errors.Is(err, replsession.ErrSessionNotFound) || errors.Is(err, repldb.ErrSessionNotFound)
+}
+
+// sessionLookupError maps "session not found" to unknownSessionError.
+func (h *handlers) sessionLookupError(ctx context.Context, sessionID string, err error) error {
+	if isSessionNotFound(err) {
+		return h.unknownSessionError(ctx, sessionID)
+	}
+	return err
 }
 
 func (h *handlers) history(ctx context.Context, _ *mcp.CallToolRequest, in SessionInput) (*mcp.CallToolResult, HistoryOutput, error) {
@@ -302,7 +350,7 @@ func (h *handlers) history(ctx context.Context, _ *mcp.CallToolRequest, in Sessi
 	}
 	summary, err := h.ev.Snapshot(ctx, sessionID)
 	if err != nil {
-		return nil, HistoryOutput{}, err
+		return nil, HistoryOutput{}, h.sessionLookupError(ctx, sessionID, err)
 	}
 	out.Previews = true
 	for _, entry := range summary.History {
@@ -318,7 +366,7 @@ func (h *handlers) bindings(ctx context.Context, _ *mcp.CallToolRequest, in Sess
 	}
 	views, err := h.ev.Bindings(ctx, sessionID)
 	if err != nil {
-		return nil, BindingsOutput{}, err
+		return nil, BindingsOutput{}, h.sessionLookupError(ctx, sessionID, err)
 	}
 	out := BindingsOutput{SessionID: sessionID, Bindings: make([]BindingInfo, 0, len(views))}
 	for _, view := range views {
