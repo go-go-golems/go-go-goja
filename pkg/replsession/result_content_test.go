@@ -271,3 +271,15 @@ func TestDefaultResultProcessorFullText(t *testing.T) {
 		t.Fatalf("result = %q", resp.Cell.Execution.Result)
 	}
 }
+
+func TestConsoleCaptureShowsContentPlaceholder(t *testing.T) {
+	t.Parallel()
+	service, id := newLookSession(t, InteractiveSessionOptions())
+	resp := evalOK(t, service, id, `console.log("before:", look("b")); 1`)
+	if len(resp.Cell.Execution.Console) != 1 || resp.Cell.Execution.Console[0].Message != `"before:" [content: look b]` {
+		t.Fatalf("console = %#v", resp.Cell.Execution.Console)
+	}
+	if len(resp.Content) != 0 || resp.Cell.Execution.Content != nil {
+		t.Fatalf("console argument was collected as content: %#v", resp.Cell.Execution.Content)
+	}
+}

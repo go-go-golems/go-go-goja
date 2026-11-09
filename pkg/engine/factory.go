@@ -298,6 +298,9 @@ func (f *RuntimeFactory) installDefaultGlobals(vm *goja.Runtime) error {
 	skip := f.settings.skippedGlobals
 	if !skip[GlobalConsole] {
 		console.Enable(vm)
+		if err := installConsoleContentPlaceholders(vm); err != nil {
+			return err
+		}
 	}
 	if !skip[GlobalBuffer] {
 		buffer.Enable(vm)

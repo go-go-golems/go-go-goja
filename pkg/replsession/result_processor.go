@@ -191,10 +191,7 @@ func (m providerPlaceholders) placeholder(p resultcontent.Provider) string {
 			return resultcontent.Placeholder(n, p)
 		}
 	}
-	if desc := resultcontent.Describe(p); desc != "" {
-		return "[content: " + desc + "]"
-	}
-	return "[content]"
+	return resultcontent.InlinePlaceholder(p)
 }
 
 // resultEnvelopeJSONWithProviders serializes the result like resultEnvelopeJSON

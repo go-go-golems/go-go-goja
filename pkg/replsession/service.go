@@ -625,6 +625,11 @@ func (s *sessionState) installDocSentinels(ctx context.Context) error {
 func formatConsoleMessage(args []goja.Value, vm *goja.Runtime) string {
 	parts := make([]string, 0, len(args))
 	for _, arg := range args {
+		if provider, ok := resultcontent.ProviderOf(arg); ok {
+			// Display only: console arguments are not rendered as content.
+			parts = append(parts, resultcontent.InlinePlaceholder(provider))
+			continue
+		}
 		parts = append(parts, inspectorruntime.ValuePreview(arg, vm, 120))
 	}
 	return strings.Join(parts, " ")

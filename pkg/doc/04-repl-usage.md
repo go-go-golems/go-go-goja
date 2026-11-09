@@ -345,6 +345,8 @@ js> processData(testData)
 
 The global `console` object provides familiar debugging capabilities:
 
+A result content value (a Go value implementing `resultcontent.Provider`, such as an image returned by a module) passed directly to `console.log`/`info`/`debug`/`warn`/`error` prints as its placeholder, for example `[content: look after]`. Console output never renders or collects content; return the value (or put it in the returned object) to get the image.
+
 ```javascript
 js> console.log("Simple message")
 Simple message
