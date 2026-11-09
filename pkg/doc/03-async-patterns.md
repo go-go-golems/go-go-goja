@@ -179,6 +179,8 @@ In practice:
 - prefer `CallWithCurrentContext` for nested JS-facing callbacks;
 - prefer `PostWithCustomContext` / `PostWithLifetimeContext` for background settlement.
 
+The same rule applies to result content providers (`resultcontent.Provider`, see "Returning Rich Content" in `goja-repl help creating-modules`): hosts call `ResultContent(ctx)` off the owner goroutine, after the evaluation has settled, possibly while the session is already running the next cell. It must not touch `goja.Runtime`, `goja.Value`, or JavaScript callbacks, and must not schedule owner work and wait for it. Render from Go state captured when the value was created. `ResultPlaceholder()` is the opposite: it runs on the owner during the result walk, so it must be fast and must not block.
+
 ## Runtime shutdown
 
 `engine.Runtime.Close(ctx)` cancels the runtime lifetime context, waits briefly for active owner calls to finish, interrupts active JavaScript if necessary, runs registered closers while runtime services are still available, then removes runtimebridge services and stops the owner/event loop.

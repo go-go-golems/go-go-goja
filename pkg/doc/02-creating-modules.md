@@ -224,6 +224,132 @@ try {
 }
 ```
 
+## Returning Rich Content (Images)
+
+A function can return a Go value that carries rich content, such as an image, next to ordinary data. The value implements `resultcontent.Provider` (package `github.com/go-go-golems/go-go-goja/pkg/resultcontent`); the host that runs the code decides what to do with it: MCP returns an image, CLIs write a file, tables get a path or placeholder. JavaScript just returns the value, alone or inside an object or array:
+
+```go
+type Provider interface {
+    ResultContent(ctx context.Context) ([]Content, error) // Content{MIMEType, Data, Caption}
+}
+type Describer interface { // optional
+    ResultPlaceholder() string // shown as "[content N: <this>]"
+}
+```
+
+A complete module that returns a solid-colour PNG:
+
+```go
+package swatch
+
+import (
+    "bytes"
+    "context"
+    "fmt"
+    "image"
+    "image/color"
+    "image/png"
+
+    "github.com/dop251/goja"
+    "github.com/go-go-golems/go-go-goja/modules"
+    "github.com/go-go-golems/go-go-goja/pkg/resultcontent"
+)
+
+// Swatch renders lazily. Its fields are unexported, so JSON.stringify and the
+// json.Marshal used for persisted bindings never see image bytes.
+type Swatch struct {
+    size int
+    rgb  color.RGBA
+}
+
+var _ resultcontent.Provider = (*Swatch)(nil)
+var _ resultcontent.Describer = (*Swatch)(nil)
+
+// ResultContent runs off the runtime owner goroutine and uses only Go state.
+func (s *Swatch) ResultContent(ctx context.Context) ([]resultcontent.Content, error) {
+    img := image.NewRGBA(image.Rect(0, 0, s.size, s.size))
+    for y := 0; y < s.size; y++ {
+        for x := 0; x < s.size; x++ {
+            img.Set(x, y, s.rgb)
+        }
+    }
+    var buf bytes.Buffer
+    if err := png.Encode(&buf, img); err != nil {
+        return nil, err
+    }
+    return []resultcontent.Content{{MIMEType: "image/png", Data: buf.Bytes(), Caption: s.label()}}, nil
+}
+
+// ResultPlaceholder runs on the owner goroutine while the result is walked: keep it cheap.
+func (s *Swatch) ResultPlaceholder() string { return s.label() }
+
+func (s *Swatch) label() string {
+    return fmt.Sprintf("swatch %dx%d #%02x%02x%02x", s.size, s.size, s.rgb.R, s.rgb.G, s.rgb.B)
+}
+
+type m struct{}
+
+var _ modules.NativeModule = (*m)(nil)
+
+func (m) Name() string { return "swatch" }
+func (m) Doc() string  { return "swatch.solid(size, r, g, b) returns a PNG swatch" }
+
+func (m) Loader(vm *goja.Runtime, moduleObj *goja.Object) {
+    exports := moduleObj.Get("exports").(*goja.Object)
+    _ = exports.Set("solid", func(size int, r, g, b uint8) *Swatch {
+        return &Swatch{size: size, rgb: color.RGBA{R: r, G: g, B: b, A: 255}}
+    })
+}
+
+func init() { modules.Register(&m{}) }
+```
+
+JavaScript:
+
+```javascript
+const { solid } = require("swatch");
+const red = solid(4, 255, 0, 0);
+({ size: 4, red, both: [red, solid(2, 0, 0, 255)] })
+```
+
+Over MCP (`goja-repl mcp`, `replmcp`) the `eval` tool returns this text followed by two `image/png` items:
+
+```text
+{size: 4, red: [content 1: swatch 4x4 #ff0000], both: [[content 1: swatch 4x4 #ff0000], [content 2: swatch 2x2 #0000ff]]}
+
+content:
+content 1 swatch 4x4 #ff0000: attached (image/png, 78 bytes)
+content 2 swatch 2x2 #0000ff: attached (image/png, 80 bytes)
+```
+
+As the last expression of an xgoja `eval` (or the `module.exports` of a `run` script) with `--content-dir out`:
+
+```text
+{size: 4, red: [content 1: swatch 4x4 #ff0000], both: [[content 1: swatch 4x4 #ff0000], [content 2: swatch 2x2 #0000ff]]}
+# content 1 swatch 4x4 #ff0000: out/content-1.png
+# content 2 swatch 2x2 #0000ff: out/content-2.png
+```
+
+Rules for providers:
+
+- **Return a Go value.** Only Go-backed objects whose exported value implements `Provider` are found. A provider may sit inside plain objects, arrays, Go maps with string keys and Go slices (`map[string]*Swatch`, `[]*Swatch` work). The walk is bounded (depth 8, 1000 properties), never reads `then` and never calls getters, so thenable proxies are safe.
+- **Render lazily.** `ResultContent` is only called when a host delivers the content (MCP, `--content-dir`), off the owner goroutine and with the request context. Do not touch `goja` values there; capture what you need in Go fields when the value is created.
+- **Keep bytes unexported.** Exported fields are visible to `JSON.stringify` and to the `json.Marshal` of persisted session bindings.
+- **Expect limits.** Hosts cap item count and bytes (`resultcontent.Limits`; replsession defaults 8 items / 8 MiB, MCP 4 MiB per image) and report what they dropped. Providers past the item limit are not called.
+- **Name it.** Without `Describer` the placeholder is `[content N]`.
+
+What each surface does with a provider:
+
+| Surface | Result |
+| --- | --- |
+| `replapi`/`replsession` (Go hosts, `goja-repl eval`/`serve`/TUI) | byte-free refs in `cell.execution.content`, rendered bytes in `EvaluateResponse.Content` (not persisted) |
+| MCP (`goja-repl mcp`, `replmcp`, xgoja `mcp serve`) | `ImageContent` items after the text result |
+| xgoja `eval`/`run`, `goja-repl run` | placeholders; `--content-dir DIR` writes `DIR/content-N.<ext>` and prints the paths |
+| jsverbs | placeholder strings in rows; `--content-dir DIR` puts the file path in the row field |
+| `console.log(value)` | prints `[content: <placeholder>]`; never renders |
+
+Hosts and session hooks are covered in `goja-repl help replapi-guide`.
+
 ## Module Registration
 
 Add your module to the import list in `pkg/engine/runtime.go` to ensure it's loaded:
@@ -282,4 +408,8 @@ For the full declaration generator reference, see:
 
 For asynchronous operations and Promise-based APIs, see:
 
-    glaze help async-patterns
+    goja-repl help async-patterns
+
+For hosting sessions whose results carry content, see:
+
+    goja-repl help replapi-guide
