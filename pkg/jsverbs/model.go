@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/go-go-golems/go-go-goja/pkg/engine"
+	"github.com/go-go-golems/go-go-goja/pkg/resultcontent"
 )
 
 type ParameterKind string
@@ -121,6 +122,9 @@ type Registry struct {
 	// ModuleMiddleware controls which native modules are available to jsverbs
 	// when the registry builds its own runtime. If nil, all modules are loaded.
 	ModuleMiddleware engine.ModuleMiddleware
+	// ResultContentLimits bounds the result content walk and rendering for
+	// verb results (see --content-dir). Zero fields select defaults.
+	ResultContentLimits resultcontent.Limits
 }
 
 type FileSpec struct {

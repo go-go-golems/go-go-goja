@@ -338,6 +338,12 @@ Internally, bindings are resolved through a shared binding plan that is consumed
 
 That JSON fallback is a guardrail rather than a recommendation. If a text verb consistently returns structured objects, it is usually a sign that the command should probably be a structured verb instead.
 
+## Result content
+
+A verb may return result content: Go values implementing `resultcontent.Provider`, such as images returned by a module. Before the result becomes rows (or text), every provider in it is replaced: by its placeholder string `[content N: ...]`, or, when the command runs with `--content-dir DIR`, by the path of the file it was rendered to (`DIR/content-N.<ext>`; a provider with several items becomes a list of paths). Glazed never receives a raw Go provider.
+
+`--content-dir` lives in a `jsverbs-content` section that every verb command gets automatically. Its value is not passed to the verb (it does not appear in `values`, `sections`, or bound section objects). A verb that declares its own `content-dir` field keeps that flag; its content is then reported as placeholders only. Hosts bound the walk and rendering with `Registry.ResultContentLimits`.
+
 ## Promise handling
 
 If a JS function returns a `Promise`, the runtime polls promise state through the runtime owner and waits until the promise is fulfilled or rejected.

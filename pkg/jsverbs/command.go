@@ -206,6 +206,9 @@ func (r *Registry) buildDescription(verb *VerbSpec) (*cmds.CommandDescription, e
 	for _, slug := range ordered {
 		description.Schema.Set(slug, sections[slug])
 	}
+	if err := addContentSection(description); err != nil {
+		return nil, err
+	}
 	return description, nil
 }
 
@@ -399,6 +402,10 @@ func (c *Command) RunIntoGlazeProcessor(ctx context.Context, parsedValues *value
 	if err != nil {
 		return err
 	}
+	result, err = c.registry.processResultContent(ctx, result, parsedValues)
+	if err != nil {
+		return err
+	}
 	rows, err := rowsFromResult(result)
 	if err != nil {
 		return err
@@ -413,6 +420,10 @@ func (c *Command) RunIntoGlazeProcessor(ctx context.Context, parsedValues *value
 
 func (c *WriterCommand) RunIntoWriter(ctx context.Context, parsedValues *values.Values, w io.Writer) error {
 	result, err := c.invoke(ctx, parsedValues)
+	if err != nil {
+		return err
+	}
+	result, err = c.registry.processResultContent(ctx, result, parsedValues)
 	if err != nil {
 		return err
 	}

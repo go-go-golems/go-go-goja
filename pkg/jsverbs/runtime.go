@@ -425,6 +425,9 @@ func collectSectionValues(parsedValues *values.Values) map[string]map[string]int
 		return sectionValues
 	}
 	parsedValues.ForEach(func(slug string, value *values.SectionValues) {
+		if slug == ContentSectionSlug {
+			return // host option for the result, not a verb input
+		}
 		sectionMap := map[string]interface{}{}
 		value.Fields.ForEach(func(_ string, fieldValue *fields.FieldValue) {
 			if fieldValue == nil || fieldValue.Definition == nil {
