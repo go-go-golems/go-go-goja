@@ -66,3 +66,37 @@ func TestAppPassesResultProcessorAndContent(t *testing.T) {
 		t.Fatalf("content=%#v refs=%#v", resp.Content, resp.Cell.Execution.Content)
 	}
 }
+
+func TestNewWithRuntimeConstructor(t *testing.T) {
+	ctx := context.Background()
+	if _, err := NewWithRuntimeConstructor(ctx, nil, zerolog.Nop()); err == nil {
+		t.Fatal("expected nil constructor error")
+	}
+	factory, err := engine.NewRuntimeFactoryBuilder().UseModuleMiddleware(engine.MiddlewareSafe()).Build()
+	if err != nil {
+		t.Fatalf("build factory: %v", err)
+	}
+	var lifetimes []context.Context
+	newRuntime := func(startup context.Context, lifetime context.Context) (*engine.Runtime, error) {
+		lifetimes = append(lifetimes, lifetime)
+		return replsession.EngineRuntimeConstructor(factory)(startup, lifetime)
+	}
+	app, err := NewWithRuntimeConstructor(ctx, newRuntime, zerolog.Nop(), WithProfile(ProfileInteractive))
+	if err != nil {
+		t.Fatalf("new app: %v", err)
+	}
+	session, err := app.CreateSession(ctx)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	resp, err := app.Evaluate(ctx, session.ID, `const v = 6 * 7; v`)
+	if err != nil || resp.Cell.Execution.Result != "42" {
+		t.Fatalf("evaluate: err=%v resp=%#v", err, resp)
+	}
+	if err := app.Close(ctx); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+	if len(lifetimes) != 1 || lifetimes[0].Err() == nil {
+		t.Fatalf("session lifetime context not canceled on close: %d contexts", len(lifetimes))
+	}
+}

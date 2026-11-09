@@ -362,6 +362,17 @@ The HTTP provider demonstrates the distinction: `express` is the runtime module,
 while `serve` is a provider command set that runs a jsverb long enough for the
 registered HTTP routes to serve traffic.
 
+The MCP provider (`github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/mcp`,
+command set `mcp`) turns any generated binary into an MCP eval server for agents:
+`{ id: mcp, type: provider.command-set, provider: mcp, name: mcp, mount: mcp }`
+adds `<binary> mcp serve`, which serves the tools `eval`, `create_session`,
+`list_sessions`, `history`, and `bindings` over stdio (or streamable HTTP with
+`--http ADDR`). Sessions are in-memory and use the binary's selected runtime
+modules; values implementing `resultcontent.Provider` (for example images) are
+returned as MCP image content. `config` accepts `name`, `version`,
+`instructions`, `evalTimeoutMs`, `maxResultChars`, `maxImages`, and
+`maxImageBytes`.
+
 The `mount` field on a command controls where the command appears in the
 generated CLI command tree. It does not mount an HTTP handler. HTTP handler
 mounting happens at runtime through the Express module, for example
