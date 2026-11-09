@@ -45,6 +45,10 @@ type FailureProcessor interface {
 // becomes the placeholder rendering of the whole value.
 type DefaultResultProcessor struct {
 	Limits resultcontent.Limits
+	// FullText always uses the resultcontent rendering of the whole value as
+	// the result text instead of the 120-character inspector preview. Agent
+	// transports (MCP) want this; the web UI keeps the preview.
+	FullText bool
 }
 
 var _ ResultProcessor = DefaultResultProcessor{}
@@ -55,7 +59,7 @@ func (p DefaultResultProcessor) Process(_ context.Context, vm *goja.Runtime, val
 	if err != nil {
 		return ProcessedResult{}, err
 	}
-	if len(extraction.Providers) == 0 {
+	if len(extraction.Providers) == 0 && !p.FullText {
 		return ProcessedResult{}, nil
 	}
 	return ProcessedResult{Text: extraction.Text, Providers: extraction.Providers}, nil

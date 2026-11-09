@@ -262,3 +262,12 @@ func TestCustomResultProcessorHooks(t *testing.T) {
 		t.Fatalf("before = %d", processor.before)
 	}
 }
+
+func TestDefaultResultProcessorFullText(t *testing.T) {
+	t.Parallel()
+	service, id := newLookSession(t, InteractiveSessionOptions(), WithResultProcessor(DefaultResultProcessor{FullText: true}))
+	resp := evalOK(t, service, id, `({a: 1, b: [2, "three"]})`)
+	if resp.Cell.Execution.Result != `{a: 1, b: [2, "three"]}` || len(resp.Content) != 0 {
+		t.Fatalf("result = %q", resp.Cell.Execution.Result)
+	}
+}
