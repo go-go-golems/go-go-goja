@@ -2,10 +2,12 @@ package app
 
 import (
 	"context"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/go-go-golems/go-go-goja/pkg/resultcontent/scriptresult"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 )
 
@@ -23,7 +25,7 @@ func TestRunScriptFileWithInitializersRunsTypeScriptEntry(t *testing.T) {
 	}
 
 	factory := NewRuntimeFactory(providerapi.NewProviderRegistry(), &RuntimePlan{})
-	if err := runScriptFileWithInitializers(context.Background(), factory, entry, nil, nil, false); err != nil {
+	if err := runScriptFileWithInitializers(context.Background(), factory, entry, nil, nil, false, io.Discard, scriptresult.Options{}); err != nil {
 		t.Fatalf("runScriptFileWithInitializers() error = %v", err)
 	}
 }

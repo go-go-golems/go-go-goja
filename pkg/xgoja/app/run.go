@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -15,6 +16,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/schema"
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/go-go-goja/pkg/engine"
+	"github.com/go-go-golems/go-go-goja/pkg/resultcontent/scriptresult"
 	"github.com/go-go-golems/go-go-goja/pkg/tsscript"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 )
@@ -23,17 +25,19 @@ type runCommand struct {
 	*cmds.CommandDescription
 	factory     *RuntimeFactory
 	runtimePlan *RuntimePlan
+	out         io.Writer
 	sectionErr  error
 }
 
 var _ cmds.BareCommand = (*runCommand)(nil)
 
 type runSettings struct {
-	File      string `glazed:"file"`
-	KeepAlive bool   `glazed:"keep-alive"`
+	File       string `glazed:"file"`
+	KeepAlive  bool   `glazed:"keep-alive"`
+	ContentDir string `glazed:"content-dir"`
 }
 
-func newRunCommand(factory *RuntimeFactory, runtimePlan *RuntimePlan) cmds.Command {
+func newRunCommand(factory *RuntimeFactory, runtimePlan *RuntimePlan, out io.Writer) cmds.Command {
 	moduleSections, _, sectionErr := factory.sectionsForRuntime("run")
 	options := []cmds.CommandDescriptionOption{
 		cmds.WithShort("Execute a JavaScript file in a generated xgoja runtime"),
@@ -43,6 +47,12 @@ Run executes a JavaScript file in a fresh xgoja runtime.
 The generated runtime controls which provider modules are available through
 require(). The script's directory is added to the module resolution roots so
 sibling JavaScript files can be required by relative path.
+
+If module.exports (awaited when it is a promise) holds result content, for
+example images returned by a module, it is printed with "[content N: ...]"
+placeholders; --content-dir DIR renders the content and writes it to
+DIR/content-N.<ext>, printing the paths. A TypeScript script's bundle value is
+treated the same way.
 `),
 		cmds.WithArguments(
 			fields.New("file", fields.TypeString,
@@ -53,6 +63,9 @@ sibling JavaScript files can be required by relative path.
 			fields.New("keep-alive", fields.TypeBool,
 				fields.WithDefault(false),
 				fields.WithHelp("Keep the runtime alive after the script finishes, useful for scripts that register HTTP routes or static mounts")),
+			fields.New(scriptresult.ContentDirFlag, fields.TypeString,
+				fields.WithDefault(""),
+				fields.WithHelp(scriptresult.ContentDirHelp)),
 		),
 	}
 	if sectionErr == nil && len(moduleSections) > 0 {
@@ -63,6 +76,7 @@ sibling JavaScript files can be required by relative path.
 		CommandDescription: cmds.NewCommandDescription(commandName(command, "run"), options...),
 		factory:            factory,
 		runtimePlan:        runtimePlan,
+		out:                out,
 		sectionErr:         sectionErr,
 	}
 }
@@ -79,10 +93,14 @@ func (c *runCommand) Run(ctx context.Context, vals *values.Values) error {
 	if err != nil {
 		return err
 	}
-	return runScriptFileWithInitializers(ctx, c.factory, settings.File, vals, selectedModules, settings.KeepAlive)
+	out := c.out
+	if out == nil {
+		out = os.Stdout
+	}
+	return runScriptFileWithInitializers(ctx, c.factory, settings.File, vals, selectedModules, settings.KeepAlive, out, scriptresult.Options{ContentDir: settings.ContentDir})
 }
 
-func runScriptFileWithInitializers(ctx context.Context, factory *RuntimeFactory, file string, vals *values.Values, selectedModules []providerapi.ModuleDescriptor, keepAlive bool) error {
+func runScriptFileWithInitializers(ctx context.Context, factory *RuntimeFactory, file string, vals *values.Values, selectedModules []providerapi.ModuleDescriptor, keepAlive bool, out io.Writer, content scriptresult.Options) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -114,18 +132,24 @@ func runScriptFileWithInitializers(ctx context.Context, factory *RuntimeFactory,
 		}
 	}
 
+	var result goja.Value
 	if tsscript.IsTypeScriptPath(scriptPath) {
-		if err := runTypeScriptScript(ctx, rt, scriptPath, selectedModules); err != nil {
+		result, err = runTypeScriptScript(ctx, rt, scriptPath, selectedModules)
+		if err != nil {
 			return err
 		}
 	} else {
-		_, err = rt.Owner.Call(ctx, "xgoja.run", func(_ context.Context, vm *goja.Runtime) (any, error) {
+		ret, err := rt.Owner.Call(ctx, "xgoja.run", func(_ context.Context, vm *goja.Runtime) (any, error) {
 			_ = vm
 			return rt.Require.Require(scriptPath)
 		})
 		if err != nil {
 			return fmt.Errorf("run %s as module: %w", scriptPath, err)
 		}
+		result, _ = ret.(goja.Value)
+	}
+	if err := reportScriptResult(ctx, rt, result, out, content); err != nil {
+		return err
 	}
 	if keepAlive {
 		fmt.Fprintln(os.Stderr, "xgoja run: runtime is alive; press Ctrl-C to stop")
@@ -134,7 +158,24 @@ func runScriptFileWithInitializers(ctx context.Context, factory *RuntimeFactory,
 	return nil
 }
 
-func runTypeScriptScript(ctx context.Context, rt *engine.Runtime, scriptPath string, selectedModules []providerapi.ModuleDescriptor) error {
+// reportScriptResult prints the script's result (module.exports) only when it
+// holds result content; scripts without content print nothing, as before.
+func reportScriptResult(ctx context.Context, rt *engine.Runtime, result goja.Value, out io.Writer, content scriptresult.Options) error {
+	if result == nil {
+		return nil
+	}
+	settledValue, err := scriptresult.Settle(ctx, rt.Owner, result)
+	if err != nil {
+		return err
+	}
+	report, err := scriptresult.Build(ctx, rt.Owner, settledValue, content)
+	if err != nil {
+		return err
+	}
+	return report.Fprint(out)
+}
+
+func runTypeScriptScript(ctx context.Context, rt *engine.Runtime, scriptPath string, selectedModules []providerapi.ModuleDescriptor) (goja.Value, error) {
 	artifact, err := tsscript.BundleEntry(scriptPath, tsscript.Options{
 		Target:   api.ES2015,
 		Format:   api.FormatIIFE,
@@ -142,15 +183,16 @@ func runTypeScriptScript(ctx context.Context, rt *engine.Runtime, scriptPath str
 		External: moduleAliases(selectedModules),
 	})
 	if err != nil {
-		return fmt.Errorf("compile TypeScript %s: %w", scriptPath, err)
+		return nil, fmt.Errorf("compile TypeScript %s: %w", scriptPath, err)
 	}
-	_, err = rt.Owner.Call(ctx, "xgoja.run.typescript", func(_ context.Context, vm *goja.Runtime) (any, error) {
+	ret, err := rt.Owner.Call(ctx, "xgoja.run.typescript", func(_ context.Context, vm *goja.Runtime) (any, error) {
 		return vm.RunScript(scriptPath, string(artifact.Code))
 	})
 	if err != nil {
-		return fmt.Errorf("run compiled TypeScript %s: %w", scriptPath, err)
+		return nil, fmt.Errorf("run compiled TypeScript %s: %w", scriptPath, err)
 	}
-	return nil
+	value, _ := ret.(goja.Value)
+	return value, nil
 }
 
 func moduleAliases(selectedModules []providerapi.ModuleDescriptor) []string {

@@ -12,6 +12,7 @@ import (
 	inspectorruntime "github.com/go-go-golems/go-go-goja/pkg/inspector/runtime"
 	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
 	"github.com/go-go-golems/go-go-goja/pkg/repldb"
+	"github.com/go-go-golems/go-go-goja/pkg/resultcontent"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -34,7 +35,7 @@ var ErrEvaluationTimeout = errors.New("replsession: evaluation timed out")
 // Service manages persistent REPL sessions and their backing runtimes.
 type Service struct {
 	mu                 sync.RWMutex
-	factory            *engine.RuntimeFactory
+	newRuntime         RuntimeConstructor
 	logger             zerolog.Logger
 	store              Persistence
 	sessions           map[string]*sessionState
@@ -50,6 +51,10 @@ type Service struct {
 	ownerID            string
 	now                func() time.Time
 	leaseTTL           time.Duration
+
+	resultProcessor      ResultProcessor
+	contentLimits        resultcontent.Limits
+	skipContentRendering bool
 }
 
 type sessionState struct {
@@ -78,11 +83,16 @@ type sessionState struct {
 	pendingCommit *pendingCommit
 	inFlightCell  *cellState
 	lease         *repldb.SessionLease
+
+	resultProcessor ResultProcessor
 }
 
 type cellState struct {
 	report   *CellReport
 	analysis *jsparse.AnalysisResult
+	// content is the rendered result content of a cell being committed. It is
+	// handed to the EvaluateResponse and cleared; it is never retained or persisted.
+	content []resultcontent.Content
 }
 
 type bindingState struct {
@@ -150,13 +160,38 @@ func WithLifetimeContext(ctx context.Context) Option {
 	}
 }
 
+// RuntimeConstructor creates the runtime for one session. startup bounds
+// construction only; the runtime must stay bound to lifetime, the
+// service-owned session context that is canceled when the session closes.
+type RuntimeConstructor func(startup context.Context, lifetime context.Context) (*engine.Runtime, error)
+
+// EngineRuntimeConstructor adapts an engine runtime factory.
+func EngineRuntimeConstructor(factory *engine.RuntimeFactory) RuntimeConstructor {
+	if factory == nil {
+		return nil
+	}
+	return func(startup context.Context, lifetime context.Context) (*engine.Runtime, error) {
+		return factory.NewRuntime(engine.WithStartupContext(startup), engine.WithLifetimeContext(lifetime))
+	}
+}
+
 // NewService creates a new session service backed by the supplied runtime factory.
 func NewService(factory *engine.RuntimeFactory, logger zerolog.Logger, opts ...Option) *Service {
 	if factory == nil {
 		panic("replsession: factory is nil")
 	}
+	return NewServiceWithRuntimeConstructor(EngineRuntimeConstructor(factory), logger, opts...)
+}
+
+// NewServiceWithRuntimeConstructor creates a session service whose sessions
+// get runtimes from newRuntime (for hosts that do not own a concrete
+// *engine.RuntimeFactory, such as xgoja command-set providers).
+func NewServiceWithRuntimeConstructor(newRuntime RuntimeConstructor, logger zerolog.Logger, opts ...Option) *Service {
+	if newRuntime == nil {
+		panic("replsession: runtime constructor is nil")
+	}
 	service := &Service{
-		factory:            factory,
+		newRuntime:         newRuntime,
 		logger:             logger,
 		sessions:           map[string]*sessionState{},
 		defaultSessionOpts: InteractiveSessionOptions(),
@@ -164,11 +199,15 @@ func NewService(factory *engine.RuntimeFactory, logger zerolog.Logger, opts ...O
 		phase:              ServicePhaseOpen,
 		now:                func() time.Time { return time.Now().UTC() },
 		leaseTTL:           30 * time.Second,
+		contentLimits:      resultcontent.DefaultLimits(),
 	}
 	for _, opt := range opts {
 		if opt != nil {
 			opt(service)
 		}
+	}
+	if service.resultProcessor == nil {
+		service.resultProcessor = DefaultResultProcessor{Limits: service.contentLimits}
 	}
 	service.lifetimeCtx, service.lifetimeCancel = context.WithCancelCause(service.lifetimeParent)
 	return service
@@ -206,7 +245,7 @@ func (s *Service) CreateSessionWithOptions(ctx context.Context, opts SessionOpti
 	}
 
 	sessionCtx, sessionCancel := context.WithCancelCause(s.lifetimeCtx)
-	rt, err := s.factory.NewRuntime(engine.WithStartupContext(ctx), engine.WithLifetimeContext(sessionCtx))
+	rt, err := s.newRuntime(ctx, sessionCtx)
 	if err != nil {
 		sessionCancel(err)
 		return nil, errors.Wrap(err, "create runtime")
@@ -240,6 +279,8 @@ func (s *Service) CreateSessionWithOptions(ctx context.Context, opts SessionOpti
 		health:    SessionHealthHealthy,
 		ctx:       sessionCtx,
 		cancel:    sessionCancel,
+
+		resultProcessor: s.resultProcessor,
 	}
 	if state.policy.Observe.ConsoleCapture {
 		if err := state.installConsoleCapture(ctx); err != nil {
@@ -412,11 +453,14 @@ func (s *Service) restoreSession(ctx context.Context, opts SessionOptions, histo
 	replayOpts := resolved
 	replayOpts.ID = ""
 	replayOpts.Policy.Persist = PersistPolicy{}
-	tmpService := NewService(
-		s.factory,
+	tmpService := NewServiceWithRuntimeConstructor(
+		s.newRuntime,
 		s.logger,
 		WithLifetimeContext(s.lifetimeCtx),
 		WithDefaultSessionOptions(replayOpts),
+		WithResultProcessor(s.resultProcessor),
+		WithResultContentLimits(s.contentLimits),
+		withoutContentRendering(),
 	)
 	tmpSummary, err := tmpService.CreateSessionWithOptions(replayCtx, replayOpts)
 	if err != nil {
@@ -581,6 +625,11 @@ func (s *sessionState) installDocSentinels(ctx context.Context) error {
 func formatConsoleMessage(args []goja.Value, vm *goja.Runtime) string {
 	parts := make([]string, 0, len(args))
 	for _, arg := range args {
+		if provider, ok := resultcontent.ProviderOf(arg); ok {
+			// Display only: console arguments are not rendered as content.
+			parts = append(parts, resultcontent.InlinePlaceholder(provider))
+			continue
+		}
 		parts = append(parts, inspectorruntime.ValuePreview(arg, vm, 120))
 	}
 	return strings.Join(parts, " ")

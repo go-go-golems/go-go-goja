@@ -54,7 +54,26 @@ func NewWithConfig(parent context.Context, factory *engine.RuntimeFactory, logge
 	if factory == nil {
 		return nil, errors.New("replapi: factory is nil")
 	}
+	return newApp(parent, replsession.EngineRuntimeConstructor(factory), logger, config)
+}
 
+// NewWithRuntimeConstructor creates an app whose sessions get runtimes from
+// newRuntime instead of a concrete *engine.RuntimeFactory (for example an
+// xgoja providerapi.RuntimeFactory).
+func NewWithRuntimeConstructor(parent context.Context, newRuntime replsession.RuntimeConstructor, logger zerolog.Logger, opts ...Option) (*App, error) {
+	if newRuntime == nil {
+		return nil, errors.New("replapi: runtime constructor is nil")
+	}
+	config := DefaultConfig()
+	for _, opt := range opts {
+		if opt != nil {
+			opt(&config)
+		}
+	}
+	return newApp(parent, newRuntime, logger, config)
+}
+
+func newApp(parent context.Context, newRuntime replsession.RuntimeConstructor, logger zerolog.Logger, config Config) (*App, error) {
 	config, err := normalizeConfig(config)
 	if err != nil {
 		return nil, err
@@ -73,6 +92,10 @@ func NewWithConfig(parent context.Context, factory *engine.RuntimeFactory, logge
 	serviceOpts := []replsession.Option{
 		replsession.WithLifetimeContext(appCtx),
 		replsession.WithDefaultSessionOptions(config.SessionOptions),
+		replsession.WithResultContentLimits(config.ResultContentLimits),
+	}
+	if config.ResultProcessor != nil {
+		serviceOpts = append(serviceOpts, replsession.WithResultProcessor(config.ResultProcessor))
 	}
 	if config.Store != nil {
 		serviceOpts = append(serviceOpts,
@@ -83,7 +106,7 @@ func NewWithConfig(parent context.Context, factory *engine.RuntimeFactory, logge
 
 	return &App{
 		config:  config,
-		service: replsession.NewService(factory, logger, serviceOpts...),
+		service: replsession.NewServiceWithRuntimeConstructor(newRuntime, logger, serviceOpts...),
 		store:   config.Store,
 		ctx:     appCtx,
 		cancel:  appCancel,

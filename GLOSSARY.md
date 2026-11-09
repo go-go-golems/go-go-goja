@@ -187,6 +187,16 @@ Avoid:
 - `CommandSetProvider.New`: too generic.
 - exported `CommandSetProviderFactory`: inline `func(providerapi.CommandSetContext) (*providerapi.CommandSet, error)`.
 
+## Result content names
+
+"Provider" above means an xgoja package-level API surface. Result content uses the word for a different role; keep the package qualifier when both appear:
+
+- `resultcontent.Provider`: a Go value returned from JavaScript that renders rich content (`ResultContent(ctx)`); not an xgoja provider.
+- `resultcontent.Describer`: optional cheap placeholder text for such a value.
+- `replsession.ResultProcessor`: turns a settled cell value into text and content providers.
+- `replsession.RuntimeConstructor`: function that creates one session runtime from startup and lifetime contexts (used where no concrete `engine.RuntimeFactory` exists).
+- `go-go-goja-mcp`: the xgoja provider package (command set `mcp`) that serves `pkg/replmcp`.
+
 ## xgoja app runtime pattern
 
 The `pkg/xgoja/app` package adapts embedded specs and provider registry entries into runtime-profile execution.

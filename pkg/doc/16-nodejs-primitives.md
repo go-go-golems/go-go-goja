@@ -29,7 +29,7 @@ A go-go-goja runtime starts with goja, then adds the `goja_nodejs/require` regis
 
 By default the factory installs data-only primitives and safe globals (the next section shows how a host turns them off):
 
-- `console`, from `goja_nodejs/console`
+- `console`, from `goja_nodejs/console` (go-go-goja wraps `log`/`info`/`debug`/`warn`/`error` so a result content provider argument prints as `[content: <placeholder>]`; see `goja-repl help creating-modules`)
 - `Buffer`, from `goja_nodejs/buffer`
 - `URL` and `URLSearchParams`, from `goja_nodejs/url`
 - `performance.now()`, implemented by go-go-goja

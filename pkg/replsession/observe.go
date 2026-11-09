@@ -11,6 +11,7 @@ import (
 	inspectorcore "github.com/go-go-golems/go-go-goja/pkg/inspector/core"
 	inspectorruntime "github.com/go-go-golems/go-go-goja/pkg/inspector/runtime"
 	"github.com/go-go-golems/go-go-goja/pkg/jsparse"
+	"github.com/go-go-golems/go-go-goja/pkg/resultcontent"
 )
 
 type persistResult struct {
@@ -18,6 +19,8 @@ type persistResult struct {
 	LastValue     string
 	LastValueJSON string
 	HelperError   bool
+	Providers     []resultcontent.Provider
+	ProcessError  string
 }
 
 func (s *sessionState) snapshotGlobals(ctx context.Context) (map[string]GlobalStateView, error) {

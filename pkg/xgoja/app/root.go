@@ -21,6 +21,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/middlewares"
 	"github.com/go-go-golems/glazed/pkg/types"
 	"github.com/go-go-golems/go-go-goja/pkg/jsverbs"
+	"github.com/go-go-golems/go-go-goja/pkg/resultcontent/scriptresult"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/providerapi"
 	"github.com/go-go-golems/go-go-goja/pkg/xgoja/sourcegraph"
 	"github.com/spf13/cobra"
@@ -66,7 +67,8 @@ type evalCommand struct {
 var _ cmds.BareCommand = (*evalCommand)(nil)
 
 type evalSettings struct {
-	Source string `glazed:"source"`
+	Source     string `glazed:"source"`
+	ContentDir string `glazed:"content-dir"`
 }
 
 func newEvalCommand(factory *RuntimeFactory, runtimePlan *RuntimePlan, out io.Writer) cmds.Command {
@@ -75,7 +77,11 @@ func newEvalCommand(factory *RuntimeFactory, runtimePlan *RuntimePlan, out io.Wr
 		cmds.WithShort("Evaluate JavaScript in a generated xgoja runtime"),
 		cmds.WithLong(`
 Evaluate executes a JavaScript source string in a fresh xgoja runtime and prints
-non-null, non-undefined results.
+non-null, non-undefined results. A promise result is awaited.
+
+If the result holds result content (for example images returned by a module),
+the result is printed with "[content N: ...]" placeholders; --content-dir DIR
+renders the content and writes it to DIR/content-N.<ext>, printing the paths.
 
 The generated runtime controls which provider modules are available through
 require(). Provider modules may add Glazed sections; those sections are parsed
@@ -85,6 +91,11 @@ before evaluation and runtime initializers run before the JavaScript source.
 			fields.New("source", fields.TypeString,
 				fields.WithRequired(true),
 				fields.WithHelp("JavaScript source to evaluate")),
+		),
+		cmds.WithFlags(
+			fields.New(scriptresult.ContentDirFlag, fields.TypeString,
+				fields.WithDefault(""),
+				fields.WithHelp(scriptresult.ContentDirHelp)),
 		),
 	}
 	if sectionErr == nil && len(moduleSections) > 0 {
@@ -111,10 +122,10 @@ func (c *evalCommand) Run(ctx context.Context, vals *values.Values) error {
 	if err != nil {
 		return err
 	}
-	return evalSourceWithInitializers(ctx, c.factory, settings.Source, vals, selectedModules, c.out)
+	return evalSourceWithInitializers(ctx, c.factory, settings.Source, vals, selectedModules, c.out, scriptresult.Options{ContentDir: settings.ContentDir})
 }
 
-func evalSourceWithInitializers(ctx context.Context, factory *RuntimeFactory, source string, vals *values.Values, selectedModules []providerapi.ModuleDescriptor, out io.Writer) error {
+func evalSourceWithInitializers(ctx context.Context, factory *RuntimeFactory, source string, vals *values.Values, selectedModules []providerapi.ModuleDescriptor, out io.Writer, content scriptresult.Options) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -131,11 +142,28 @@ func evalSourceWithInitializers(ctx context.Context, factory *RuntimeFactory, so
 			return err
 		}
 	}
+	if out == nil {
+		out = io.Discard
+	}
 	ret, err := rt.Owner.Call(ctx, "xgoja.eval", func(_ context.Context, vm *goja.Runtime) (any, error) {
-		value, err := vm.RunString(source)
-		if err != nil {
-			return nil, err
-		}
+		return vm.RunString(source)
+	})
+	if err != nil {
+		return err
+	}
+	value, _ := ret.(goja.Value)
+	value, err = scriptresult.Settle(ctx, rt.Owner, value)
+	if err != nil {
+		return err
+	}
+	report, err := scriptresult.Build(ctx, rt.Owner, value, content)
+	if err != nil {
+		return err
+	}
+	if report.HasContent() {
+		return report.Fprint(out)
+	}
+	exported, err := rt.Owner.Call(ctx, "xgoja.eval.export", func(_ context.Context, vm *goja.Runtime) (any, error) {
 		if value != nil && !goja.IsUndefined(value) && !goja.IsNull(value) {
 			return value.Export(), nil
 		}
@@ -144,11 +172,8 @@ func evalSourceWithInitializers(ctx context.Context, factory *RuntimeFactory, so
 	if err != nil {
 		return err
 	}
-	if ret != nil {
-		if out == nil {
-			out = io.Discard
-		}
-		fmt.Fprintln(out, ret)
+	if exported != nil {
+		fmt.Fprintln(out, exported)
 	}
 	return nil
 }

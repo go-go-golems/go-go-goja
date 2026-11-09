@@ -25,12 +25,12 @@ schema: xgoja/v2
 name: my-app
 
 providers:
-  - id: core
+  - id: go-go-goja-core
     import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/core
 
 runtime:
   modules:
-    - provider: core
+    - provider: go-go-goja-core
       name: path
       as: path
 

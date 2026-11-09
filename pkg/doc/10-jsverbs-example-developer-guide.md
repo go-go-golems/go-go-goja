@@ -284,6 +284,8 @@ This is the right default for data-oriented commands because users immediately g
 
 This default also keeps the subsystem aligned with the broader Glazed philosophy: commands should prefer structured data when they naturally produce structured data. If the result is conceptually a record or list of records, preserving that shape gives users far more leverage than flattening it into ad hoc strings.
 
+Result content providers (Go values implementing `resultcontent.Provider`, such as images returned by a native module) are replaced before rows are built: by their placeholder string (`[content 1: look after]`), or, when the command runs with `--content-dir DIR`, by the path of the rendered file (`DIR/content-1.png`). Every verb command gets that flag through an automatic `jsverbs-content` section whose value is not passed to the verb; the replacement lives in `processResultContent` (`pkg/jsverbs/content.go`) and runs after any custom invoker. See "Result content" in `goja-repl help jsverbs-example-reference`.
+
 ### Text output verbs
 
 Some commands should act like classic CLI tools and print plain output directly. For those, the verb metadata can declare:
@@ -374,6 +376,7 @@ build engine factory
   -> convert parsed Glazed values into JS arguments
   -> call function
   -> await Promise if needed
+  -> replace result content providers (placeholders or --content-dir paths)
   -> normalize result for Glazed rows or writer output
 ```
 

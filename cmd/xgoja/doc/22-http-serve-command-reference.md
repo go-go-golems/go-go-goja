@@ -48,7 +48,7 @@ The module lets JavaScript `require("express")`. The command set creates CLI com
 commands:
   - id: http-serve
     type: provider.command-set
-    provider: http
+    provider: go-go-goja-http
     name: serve
     mount: serve
     sources:
@@ -150,12 +150,12 @@ schema: xgoja/v2
 name: demo
 
 providers:
-  - id: http
+  - id: go-go-goja-http
     import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http
 
 runtime:
   modules:
-    - provider: http
+    - provider: go-go-goja-http
       name: express
       as: express
 
@@ -170,7 +170,7 @@ sources:
 commands:
   - id: serve
     type: provider.command-set
-    provider: http
+    provider: go-go-goja-http
     name: serve
     mount: serve
     sources:

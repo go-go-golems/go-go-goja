@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-go-golems/go-go-goja/pkg/repldb"
 	"github.com/go-go-golems/go-go-goja/pkg/replsession"
+	"github.com/go-go-golems/go-go-goja/pkg/resultcontent"
 )
 
 // Profile is the opinionated replapi preset selector.
@@ -92,6 +93,13 @@ type Config struct {
 	// replsession. A non-zero Policy is an intentional full replacement of the
 	// selected profile policy; it is not merged field by field.
 	SessionOptions replsession.SessionOptions
+	// ResultProcessor renders cell values to text and content providers. Nil
+	// selects replsession.DefaultResultProcessor. It is a Go value and is not
+	// part of the (persisted) session policy.
+	ResultProcessor replsession.ResultProcessor
+	// ResultContentLimits bounds content extraction and rendering. Zero fields
+	// select resultcontent defaults.
+	ResultContentLimits resultcontent.Limits
 }
 
 // SessionOverrides are app-layer create-session overrides.
@@ -260,6 +268,24 @@ func WithDefaultSessionPolicy(policy replsession.SessionPolicy) Option {
 			return
 		}
 		config.SessionOptions.Policy = replsession.NormalizeSessionPolicy(policy)
+	}
+}
+
+// WithResultProcessor installs the result processor for every session.
+func WithResultProcessor(processor replsession.ResultProcessor) Option {
+	return func(config *Config) {
+		if config != nil {
+			config.ResultProcessor = processor
+		}
+	}
+}
+
+// WithResultContentLimits sets the content extraction and rendering limits.
+func WithResultContentLimits(limits resultcontent.Limits) Option {
+	return func(config *Config) {
+		if config != nil {
+			config.ResultContentLimits = limits
+		}
 	}
 }
 

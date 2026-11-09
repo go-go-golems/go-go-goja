@@ -57,12 +57,12 @@ workspace:
   mode: auto
 
 providers:
-  - id: core
+  - id: go-go-goja-core
     import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/core
 
 runtime:
   modules:
-    - provider: core
+    - provider: go-go-goja-core
       name: path
       as: path
 
@@ -167,7 +167,7 @@ module path, local directory, version, resolution kind, and source before build.
 
 ```yaml
 providers:
-  - id: http
+  - id: go-go-goja-http
     import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http
     register: Register
     module:
@@ -179,8 +179,14 @@ A provider is a Go package that registers xgoja capabilities. It can contribute
 Go-backed runtime modules, command sets, jsverb sources, TypeScript descriptors,
 help sources, assets, host services, and runtime initializers.
 
-`id` is the local spec identifier used by `runtime.modules`, `sources`, and
-`commands`. `import` is the Go package import path. `register` defaults to
+`id` is the provider package ID that the package's register function
+registers (`go-go-goja-http`, `go-go-goja-core`, `go-go-goja-mcp`, ...); `runtime.modules`,
+`sources`, and `commands` refer to it. There is no alias mechanism: the generated
+binary registers providers under their package IDs and looks plan entries up by
+the spec `id`. `xgoja build` does not detect a mismatch (it plans against the
+spec itself); the binary then fails at runtime with
+`runtime references unknown provider module <id>.<module>` and replaces
+provider commands with an error stub reporting `unknown command provider <id>.<name>`. `import` is the Go package import path. `register` defaults to
 `Register`. `module.version` and `module.replace` control generated `go.mod`
 requirements when workspace resolution does not provide a better local module.
 
@@ -189,7 +195,7 @@ requirements when workspace resolution does not provide a better local module.
 ```yaml
 runtime:
   modules:
-    - provider: http
+    - provider: go-go-goja-http
       name: express
       as: express
       config:
@@ -333,7 +339,7 @@ commands:
 
   - id: serve
     type: provider.command-set
-    provider: http
+    provider: go-go-goja-http
     name: serve
     mount: serve
     sources: [local-sites]
@@ -345,6 +351,13 @@ Supported builtin command types are:
 - `builtin.run`
 - `builtin.repl`
 - `builtin.jsverbs`
+
+`builtin.eval` and `builtin.run` await a promise result (for `run`, a promise
+assigned to `module.exports`). When the result holds result content (Go values
+implementing `resultcontent.Provider`, for example images), it is printed with
+`[content N: ...]` placeholders instead of raw Go values; `--content-dir DIR`
+renders the content and writes `DIR/content-N.<ext>`, printing the paths. A
+`run` script whose exports hold no content prints nothing, as before.
 
 `provider.command-set` mounts a command set contributed by a selected provider.
 Provider command sets commonly depend on source sets. For example, the HTTP
@@ -361,6 +374,68 @@ code. A command set is selected under `commands` and contributes CLI commands.
 The HTTP provider demonstrates the distinction: `express` is the runtime module,
 while `serve` is a provider command set that runs a jsverb long enough for the
 registered HTTP routes to serve traffic.
+
+### MCP command set (`go-go-goja-mcp`)
+
+The MCP provider (`github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/mcp`)
+registers package `go-go-goja-mcp` with one command set, `mcp`. Its `serve`
+command turns the generated binary into an MCP eval server for agents with the
+tools `eval`, `create_session`, `list_sessions`, `history`, and `bindings`.
+Sessions are in memory, use the binary's selected runtime modules (no safe-mode
+filtering: the spec chose them), and render results in full; values implementing
+`resultcontent.Provider` (for example images) are returned as MCP image content.
+
+```yaml
+providers:
+  - id: go-go-goja-mcp            # must equal the registered package ID
+    import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/mcp
+    register: Register
+  - id: goja-cv
+    import: github.com/go-go-golems/goja-cv/pkg/xgoja/providers/cv
+runtime:
+  modules:
+    - { provider: goja-cv, name: cv, as: cv }
+commands:
+  - id: mcp
+    type: provider.command-set
+    provider: go-go-goja-mcp
+    name: mcp
+    mount: mcp
+    config:
+      name: cv-agent
+      evalTimeoutMs: 30000
+      maxImages: 4
+```
+
+This adds `cv-agent mcp serve` (the mount is the parent command, `serve` the
+command set's only command). The provider `id` must be the package ID
+`go-go-goja-mcp` (see "Providers"): with `id: mcp` the build succeeds, but
+`cv-agent mcp` is an error stub reporting `unknown command provider mcp.mcp`.
+
+`config` keys (unknown keys are rejected):
+
+| Key | Default | Effect |
+|---|---|---|
+| `name` | the mount (`mcp`) | MCP implementation name shown to clients |
+| `version` | `dev` | MCP implementation version |
+| `instructions` | replmcp default | Server instructions sent at initialize |
+| `evalTimeoutMs` | 5000 | Default of `--eval-timeout-ms` |
+| `maxResultChars` | 20000 | Text characters per tool result |
+| `maxImages` | 8 | Content items attached per eval result |
+| `maxImageBytes` | 4194304 | Bytes per attached item |
+
+`mcp serve` flags, plus the Glazed sections of the selected runtime modules:
+
+| Flag | Effect |
+|---|---|
+| `--http ADDR` | Serve MCP streamable HTTP instead of stdio |
+| `--allow-remote` | Allow a non-loopback `--http` address (no built-in authentication) |
+| `--eval-timeout-ms N` | Per-cell evaluation timeout |
+
+Register the binary with an MCP client like `goja-repl mcp`, for example
+`claude mcp add cv -- ./dist/cv-agent mcp serve` (see `goja-repl help
+repl-usage`, "MCP Server"). Go hosts can call `mcp.NewServer(ctx, commandCtx,
+cfg, evalTimeoutMS, vals)` from the package directly.
 
 The `mount` field on a command controls where the command appears in the
 generated CLI command tree. It does not mount an HTTP handler. HTTP handler
@@ -509,12 +584,12 @@ schema: xgoja/v2
 name: typescript-jsverbs
 
 providers:
-  - id: http
+  - id: go-go-goja-http
     import: github.com/go-go-golems/go-go-goja/pkg/xgoja/providers/http
 
 runtime:
   modules:
-    - provider: http
+    - provider: go-go-goja-http
       name: express
 
 sources:
@@ -534,7 +609,7 @@ commands:
 
   - id: serve
     type: provider.command-set
-    provider: http
+    provider: go-go-goja-http
     name: serve
     mount: serve
     sources: [sites]
@@ -615,7 +690,7 @@ on the command. For HTTP serve, use this shape:
 commands:
   - id: http-serve
     type: provider.command-set
-    provider: http
+    provider: go-go-goja-http
     name: serve
     mount: serve
     sources: [local-sites]

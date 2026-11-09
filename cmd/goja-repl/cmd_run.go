@@ -14,6 +14,7 @@ import (
 	"github.com/go-go-golems/glazed/pkg/cmds/values"
 	"github.com/go-go-golems/go-go-goja/pkg/engine"
 	"github.com/go-go-golems/go-go-goja/pkg/hashiplugin/host"
+	"github.com/go-go-golems/go-go-goja/pkg/resultcontent/scriptresult"
 )
 
 type runCommand struct {
@@ -33,6 +34,10 @@ Run executes a JavaScript file directly in a fresh, ephemeral go-go-goja runtime
 No persistent session is created. No SQLite database is required. The runtime is
 destroyed when the script completes.
 
+If module.exports (awaited when it is a promise) holds result content, such as
+images returned by a module, it is printed with "[content N: ...]" placeholders;
+--content-dir DIR renders the content and writes DIR/content-N.<ext>.
+
 Examples:
   goja-repl --enable-module yaml run ./examples/goja-repl/scripts/yaml.js
   goja-repl --plugin-dir ./plugins run ./scripts/with-custom-modules.js
@@ -42,13 +47,19 @@ Examples:
 					fields.WithRequired(true),
 					fields.WithHelp("Path to the JavaScript file to execute")),
 			),
+			cmds.WithFlags(
+				fields.New(scriptresult.ContentDirFlag, fields.TypeString,
+					fields.WithDefault(""),
+					fields.WithHelp(scriptresult.ContentDirHelp)),
+			),
 		),
 		commandSupport: commandSupport{out: out, opts: opts},
 	}
 }
 
 type runSettings struct {
-	File string `glazed:"file"`
+	File       string `glazed:"file"`
+	ContentDir string `glazed:"content-dir"`
 }
 
 type runScriptOptions struct {
@@ -59,6 +70,11 @@ type runScriptOptions struct {
 	DisableModules     []string
 	SafeMode           bool
 	UseModuleRoots     bool
+	// Out receives the result report (placeholders, written paths); nil discards it.
+	Out        io.Writer
+	ContentDir string
+	// initializers are extra runtime initializers (tests install Go globals).
+	initializers []engine.RuntimeInitializer
 }
 
 func (c *runCommand) Run(ctx context.Context, vals *values.Values) error {
@@ -70,6 +86,8 @@ func (c *runCommand) Run(ctx context.Context, vals *values.Values) error {
 	opts := runScriptOptions{
 		File:           settings.File,
 		UseModuleRoots: true,
+		Out:            c.out,
+		ContentDir:     settings.ContentDir,
 	}
 	if c.opts != nil {
 		opts.PluginDirs = c.opts.PluginDirs
@@ -117,6 +135,9 @@ func runScriptFile(ctx context.Context, opts runScriptOptions) error {
 
 	pluginSetup := host.NewRuntimeSetup(opts.PluginDirs, opts.AllowPluginModules)
 	builder = pluginSetup.WithBuilder(builder)
+	if len(opts.initializers) > 0 {
+		builder = builder.WithRuntimeInitializers(opts.initializers...)
+	}
 
 	factory, err := builder.Build()
 	if err != nil {
@@ -129,13 +150,28 @@ func runScriptFile(ctx context.Context, opts runScriptOptions) error {
 	}
 	defer func() { _ = rt.Close(ctx) }()
 
-	_, err = rt.Owner.Call(ctx, "goja-repl.run", func(_ context.Context, vm *goja.Runtime) (any, error) {
+	ret, err := rt.Owner.Call(ctx, "goja-repl.run", func(_ context.Context, vm *goja.Runtime) (any, error) {
 		_ = vm
 		return rt.Require.Require(scriptPath)
 	})
 	if err != nil {
 		return fmt.Errorf("run %s as module: %w", scriptPath, err)
 	}
-
-	return nil
+	exports, _ := ret.(goja.Value)
+	if exports == nil {
+		return nil
+	}
+	exports, err = scriptresult.Settle(ctx, rt.Owner, exports)
+	if err != nil {
+		return fmt.Errorf("run %s: %w", scriptPath, err)
+	}
+	report, err := scriptresult.Build(ctx, rt.Owner, exports, scriptresult.Options{ContentDir: opts.ContentDir})
+	if err != nil {
+		return err
+	}
+	out := opts.Out
+	if out == nil {
+		out = io.Discard
+	}
+	return report.Fprint(out)
 }

@@ -91,7 +91,7 @@ A pure xgoja generated binary currently provides these command families:
 - `modules` lists provider modules registered in the binary.
 - a `commands[]` entry with `type: builtin.jsverbs` mounts JavaScript functions as Glazed/Cobra commands.
 
-Provider packages can also contribute command families. For example, the HTTP provider can mount `serve` commands that run JavaScript verbs as long-lived Express site setup functions.
+Provider packages can also contribute command families. For example, the HTTP provider can mount `serve` commands that run JavaScript verbs as long-lived Express site setup functions, and the `go-go-goja-mcp` provider mounts `mcp serve`, an MCP eval server for agents over the generated runtime.
 
 Existing applications can also use xgoja in target modes that attach generated commands to a Cobra root, delegate integration to an adapter package, or generate an importable runtime package with `xgoja generate`.
 

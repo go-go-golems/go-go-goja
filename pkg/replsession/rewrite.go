@@ -44,7 +44,8 @@ func buildRewrite(source string, result *jsparse.AnalysisResult, cellID int) Rew
 		)
 		report.FinalExpressionSrc = trimForDisplay(report.FinalExpressionSrc, 120)
 		replacement := helperLast + " = (" + exprSnippet + ");"
-		body = replaceSourceRange(body, int(exprStmt.Idx0()), int(exprStmt.Idx1()), replacement)
+		start, end := expandWrappingParens(body, int(exprStmt.Idx0()), int(exprStmt.Idx1()))
+		body = replaceSourceRange(body, start, end, replacement)
 	} else {
 		report.Operations = append(report.Operations,
 			RewriteStep{Kind: "no-final-expression", Detail: "last top-level statement was not an expression; REPL result defaults to undefined unless user assigns explicitly"},
@@ -125,6 +126,52 @@ func finalExpressionStatement(result *jsparse.AnalysisResult, source string) (*a
 		return nil, "", false
 	}
 	return exprStmt, exprSource, true
+}
+
+// expandWrappingParens widens a 1-based [start, end) range over parentheses
+// around it, such as the ones in "({a: 1})" or "(1) + (2)". The parser reports
+// the expression statement without its leading/trailing parentheses, and
+// replacing only that range left "(" + replacement + ")" with a stray
+// semicolon inside. A pair is absorbed only if the widened text is balanced.
+func expandWrappingParens(source string, start, end int) (int, int) {
+	s, e := start-1, end-1
+	if s < 0 || e > len(source) || s > e {
+		return start, end
+	}
+	for {
+		i := s - 1
+		for i >= 0 && isSpace(source[i]) {
+			i--
+		}
+		j := e
+		for j < len(source) && isSpace(source[j]) {
+			j++
+		}
+		if i < 0 || j >= len(source) || source[i] != '(' || source[j] != ')' || !parensBalanced(source[i:j+1]) {
+			return s + 1, e + 1
+		}
+		s, e = i, j+1
+	}
+}
+
+func isSpace(c byte) bool {
+	return c == ' ' || c == '\t' || c == '\n' || c == '\r'
+}
+
+func parensBalanced(s string) bool {
+	depth := 0
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth < 0 {
+				return false
+			}
+		}
+	}
+	return depth == 0
 }
 
 func sourceSlice(source string, start, end int) string {

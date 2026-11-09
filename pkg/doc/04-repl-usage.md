@@ -72,6 +72,12 @@ Root-level plugin flags still apply:
 go run ./cmd/goja-repl --plugin-dir ./plugins run ./scripts/with-plugins.js
 ```
 
+If `module.exports` (awaited when it is a promise) holds result content — Go values implementing `resultcontent.Provider`, such as images returned by a module — `run` prints the value with `[content N: ...]` placeholders and a `# N content item(s) not written` note (nothing is rendered). With `--content-dir DIR` it renders the content and writes `DIR/content-N.<ext>` (extension from the MIME type), printing one `# content N: <path>` line per file:
+
+```bash
+go run ./cmd/goja-repl run ./scripts/look.js --content-dir ./out
+```
+
 ### Module Security Flags
 
 By default, `run` (and all other `goja-repl` commands) load **all** registered native modules. You can restrict the module sandbox using persistent flags:
@@ -96,7 +102,7 @@ go run ./cmd/goja-repl --disable-module fs,exec run ./script.js
 | `--enable-module` | Whitelist — only these modules are loaded | `--enable-module fs,path` |
 | `--disable-module` | Blacklist — all modules except these are loaded | `--disable-module exec,os` |
 
-These flags are persistent (available on all subcommands) and are applied when the engine runtime is built. They affect `run`, `tui`, `eval`, `create`, and all other commands that construct a runtime.
+These flags are persistent (available on all subcommands) and are applied when the engine runtime is built. They affect `run`, `tui`, `eval`, `create`, and all other commands that construct a runtime. `mcp` is the exception: it starts from the safe set (see "MCP Server" below).
 
 **Module categories:**
 
@@ -339,6 +345,8 @@ js> processData(testData)
 
 The global `console` object provides familiar debugging capabilities:
 
+A result content value (a Go value implementing `resultcontent.Provider`, such as an image returned by a module) passed directly to `console.log`/`info`/`debug`/`warn`/`error` prints as its placeholder, for example `[content: look after]`. Console output never renders or collects content; return the value (or put it in the returned object) to get the image.
+
 ```javascript
 js> console.log("Simple message")
 Simple message
@@ -371,6 +379,81 @@ js> console.log(JSON.stringify(data, null, 2))
 ## Long-Lived REPL API
 
 For embedding a long-lived in-memory or replay-backed REPL in a Go host, use the `replapi.App` facade instead of creating a fresh runtime per evaluation. Run `goja-repl help replapi-guide` for the distinction between live VM continuity and SQLite reconstruction, plus profiles, context ownership, deletion semantics, and HTTP limitations.
+
+## MCP Server
+
+`goja-repl mcp` serves REPL sessions to MCP clients (Claude Code, Claude Desktop, other agents). It speaks MCP over stdin/stdout by default and over streamable HTTP with `--http`. Sessions are in memory unless `--persistent` is given.
+
+### Register with a client
+
+Build or install the binary first (`go build -o ~/bin/goja-repl ./cmd/goja-repl`), then:
+
+```bash
+# Claude Code (stdio)
+claude mcp add goja -- ~/bin/goja-repl mcp
+claude mcp add goja-fs -- ~/bin/goja-repl mcp --enable-module fs,path --eval-timeout-ms 30000
+```
+
+Claude Desktop (`claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "goja": {
+      "command": "/Users/me/bin/goja-repl",
+      "args": ["mcp", "--eval-timeout-ms", "30000"]
+    }
+  }
+}
+```
+
+Over HTTP, start `goja-repl mcp --http 127.0.0.1:3091` and point the client at `http://127.0.0.1:3091`. Non-loopback addresses are refused unless `--allow-remote` is given; the server has no authentication. All HTTP clients share one default session.
+
+### Modules and flags
+
+An eval tool over `fs` or `exec` is a shell, so `mcp` differs from the other commands: it loads only the safe data-only modules (`crypto`, `events`, `path`, `time`, `timer`) unless modules are named explicitly.
+
+| Flags | Modules |
+|---|---|
+| none | safe set |
+| `--enable-module fs,path` | exactly `fs` and `path` |
+| `--disable-module timer` | safe set minus `timer` |
+| `--safe-mode` | safe set, even with `--enable-module` |
+
+Plugins load only from explicit `--plugin-dir` directories (the default discovery directory is skipped). Other flags:
+
+| Flag | Effect |
+|---|---|
+| `--http ADDR` | streamable HTTP instead of stdio |
+| `--allow-remote` | allow a non-loopback `--http` address |
+| `--persistent` | durable sessions in `--db-path` (default `goja-repl.sqlite`); `list_sessions` and `history` then read SQLite |
+| `--eval-timeout-ms N` | per-cell timeout (default 5000) |
+
+### What the agent sees
+
+Tools: `eval` (`code`, optional `sessionId`), `create_session`, `list_sessions`, `history` (optional `sessionId`), and `bindings` (optional `sessionId`); the last three are marked read-only. Without `sessionId` the server uses one implicit session, so declarations persist between `eval` calls. Results are rendered in full (not as 120-character previews). An `eval` result is one text item followed by any image items:
+
+```text
+{mean: 0.5, img: [content 1: swatch 4x4 #ff0000]}
+
+console:
+[log] "starting" 3
+
+content:
+content 1 swatch 4x4 #ff0000: attached (image/png, 78 bytes)
+```
+
+A thrown error, rejection, or timeout sets `isError` and adds `error (<status>): <message>` (unless the session's result processor already rendered the error as the result text); dropped content is listed as `content N ...: dropped (<reason>)`; long text ends with `… [result truncated: N more characters]` (20000 characters per result, 8 images, 4 MiB per image). Values carry images when a module returns Go values implementing `resultcontent.Provider` (`goja-repl help creating-modules`); Go hosts embed the same server with `replmcp.NewServer(app)` (`goja-repl help replapi-guide`).
+
+### Troubleshooting
+
+| Problem | Cause | Solution |
+|---|---|---|
+| `error (runtime-error): promise rejected: GoError: Invalid module` | The module is not in the safe set | Add `--enable-module <name>` |
+| `error (timeout): ...` | The cell exceeded the 5 s default | Pass `--eval-timeout-ms` |
+| `refusing non-loopback listen address` | `--http` on a public address | Bind to loopback or pass `--allow-remote` behind your own authentication |
+| The client fails to start the server | Something printed to stdout before MCP framing | Keep `--log-level` at its default (`error`) and do not wrap the binary in scripts that print |
+| `history` shows truncated sources | In-memory sessions only have 100-character previews | Use `--persistent` |
 
 ## Protobuf JSON REPL API
 
